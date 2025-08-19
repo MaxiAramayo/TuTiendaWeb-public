@@ -1,0 +1,82 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // === FUNCIONES AUXILIARES ===
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Verificar si el archivo es una imagen válida
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*') &&
+             request.resource.size < 5 * 1024 * 1024; // Máximo 5MB
+    }
+    
+    // Verificar si el usuario es propietario de la tienda
+    function isStoreOwner(storeId) {
+      return isAuthenticated() && 
+             request.auth.uid != null &&
+             firestore.exists(/databases/(default)/documents/stores/$(storeId)) &&
+             firestore.get(/databases/(default)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+    }
+    
+    // === REGLAS PARA IMÁGENES DE TIENDAS ===
+    
+    match /stores/{storeId}/{allPaths=**} {
+      // Lectura pública de todas las imágenes de tiendas (logos, banners, productos)
+      allow read: if true;
+      
+      // Solo el propietario de la tienda puede subir, actualizar y eliminar imágenes
+      allow write: if isStoreOwner(storeId) && isValidImage();
+      allow delete: if isStoreOwner(storeId);
+    }
+    
+    // === REGLAS ESPECÍFICAS PARA PRODUCTOS ===
+    
+    match /stores/{storeId}/products/{allPaths=**} {
+      // Lectura pública de imágenes de productos
+      allow read: if true;
+      
+      // Solo el propietario puede gestionar imágenes de productos
+      allow write: if isStoreOwner(storeId) && isValidImage();
+      allow delete: if isStoreOwner(storeId);
+    }
+    
+    // === REGLAS PARA LOGOS Y BANNERS DE TIENDA ===
+    
+    match /stores/{storeId}/branding/{allPaths=**} {
+      // Lectura pública de logos y banners
+      allow read: if true;
+      
+      // Solo el propietario puede gestionar branding
+      allow write: if isStoreOwner(storeId) && isValidImage();
+      allow delete: if isStoreOwner(storeId);
+    }
+    
+    // === REGLAS PARA AVATARES DE USUARIO ===
+    
+    match /users/{userId}/avatar/{allPaths=**} {
+      // Solo el usuario puede ver y gestionar su avatar
+      allow read, write: if isAuthenticated() && request.auth.uid == userId && isValidImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // === REGLAS PARA ARCHIVOS TEMPORALES ===
+    
+    match /temp/{userId}/{allPaths=**} {
+      // Archivos temporales solo para el usuario autenticado
+      // Se eliminan automáticamente después de 24 horas
+      allow read, write: if isAuthenticated() && request.auth.uid == userId && isValidImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // === DENEGAR ACCESO A CUALQUIER OTRA RUTA ===
+    
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

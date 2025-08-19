@@ -1,0 +1,132 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+firebase-debug.log
+.firebase/
+.firebaserc
+/functions/
+/functions
+functions/
+/public/index.html
+# Firebase Functions
+functions/node_modules/
+functions/lib/
+functions/.runtimeconfig.json
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# === Seguridad y credenciales ===
+# Evita subir llaves, certificados y archivos de credenciales
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+# Posibles credenciales de Firebase/Google Cloud descargadas localmente
+serviceAccount*.json
+*service-account*.json
+*-adminsdk-*.json
+*.credentials.json
+credentials*.json
+gcloud-*.json
+# npm con tokens privados
+.npmrc
+
+# === Archivos de entorno (ya cubiertos por .env*, se añaden variantes comunes) ===
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# === IDE/OS ===
+# Configuraciones de IDE locales
+.vscode/
+.idea/
+# Archivos del sistema operativo
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Archivos de backup y temporales
+*.backup
+*.backup.*
+*.tmp
+*.temp
+
+# Archivos de documentación generados
+/docs/generated/
+
+# Archivos de migración y scripts temporales
+/scripts/temp/
+/migration-backups/
+
+# === Logs ===
+logs/
+*.log
+pnpm-debug.log*
+lerna-debug.log*
+
+# === Artefactos de pruebas ===
+# Reportes de Playwright y resultados de ejecución
+playwright-report/
+test-results/
+.nyc_output/
+
+# === Build/Cache ===
+# Directorios de build y caches locales
+/dist/
+/.cache/
+/.swc/
+
+# === Gestores de paquetes ===
+# Cache de pnpm/yarn que no debe versionarse
+.pnpm-store/
+.pnpm/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+# Lock files - usar solo npm en este proyecto
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+# Mantener reglas existentes de .yarn/install-state.gz
+# (Se respetan líneas previas)
+# === Directorios y archivos específicos del proyecto ===
+# Configuración local de Trae AI
+.trae/
+# Configuración local de VS Code
+.vscode/

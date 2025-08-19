@@ -1,0 +1,42 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular con gradiente moderno -->
+  <defs>
+    <linearGradient id="modernGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="shopGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f1f5f9;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Círculo de fondo -->
+  <circle cx="110" cy="110" r="110" fill="url(#modernGradient)"/>
+  
+  <!-- Anillos decorativos -->
+  <circle cx="110" cy="110" r="90" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <circle cx="110" cy="110" r="75" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+  
+  <!-- Icono de bolsa de compras minimalista -->
+  <g transform="translate(85, 75)">
+    <!-- Bolsa principal -->
+    <path d="M8 20 L42 20 L40 55 L10 55 Z" fill="url(#shopGradient)" stroke="rgba(255,255,255,0.3)" stroke-width="2" rx="3"/>
+    
+    <!-- Asas de la bolsa -->
+    <path d="M15 20 C15 12 20 8 25 8 C30 8 35 12 35 20" fill="none" stroke="url(#shopGradient)" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Detalles decorativos -->
+    <circle cx="18" cy="35" r="2" fill="rgba(255,255,255,0.6)"/>
+    <circle cx="25" cy="40" r="1.5" fill="rgba(255,255,255,0.4)"/>
+    <circle cx="32" cy="35" r="2" fill="rgba(255,255,255,0.6)"/>
+  </g>
+  
+  <!-- Texto moderno -->
+  <text x="110" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="white" font-weight="300" letter-spacing="2px">STORE</text>
+  
+  <!-- Efectos de luz -->
+  <circle cx="75" cy="75" r="20" fill="rgba(255,255,255,0.08)"/>
+  <circle cx="145" cy="145" r="12" fill="rgba(255,255,255,0.06)"/>
+  <circle cx="160" cy="80" r="8" fill="rgba(255,255,255,0.04)"/>

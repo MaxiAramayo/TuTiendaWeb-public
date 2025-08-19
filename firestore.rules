@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // === FUNCIONES AUXILIARES ===
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Verificar si el usuario es propietario de la tienda
+    function isStoreOwner(storeId) {
+      return isAuthenticated() && 
+             request.auth.uid != null &&
+             exists(/databases/$(database)/documents/stores/$(storeId)) &&
+             get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+    }
+    
+    // Verificar si los datos son válidos para una venta
+    function isValidSellData() {
+      return request.resource.data.keys().hasAll(['orderNumber', 'products', 'total', 'date']) &&
+             request.resource.data.products is list &&
+             request.resource.data.products.size() > 0 &&
+             request.resource.data.total is number &&
+             request.resource.data.total > 0;
+    }
+    
+    // Verificar si los datos son válidos para un producto
+    function isValidProductData() {
+      return request.resource.data.keys().hasAll(['name', 'price', 'storeId']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.price is number &&
+             request.resource.data.price >= 0;
+    }
+    
+    // Verificar si los datos son válidos para una categoría
+    function isValidCategoryData() {
+      return request.resource.data.keys().hasAll(['name', 'storeId']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0;
+    }
+    
+    // Verificar si los datos son válidos para un tag
+    function isValidTagData() {
+      return request.resource.data.keys().hasAll(['name', 'storeId']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0;
+    }
+    
+    // === REGLAS PARA STORES (TIENDAS) ===
+    
+    match /stores/{storeId} {
+      // Solo el propietario puede leer, crear, actualizar y eliminar su tienda
+      allow read, write: if isStoreOwner(storeId);
+      
+      // Permitir lectura pública de información básica de la tienda (para catálogo público)
+      allow read: if true;
+      
+      // === PRODUCTOS ===
+      
+      match /products/{productId} {
+        // Lectura pública de productos (para catálogo sin autenticación)
+        allow read: if true;
+        
+        // Solo el propietario de la tienda puede crear, actualizar y eliminar productos
+        allow create: if isStoreOwner(storeId) && isValidProductData();
+        allow update: if isStoreOwner(storeId) && isValidProductData();
+        allow delete: if isStoreOwner(storeId);
+      }
+      
+      // === CATEGORÍAS ===
+      
+      match /categories/{categoryId} {
+        // Lectura pública de categorías (para filtros en catálogo)
+        allow read: if true;
+        
+        // Solo el propietario de la tienda puede gestionar categorías
+        allow create: if isStoreOwner(storeId) && isValidCategoryData();
+        allow update: if isStoreOwner(storeId) && isValidCategoryData();
+        allow delete: if isStoreOwner(storeId);
+      }
+      
+      // === TAGS ===
+      
+      match /tags/{tagId} {
+        // Lectura pública de tags (para filtros en catálogo)
+        allow read: if true;
+        
+        // Solo el propietario de la tienda puede gestionar tags
+        allow create: if isStoreOwner(storeId) && isValidTagData();
+        allow update: if isStoreOwner(storeId) && isValidTagData();
+        allow delete: if isStoreOwner(storeId);
+      }
+      
+      // === VENTAS ===
+      
+      match /sells/{sellId} {
+        // Crear ventas sin autenticación (para compras públicas)
+        allow create: if isValidSellData();
+        
+        // Solo el propietario de la tienda puede leer, actualizar y eliminar ventas
+        allow read: if isStoreOwner(storeId);
+        allow update: if isStoreOwner(storeId);
+        allow delete: if isStoreOwner(storeId);
+      }
+      
+      // === CONFIGURACIONES ===
+      
+      match /settings/{settingId} {
+        // Solo el propietario de la tienda puede gestionar configuraciones
+        allow read, write: if isStoreOwner(storeId);
+      }
+    }
+    
+    // === REGLAS PARA USUARIOS ===
+    
+    match /users/{userId} {
+      // Solo el usuario puede acceder a sus propios datos
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // === REGLAS PARA COLECCIONES GLOBALES ===
+    
+    // Denegar acceso a cualquier otra colección no especificada
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

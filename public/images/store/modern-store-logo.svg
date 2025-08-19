@@ -1,0 +1,46 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular con gradiente -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Círculo de fondo -->
+  <circle cx="110" cy="110" r="110" fill="url(#bgGradient)"/>
+  
+  <!-- Círculo interior -->
+  <circle cx="110" cy="110" r="85" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  
+  <!-- Icono de tienda -->
+  <g transform="translate(70, 70)">
+    <!-- Techo de la tienda -->
+    <path d="M10 30 L40 15 L70 30 L70 35 L10 35 Z" fill="url(#iconGradient)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+    
+    <!-- Estructura principal -->
+    <rect x="15" y="35" width="50" height="40" fill="url(#iconGradient)" stroke="rgba(255,255,255,0.3)" stroke-width="1" rx="2"/>
+    
+    <!-- Puerta -->
+    <rect x="32" y="50" width="16" height="25" fill="rgba(102, 126, 234, 0.8)" rx="1"/>
+    
+    <!-- Ventanas -->
+    <rect x="20" y="42" width="8" height="8" fill="rgba(102, 126, 234, 0.6)" rx="1"/>
+    <rect x="52" y="42" width="8" height="8" fill="rgba(102, 126, 234, 0.6)" rx="1"/>
+    
+    <!-- Manija de puerta -->
+    <circle cx="44" cy="62" r="1" fill="rgba(255,255,255,0.8)"/>
+    
+    <!-- Letrero -->
+    <rect x="25" y="25" width="30" height="6" fill="rgba(255,255,255,0.9)" rx="3"/>
+    <text x="40" y="29" text-anchor="middle" font-family="Arial, sans-serif" font-size="4" fill="#667eea" font-weight="bold">TIENDA</text>
+  </g>
+  
+  <!-- Efectos de brillo -->
+  <circle cx="85" cy="85" r="15" fill="rgba(255,255,255,0.1)"/>
+  <circle cx="140" cy="140" r="8" fill="rgba(255,255,255,0.08)"/>
+</svg>
