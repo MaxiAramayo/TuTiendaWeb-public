@@ -1,0 +1,10 @@
+# CODEOWNERS
+#
+# Define code owners for this repository. See https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/using-code-owners for details.
+
+# Global owner for all files in the repository
+* @MaxiAramayo
+
+# You can specify owners for specific directories or files. For example:
+# /src/ @MaxiAramayo
+# /tests/ @MaxiAramayo
