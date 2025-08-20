@@ -46,7 +46,7 @@
     "dotenv": "^17.2.1",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
-    "firebase": "^10.14.1",
+    "firebase": "^12.1.0",
     "firebase-admin": "^12.1.1",
     "firebase-functions": "^5.0.1",
     "framer-motion": "^10.16.4",
