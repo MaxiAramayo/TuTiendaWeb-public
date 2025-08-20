@@ -25,7 +25,6 @@ import {
   Store, 
   QrCode, 
   BookOpen,
-  CreditCard,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -75,13 +74,6 @@ const navigationItems = [
     icon: Package,
     badge: null,
     description: "Administra tu inventario"
-  },
-  {
-    title: "Suscripciones",
-    href: "/dashboard/subscription",
-    icon: CreditCard,
-    badge: null,
-    description: "Gestiona tu plan"
   },
   {
     title: "Configuración",

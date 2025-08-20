@@ -651,7 +651,11 @@ export const VALIDATION_CONSTRAINTS = {
 /**
  * Tipos de tienda permitidos
  */
-export const STORE_TYPES = ['restaurant', 'retail', 'service', 'other'] as const;
+export const STORE_TYPES = [
+  'retail', 'restaurant', 'service', 'digital', 'fashion',
+  'beauty', 'health', 'sports', 'electronics', 'home',
+  'automotive', 'other'
+] as const;
 export type StoreType = typeof STORE_TYPES[number];
 
 /**

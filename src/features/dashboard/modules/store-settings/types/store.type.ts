@@ -70,7 +70,7 @@ export interface Address {
 }
 
 /**
- * Período de tiempo individual
+ * Período de tiempo para horarios
  */
 export interface TimePeriod {
   /** Hora de apertura (formato HH:MM) */
@@ -78,7 +78,7 @@ export interface TimePeriod {
   /** Hora de cierre (formato HH:MM) */
   close: string;
   /** Indica si el cierre es al día siguiente */
-  nextDay: boolean;
+  nextDay?: boolean;
 }
 
 /**
@@ -86,11 +86,16 @@ export interface TimePeriod {
  */
 export interface DailySchedule {
   /** Indica si está cerrado ese día */
-  closed: boolean;
+  closed?: boolean;
   /** Períodos de tiempo (puede tener múltiples para horarios divididos) */
-  periods: TimePeriod[];
-  
-
+  periods?: TimePeriod[];
+  /** Campos legacy para compatibilidad hacia atrás */
+  open?: string;
+  close?: string;
+  break?: {
+    start: string;
+    end: string;
+  };
 }
 
 /**
@@ -275,6 +280,10 @@ export interface ProfileFormData {
   
   // Tema
   theme?: ThemeConfig;
+  
+  // Colores del tema (campos requeridos por el schema)
+  primaryColor?: string;
+  secondaryColor?: string;
 
 }
 

@@ -15,6 +15,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { 
   Menu, 
   User, 
@@ -197,23 +198,23 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
               <DropdownMenuSeparator />
               
               <DropdownMenuItem asChild>
-                <a 
+                <Link 
                   href="/dashboard/profile" 
                   className="flex items-center cursor-pointer"
                 >
                   <User className="mr-2 h-4 w-4" />
                   <span>Perfil</span>
-                </a>
+                </Link>
               </DropdownMenuItem>
               
               <DropdownMenuItem asChild>
-                <a 
+                <Link 
                   href="/dashboard/profile" 
                   className="flex items-center cursor-pointer"
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Configuración</span>
-                </a>
+                </Link>
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
