@@ -1,8 +1,8 @@
 /**
  * Sección Hero de la landing page
- * 
+ *
  * Primera sección visible que muestra el título principal, descripción y llamados a la acción
- * 
+ *
  * @module features/landing/sections
  */
 
@@ -35,7 +35,7 @@ const itemAnimation = {
 
 /**
  * Componente principal de la sección Hero
- * 
+ *
  * @returns Componente React
  */
 const HeroSection = () => {
@@ -59,7 +59,7 @@ const HeroSection = () => {
                 ¡Tu menú digital en minutos!
               </span>
             </motion.div>
-            
+
             <motion.h1
               id="hero-heading"
               className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 mb-6 leading-tight"
@@ -67,14 +67,14 @@ const HeroSection = () => {
             >
               Digitaliza tu restaurante con <span className="text-purple-600">TuTienda</span>
             </motion.h1>
-            
+
             <motion.p
               className="text-xl text-gray-600 mb-8 max-w-lg"
               variants={itemAnimation}
             >
               Convierte tu negocio en una plataforma digital eficiente. Administra productos, recibe pedidos por WhatsApp y mantén todo actualizado desde cualquier dispositivo.
             </motion.p>
-            
+
             <motion.div
               className="flex flex-col sm:flex-row gap-4"
               variants={itemAnimation}
@@ -87,7 +87,7 @@ const HeroSection = () => {
               >
                 Comenzar gratis
               </CtaButton>
-              
+
               <CtaButton
                 href="/demo"
                 variant="outline"
@@ -97,7 +97,7 @@ const HeroSection = () => {
                 Ver demo
               </CtaButton>
             </motion.div>
-            
+
             <motion.div
               className="mt-8 flex items-center"
               variants={itemAnimation}
@@ -125,7 +125,7 @@ const HeroSection = () => {
               </div>
             </motion.div>
           </motion.div>
-          
+
           {/* Imagen - Lado derecho */}
           <motion.div
             className="w-full md:w-1/2 relative"
@@ -160,11 +160,11 @@ const HeroSection = () => {
                   <p className="mt-4 text-sm text-gray-600 text-center font-medium">Menú digital para tu negocio</p>
                 </div>
               </div>
-              
+
               {/* Elementos decorativos */}
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-100 rounded-full opacity-50 z-0"></div>
               <div className="absolute -bottom-10 -left-10 w-52 h-52 bg-blue-100 rounded-full opacity-50 z-0"></div>
-              
+
               {/* Tarjeta flotante */}
               <motion.div
                 className="absolute -left-12 top-1/4 bg-white p-4 rounded-lg shadow-xl z-20"
@@ -179,12 +179,12 @@ const HeroSection = () => {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">Pedido Exitoso</p>
-                    <p className="text-sm text-gray-600">Mesa #12</p>
+                    <p className="font-semibold text-gray-800">Pedido Exitoso</p>
+                    <p className="text-sm text-gray-400">Mesa #12</p>
                   </div>
                 </div>
               </motion.div>
-              
+
               {/* Tarjeta flotante */}
               <motion.div
                 className="absolute -right-12 bottom-1/4 bg-white p-4 rounded-lg shadow-xl z-20"
@@ -212,4 +212,4 @@ const HeroSection = () => {
   );
 };
 
-export default HeroSection; 
+export default HeroSection;
