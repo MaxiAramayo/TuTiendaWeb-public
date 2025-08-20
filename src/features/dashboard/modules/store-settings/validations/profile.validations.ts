@@ -298,8 +298,8 @@ export const profileFormSchema = z.object({
 
   
   // Tema
-  primaryColor: hexColorSchema,
-  secondaryColor: hexColorSchema,
+  primaryColor: hexColorSchema.optional(),
+  secondaryColor: hexColorSchema.optional(),
 });
 
 /**

@@ -271,7 +271,7 @@ export function ScheduleSection({
     const newDayData: DailySchedule = {
       ...daySchedule,
       closed: false,
-      periods: [...daySchedule.periods, newPeriod]
+      periods: [...(daySchedule.periods || []), newPeriod]
     };
     
     updateDaySchedule(day, newDayData);
@@ -280,7 +280,7 @@ export function ScheduleSection({
   // Eliminar período de un día
   const removePeriod = useCallback((day: string, periodIndex: number) => {
     const daySchedule = schedule[day as keyof WeeklySchedule];
-    const newPeriods = daySchedule.periods.filter((_, index) => index !== periodIndex);
+    const newPeriods = (daySchedule.periods || []).filter((_, index) => index !== periodIndex);
     
     const newDayData: DailySchedule = {
       ...daySchedule,
@@ -294,7 +294,7 @@ export function ScheduleSection({
   // Actualizar período específico
   const updatePeriod = useCallback((day: string, periodIndex: number, field: keyof TimePeriod, value: any) => {
     const daySchedule = schedule[day as keyof WeeklySchedule];
-    const newPeriods = [...daySchedule.periods];
+    const newPeriods = [...(daySchedule.periods || [])];
     newPeriods[periodIndex] = {
       ...newPeriods[periodIndex],
       [field]: value
@@ -313,11 +313,11 @@ export function ScheduleSection({
     return DAYS_OF_WEEK.map(day => {
       const daySchedule = schedule[day.key as keyof WeeklySchedule];
       
-      if (daySchedule.closed || daySchedule.periods.length === 0) {
+      if (daySchedule.closed || (daySchedule.periods || []).length === 0) {
         return `${day.short}: Cerrado`;
       }
       
-      const periodsText = daySchedule.periods.map(period => {
+      const periodsText = (daySchedule.periods || []).map(period => {
         const closeText = period.nextDay ? `${period.close}+1` : period.close;
         return `${period.open}-${closeText}`;
       }).join(', ');
@@ -470,7 +470,7 @@ export function ScheduleSection({
                       onCheckedChange={(checked) => {
                         const newDayData: DailySchedule = {
                           closed: !checked,
-                          periods: checked && daySchedule.periods.length === 0 
+                          periods: checked && (daySchedule.periods || []).length === 0 
                             ? [{ open: '09:00', close: '18:00', nextDay: false }] 
                             : daySchedule.periods
                         };
@@ -501,7 +501,7 @@ export function ScheduleSection({
               {/* Períodos de tiempo */}
               {!daySchedule.closed && (
                 <div className="space-y-3">
-                  {daySchedule.periods.map((period, periodIndex) => (
+                  {(daySchedule.periods || []).map((period, periodIndex) => (
                     <div key={periodIndex} className="border border-gray-200 rounded-lg p-4 bg-white">
                       <div className="flex items-center justify-between mb-3">
                         <Badge variant="secondary" className="text-xs">
@@ -584,7 +584,7 @@ export function ScheduleSection({
                     </div>
                   ))}
                   
-                  {daySchedule.periods.length === 0 && (
+                  {(daySchedule.periods || []).length === 0 && (
                     <div className="text-center py-4 text-gray-500">
                       <p className="text-sm">No hay horarios configurados para este día</p>
                       <Button

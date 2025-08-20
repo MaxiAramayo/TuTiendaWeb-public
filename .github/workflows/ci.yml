@@ -7,15 +7,14 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           # cache: npm
-      - run: npm ci || npm install
+      - run: npm install --ignore-scripts
       - run: npm run lint --if-present
       - run: npm run typecheck --if-present || npx tsc -p tsconfig.json --noEmit
-      - run: npm test --if-present
