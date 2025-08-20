@@ -27,7 +27,8 @@ Los mantenedores tienen el derecho y la responsabilidad de eliminar, editar o re
 Este Código de Conducta se aplica dentro de todos los espacios del proyecto y en espacios públicos cuando un individuo representa el proyecto o su comunidad. Ejemplos de representar nuestro proyecto incluyen usar un correo electrónico oficial del proyecto, publicar a través de una cuenta oficial en redes sociales, o actuar como un representante designado en un evento en línea o fuera de línea.
 
 ## Cumplimiento
-Instancias de comportamiento abusivo, acosador o inaceptable podrán ser reportadas a los mantenedores del proyecto a través de <tu-email@ejemplo.com>. Todos los mantenedores están obligados a mantener la confidencialidad con respecto al reportero del incidente. Detalles adicionales de políticas de ejecución específicas pueden ser publicados por separado.
+Instancias de comportamiento abusivo, acosador o inaceptable podrán ser reportadas a los mantenedores del proyecto a través de <maxilazo888G@gmail.com>. Todos los mantenedores están obligados a mantener la confidencialidad con respecto al reportero del incidente. Detalles adicionales de políticas de ejecución específicas pueden ser publicados por separado.
+
 
 Los mantenedores que no sigan o apliquen el Código de Conducta de buena fe podrán enfrentar consecuencias temporales o permanentes determinadas por otros miembros de la comunidad.
 

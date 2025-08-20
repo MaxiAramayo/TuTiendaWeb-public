@@ -6,7 +6,7 @@ Please file security-related issues against the `main` branch.
 
 ## Reporting a Vulnerability
 
-If you discover a vulnerability, **please do not file a public issue**. Instead, use GitHub's private vulnerability reporting feature or email the maintainer at <tu-email@ejemplo.com> with the following details:
+If you discover a vulnerability, **please do not file a public issue**. Instead, use GitHub's private vulnerability reporting feature or email the maintainer at <<maxilazo888G@gmail.com>> with the following details:
 
 * A clear description of the vulnerability.
 * Steps to reproduce the issue.
