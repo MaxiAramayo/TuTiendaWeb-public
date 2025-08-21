@@ -10,9 +10,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import CtaButton from './CtaButton';
+import { useAuthHydrated } from '@/features/auth/hooks/useAuthHydrated';
 
 /**
  * Enlaces principales de navegación
@@ -36,6 +37,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === '/';
+  const { user, isLoading } = useAuthHydrated();
 
   // Manejador para detectar scroll
   useEffect(() => {
@@ -112,22 +114,38 @@ const Navbar = () => {
 
           {/* Botones de acción - Escritorio */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link 
-              href="/sign-in" 
-              className={`text-sm font-medium ${
-                scrolled ? 'text-gray-700 hover:text-purple-600' : 'text-gray-800 hover:text-purple-700'
-              }`}
-            >
-              Iniciar sesión
-            </Link>
-            
-            <CtaButton 
-              href="/sign-up" 
-              variant="primary" 
-              size="sm"
-            >
-              Crear cuenta
-            </CtaButton>
+            {!isLoading && (
+              user ? (
+                <CtaButton 
+                  href="/dashboard" 
+                  variant="primary" 
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <User size={16} />
+                  Panel de control
+                </CtaButton>
+              ) : (
+                <>
+                  <Link 
+                    href="/sign-in" 
+                    className={`text-sm font-medium ${
+                      scrolled ? 'text-gray-700 hover:text-purple-600' : 'text-gray-800 hover:text-purple-700'
+                    }`}
+                  >
+                    Iniciar sesión
+                  </Link>
+                  
+                  <CtaButton 
+                    href="/sign-up" 
+                    variant="primary" 
+                    size="sm"
+                  >
+                    Crear cuenta
+                  </CtaButton>
+                </>
+              )
+            )}
           </div>
 
           {/* Botón de menú - Móvil */}
@@ -171,21 +189,36 @@ const Navbar = () => {
               </nav>
               
               <div className="mt-auto mb-8 flex flex-col space-y-4">
-                <Link
-                  href="/sign-in"
-                  className="w-full py-3 text-center text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                  onClick={closeMenu}
-                >
-                  Iniciar sesión
-                </Link>
-                
-                <Link
-                  href="/sign-up"
-                  className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700"
-                  onClick={closeMenu}
-                >
-                  Crear cuenta
-                </Link>
+                {!isLoading && (
+                  user ? (
+                    <Link
+                      href="/dashboard"
+                      className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center justify-center gap-2"
+                      onClick={closeMenu}
+                    >
+                      <User size={16} />
+                      Panel de control
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/sign-in"
+                        className="w-full py-3 text-center text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                        onClick={closeMenu}
+                      >
+                        Iniciar sesión
+                      </Link>
+                      
+                      <Link
+                        href="/sign-up"
+                        className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700"
+                        onClick={closeMenu}
+                      >
+                        Crear cuenta
+                      </Link>
+                    </>
+                  )
+                )}
               </div>
             </div>
           </motion.div>
@@ -195,4 +228,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

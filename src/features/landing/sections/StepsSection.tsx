@@ -17,7 +17,6 @@ interface Step {
   title: string;
   description: string;
   icon: React.ReactNode;
-  image: string;
 }
 
 const steps: Step[] = [
@@ -25,29 +24,25 @@ const steps: Step[] = [
     id: 1,
     title: "Crea tu tienda digital",
     description: "Regístrate y configura tu tienda en minutos. Personaliza colores, logo y agrega tus productos o servicios fácilmente.",
-    icon: <Smartphone className="w-10 h-10 text-purple-600" />,
-    image: "/images/landing/step-1.png"
+    icon: <Smartphone className="w-10 h-10 text-purple-600" />
   },
   {
     id: 2,
     title: "Genera tu código QR",
     description: "El sistema generará automáticamente un código QR único para tu tienda, listo para ser compartido con tus clientes.",
-    icon: <QrCode className="w-10 h-10 text-purple-600" />,
-    image: "/images/landing/Step-2.png"
+    icon: <QrCode className="w-10 h-10 text-purple-600" />
   },
   {
     id: 3,
     title: "Comparte con tus clientes",
-    description: "Coloca el QR en tus mesas, redes sociales o imprime tarjetas. Tus clientes escanean y acceden a tu menú digital al instante.",
-    icon: <Coffee className="w-10 h-10 text-purple-600" />,
-    image: "/images/landing/Step-3.png"
+    description: "Comparte el QR en redes sociales, WhatsApp o materiales digitales. Tus clientes escanean y acceden a tu catálogo al instante.",
+    icon: <Coffee className="w-10 h-10 text-purple-600" />
   },
   {
     id: 4,
     title: "Recibe pedidos y gestiona ventas",
-    description: "Los clientes hacen pedidos directamente desde el menú. Tú los recibes en tiempo real y gestionas todo desde el panel de control.",
-    icon: <CheckCircle className="w-10 h-10 text-purple-600" />,
-    image: "/images/landing/Step-4.png"
+    description: "Los clientes hacen pedidos directamente desde el catálogo. Tú los recibes en tiempo real y gestionas todo desde el panel de control.",
+    icon: <CheckCircle className="w-10 h-10 text-purple-600" />
   }
 ];
 
@@ -131,27 +126,16 @@ const StepsSection = () => {
                   </div>
                   
                   {/* Contenido */}
-                  <div className="mb-6 flex flex-col items-center md:items-start">
+                  <div className="flex flex-col items-center text-center">
                     <div className="mb-4 p-3 bg-purple-50 rounded-lg">
                       {step.icon}
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">
                       {step.title}
                     </h3>
-                    <p className="text-gray-600 text-center md:text-left">
+                    <p className="text-gray-600">
                       {step.description}
                     </p>
-                  </div>
-                  
-                  {/* Imagen */}
-                  <div className="mt-auto rounded-lg overflow-hidden shadow-md">
-                    <Image
-                      src={step.image}
-                      alt={step.title}
-                      width={500}
-                      height={300}
-                      className="w-full h-auto"
-                    />
                   </div>
                 </div>
               </motion.div>
@@ -163,4 +147,4 @@ const StepsSection = () => {
   );
 };
 
-export default StepsSection; 
+export default StepsSection;

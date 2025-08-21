@@ -9,6 +9,7 @@
 "use client";
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { QrCode, Smartphone } from 'lucide-react';
 
@@ -80,12 +81,12 @@ const QrSection = () => {
               >
                 Probar gratis
               </a>
-              <a 
-                href="#demo" 
+              <Link 
+                href="/grambristo-restaurant" 
                 className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors focus:ring-4 focus:ring-gray-200"
               >
                 Ver demostración
-              </a>
+              </Link>
             </div>
           </motion.div>
 
@@ -119,14 +120,14 @@ const QrSection = () => {
                   </div>
                 </div>
                 <div className="bg-white p-2 rounded-lg border border-gray-200 mb-4">
-                  <div className="w-full h-full flex items-center justify-center bg-purple-100 p-4 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                      <rect x="7" y="7" width="3" height="3"></rect>
-                      <rect x="14" y="7" width="3" height="3"></rect>
-                      <rect x="7" y="14" width="3" height="3"></rect>
-                      <rect x="14" y="14" width="3" height="3"></rect>
-                    </svg>
+                  <div className="w-full h-full flex items-center justify-center p-2 rounded-lg">
+                    <Image
+                      src="/images/landing/Qr-Menu.webp"
+                      alt="Código QR del menú digital"
+                      width={160}
+                      height={160}
+                      className="w-full h-auto rounded-lg"
+                    />
                   </div>
                 </div>
                 <p className="text-center text-sm text-gray-600">Escanea para ver nuestro menú</p>
@@ -278,4 +279,4 @@ const QrSection = () => {
   );
 };
 
-export default QrSection; 
+export default QrSection;
