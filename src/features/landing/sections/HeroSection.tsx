@@ -89,7 +89,7 @@ const HeroSection = () => {
               </CtaButton>
               
               <CtaButton
-                href="/demo"
+                href="/grambristo-restaurant"
                 variant="outline"
                 size="lg"
                 className="w-full sm:w-auto"
@@ -120,7 +120,7 @@ const HeroSection = () => {
                   ))}
                 </div>
                 <p className="text-sm text-gray-600">
-                  +1000 negocios confían en nosotros
+                  +500 emprendedores argentinos confían en nosotros
                 </p>
               </div>
             </motion.div>
@@ -136,29 +136,14 @@ const HeroSection = () => {
             <div className="relative">
               {/* Imagen principal */}
               <div className="relative z-10 rounded-xl overflow-hidden shadow-2xl">
-                <div className="bg-gradient-to-b from-purple-100 to-blue-100 p-4 rounded-xl aspect-[3/4] flex flex-col items-center justify-center">
-                  <div className="w-3/4 h-3/4 rounded-xl overflow-hidden border-8 border-white shadow-lg bg-white">
-                    <div className="w-full h-8 bg-purple-600 flex items-center justify-center">
-                      <div className="w-16 h-1 bg-white/50 rounded-full"></div>
-                    </div>
-                    <div className="p-4 h-full bg-gray-50">
-                      <div className="w-full h-6 bg-gray-200 rounded mb-4"></div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="aspect-square bg-white rounded-lg shadow p-2">
-                          <div className="w-full h-3/5 bg-gray-200 rounded mb-2"></div>
-                          <div className="w-full h-4 bg-gray-100 rounded mb-1"></div>
-                          <div className="w-2/3 h-4 bg-gray-100 rounded"></div>
-                        </div>
-                        <div className="aspect-square bg-white rounded-lg shadow p-2">
-                          <div className="w-full h-3/5 bg-gray-200 rounded mb-2"></div>
-                          <div className="w-full h-4 bg-gray-100 rounded mb-1"></div>
-                          <div className="w-2/3 h-4 bg-gray-100 rounded"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="mt-4 text-sm text-gray-600 text-center font-medium">Menú digital para tu negocio</p>
-                </div>
+                <Image
+                  src="/images/landing/Cell-Home.webp"
+                  alt="Dashboard de TuTiendaWeb - Gestiona tu negocio digital"
+                  width={400}
+                  height={600}
+                  className="w-full h-auto rounded-xl"
+                  priority
+                />
               </div>
               
               {/* Elementos decorativos */}
@@ -212,4 +197,4 @@ const HeroSection = () => {
   );
 };
 
-export default HeroSection; 
+export default HeroSection;

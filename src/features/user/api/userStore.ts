@@ -210,7 +210,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       const stores = await userService.getUserStores(uid);
       set({ stores, isLoading: false });
     } catch (error: any) {
-      console.error('Error al obtener tiendas:', error);
+      userLogger.error('Error al obtener tiendas desde store', { function: 'getUserStores', userId: uid }, error as Error);
       set({ 
         error: error.message || 'Error al obtener tiendas del usuario', 
         isLoading: false 

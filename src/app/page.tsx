@@ -15,9 +15,9 @@ import HeroSection from "@/features/landing/sections/HeroSection";
 import FeaturesSection from "@/features/landing/sections/FeaturesSection";
 import StepsSection from "@/features/landing/sections/StepsSection";
 import QrDemoSection from "@/features/landing/sections/QrDemoSection";
-import QrSection from "@/features/landing/sections/QrSection";
+
 import PricingSection from "@/features/landing/sections/PricingSection";
-import TestimonialsSection from "@/features/landing/sections/TestimonialsSection";
+
 import { Footer } from "@/features/landing/components/Footer";
 
 /**
@@ -40,9 +40,9 @@ export default function Page() {
         <StepsSection />
         <FeaturesSection />
         <QrDemoSection />
-        <QrSection />
+
         <PricingSection />
-        <TestimonialsSection />
+
       </main>
       
       <Footer />

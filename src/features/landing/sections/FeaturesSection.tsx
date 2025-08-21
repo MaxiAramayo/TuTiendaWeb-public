@@ -52,51 +52,51 @@ interface Feature {
 
 const features: Feature[] = [
   {
-    id: "menu-digital",
-    title: "Menú Digital Interactivo",
-    description: "Crea un menú digital elegante con fotos, descripciones detalladas y precios actualizados en tiempo real.",
+    id: "catalog-digital",
+    title: "Catálogo Digital Completo",
+    description: "Crea un catálogo digital elegante con fotos, descripciones detalladas y precios actualizados para cualquier tipo de negocio.",
     icon: <Smartphone size={24} className="text-purple-600" />
   },
   {
     id: "analytics",
-    title: "Analytics Avanzados",
-    description: "Obtén datos sobre los platos más vistos, horarios de mayor demanda y comportamiento de tus clientes.",
+    title: "Analytics y Reportes",
+    description: "Obtén datos sobre productos más vistos, ventas por período y comportamiento de tus clientes para tomar mejores decisiones.",
     icon: <BarChart size={24} className="text-purple-600" />
   },
   {
-    id: "orders",
-    title: "Pedidos Online",
-    description: "Permite a tus clientes realizar pedidos directamente desde el menú digital a través de su smartphone.",
+    id: "whatsapp-orders",
+    title: "Pedidos por WhatsApp",
+    description: "Integración directa con WhatsApp para que tus clientes puedan realizar pedidos de forma rápida y familiar.",
     icon: <ShoppingCart size={24} className="text-purple-600" />
   },
   {
     id: "customization",
     title: "Personalización Total",
-    description: "Adapta colores, fuentes y estilos para que coincidan perfectamente con la identidad de tu marca.",
+    description: "Adapta colores, fuentes y estilos para que coincidan perfectamente con la identidad de tu marca argentina.",
     icon: <Pen size={24} className="text-purple-600" />
   },
   {
-    id: "multi-language",
-    title: "Soporte Multiidioma",
-    description: "Ofrece tu menú en varios idiomas para atender a clientes internacionales sin complicaciones.",
+    id: "no-physical-store",
+    title: "100% Digital",
+    description: "Perfecto para emprendedores sin local físico. Vende desde casa, redes sociales o cualquier canal digital.",
     icon: <Globe size={24} className="text-purple-600" />
   },
   {
     id: "real-time",
-    title: "Actualizaciones en Tiempo Real",
-    description: "Actualiza precios, disponibilidad y promociones al instante, sin necesidad de reimprimir menús.",
+    title: "Actualizaciones Instantáneas",
+    description: "Actualiza precios, stock y promociones al instante desde cualquier dispositivo, sin complicaciones técnicas.",
     icon: <Clock size={24} className="text-purple-600" />
   },
   {
-    id: "integration",
-    title: "Integración con POS",
-    description: "Conecta con tu sistema de punto de venta existente para mantener inventario y precios sincronizados.",
+    id: "easy-management",
+    title: "Gestión Simplificada",
+    description: "Panel de control intuitivo diseñado para emprendedores argentinos, sin necesidad de conocimientos técnicos.",
     icon: <Settings size={24} className="text-purple-600" />
   },
   {
     id: "security",
-    title: "Seguridad Avanzada",
-    description: "Protección de datos y cumplimiento con normativas de privacidad para tu tranquilidad.",
+    title: "Seguridad Garantizada",
+    description: "Protección de datos y cumplimiento con normativas argentinas de privacidad para tu tranquilidad total.",
     icon: <Shield size={24} className="text-purple-600" />
   }
 ];
@@ -172,7 +172,7 @@ const FeaturesSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h3 className="text-3xl font-bold text-gray-900 mb-6">
-              Potencia tu negocio con herramientas avanzadas
+              Catálogo digital completo para tu negocio
             </h3>
             
             <div className="space-y-6">
@@ -201,33 +201,20 @@ const FeaturesSection = () => {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <div className="aspect-[4/3] relative rounded-2xl overflow-hidden shadow-xl">
-              <div className="w-full h-full bg-gradient-to-br from-purple-100 to-blue-100 p-6 flex items-center justify-center">
-                <div className="bg-white p-4 rounded-lg shadow-md w-5/6">
-                  <div className="flex items-center mb-4">
-                    <div className="bg-purple-100 w-10 h-10 rounded-full flex items-center justify-center mr-3">
-                      <BarChart size={20} className="text-purple-600" />
-                    </div>
-                    <h4 className="text-gray-800 font-semibold">Estadísticas de Ventas</h4>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-gray-100 rounded-full w-full mb-1"></div>
-                    <div className="flex justify-between gap-2">
-                      <div className="bg-purple-100 h-16 rounded-md w-1/4"></div>
-                      <div className="bg-blue-100 h-24 rounded-md w-1/4"></div>
-                      <div className="bg-green-100 h-20 rounded-md w-1/4"></div>
-                      <div className="bg-yellow-100 h-12 rounded-md w-1/4"></div>
-                    </div>
-                    <div className="h-4 bg-gray-100 rounded-full w-3/4 mt-3"></div>
-                  </div>
-                </div>
-              </div>
+            <div className="aspect-[3/4] relative rounded-2xl overflow-hidden shadow-xl max-w-sm mx-auto">
+              <Image
+                src="/images/landing/Cell-Products.webp"
+                alt="Catálogo digital de productos - TuTiendaWeb"
+                width={500}
+                height={375}
+                className="w-full h-full object-cover"
+              />
             </div>
             
             {/* Elemento decorativo */}
             <div className="absolute -bottom-6 -left-6 bg-purple-600 text-white p-4 rounded-lg shadow-lg">
-              <p className="font-semibold">Analytics en tiempo real</p>
-              <p className="text-sm">Toma decisiones basadas en datos</p>
+              <p className="font-semibold">Catálogo profesional</p>
+              <p className="text-sm">Productos organizados y atractivos</p>
             </div>
           </motion.div>
         </div>
@@ -241,32 +228,20 @@ const FeaturesSection = () => {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
           >
-            <div className="aspect-[4/3] relative rounded-2xl overflow-hidden shadow-xl">
-              <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-100 p-6 flex items-center justify-center">
-                <div className="flex gap-4">
-                  <div className="bg-white p-3 rounded-lg shadow-md">
-                    <div className="w-16 h-24 bg-gray-100 rounded-lg mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1 w-16"></div>
-                    <div className="h-3 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-md">
-                    <div className="w-16 h-24 bg-gray-100 rounded-lg mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1 w-16"></div>
-                    <div className="h-3 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-md">
-                    <div className="w-16 h-24 bg-gray-100 rounded-lg mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1 w-16"></div>
-                    <div className="h-3 bg-gray-200 rounded w-12"></div>
-                  </div>
-                </div>
-              </div>
+            <div className="aspect-[3/4] relative rounded-2xl overflow-hidden shadow-xl max-w-sm mx-auto">
+              <Image
+                src="/images/landing/cell-whatsapp.webp"
+                alt="Integración con WhatsApp - Pedidos fáciles"
+                width={500}
+                height={375}
+                className="w-full h-full object-cover"
+              />
             </div>
             
             {/* Elemento decorativo */}
-            <div className="absolute -top-6 -right-6 bg-blue-600 text-white p-4 rounded-lg shadow-lg">
-              <p className="font-semibold">Integración total</p>
-              <p className="text-sm">Compatible con tus sistemas</p>
+            <div className="absolute -top-6 -right-6 bg-green-600 text-white p-4 rounded-lg shadow-lg">
+              <p className="font-semibold">WhatsApp Business</p>
+              <p className="text-sm">Pedidos directos y automáticos</p>
             </div>
           </motion.div>
           
@@ -277,7 +252,7 @@ const FeaturesSection = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <h3 className="text-3xl font-bold text-gray-900 mb-6">
-              Integración y seguridad de primer nivel
+              Integración perfecta con WhatsApp
             </h3>
             
             <div className="space-y-6">
@@ -304,4 +279,4 @@ const FeaturesSection = () => {
   );
 };
 
-export default FeaturesSection; 
+export default FeaturesSection;
