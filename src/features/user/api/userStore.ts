@@ -5,6 +5,7 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { User } from '@/features/user/user.types';
 import { StoreProfile, CreateStoreProfileData } from '@/features/dashboard/modules/store-settings/types/store.type';
 import { userService } from '@/features/user/services/userService';
@@ -36,6 +37,8 @@ interface UserState {
   createStore: (storeData: CreateStoreProfileData) => Promise<string | null>;
   /** Obtener tiendas del usuario */
   getUserStores: (uid: string) => Promise<void>;
+  /** Limpiar datos al cambiar de usuario */
+  clearDataForUser: () => void;
 }
 
 /**
@@ -43,11 +46,13 @@ interface UserState {
  * 
  * Este store maneja el estado del usuario y sus tiendas.
  */
-export const useUserStore = create<UserState>((set, get) => ({
-  user: null,
-  stores: [],
-  isLoading: false,
-  error: null,
+export const useUserStore = create<UserState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      stores: [],
+      isLoading: false,
+      error: null,
 
   /**
    * Obtener datos del usuario
@@ -216,5 +221,26 @@ export const useUserStore = create<UserState>((set, get) => ({
         isLoading: false 
       });
     }
+  },
+
+  /**
+   * Limpiar datos al cambiar de usuario
+   */
+  clearDataForUser: () => {
+    set({
+      user: null,
+      stores: [],
+      error: null,
+      isLoading: false
+    });
   }
-}));
+    }),
+    {
+      name: 'user-store',
+      partialize: (state) => ({ 
+        // Persistir solo configuraciones básicas, no datos sensibles
+        // user y stores NO se persisten por seguridad
+      }),
+    }
+  )
+);

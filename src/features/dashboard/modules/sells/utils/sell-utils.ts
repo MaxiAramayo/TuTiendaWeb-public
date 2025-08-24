@@ -94,6 +94,12 @@ export const calculateProductTotal = (product: SellProduct): number => {
  * @returns Total de la venta
  */
 export const calculateOrderTotal = (sell: Sell): number => {
+  // Usar el campo total directamente si existe
+  if (sell.total) {
+    return sell.total;
+  }
+  
+  // Calcular el total si no está disponible
   return sell.products.reduce(
     (acc: number, product: SellProduct) => acc + calculateProductTotal(product), 
     0
@@ -107,16 +113,22 @@ export const calculateOrderTotal = (sell: Sell): number => {
  * @returns Total de ingresos
  */
 export const calculateTotalRevenue = (sells: Sell[]): number => {
-  return sells.reduce((acc: number, sell: Sell) => 
-    acc + sell.products.reduce((sum: number, product: SellProduct) => {
+  return sells.reduce((acc: number, sell: Sell) => {
+    // Usar el campo total directamente si existe
+    if (sell.total) {
+      return acc + sell.total;
+    }
+    
+    // Calcular el total si no está disponible
+    return acc + sell.products.reduce((sum: number, product: SellProduct) => {
       let total = product.price * (product.cantidad || 1);
       if (product.appliedTopics && product.appliedTopics.length > 0) {
         total += product.appliedTopics.reduce((topicSum: number, topic: any) => 
           topicSum + (topic.price * (product.cantidad || 1)), 0);
       }
       return sum + total;
-    }, 0), 0
-  );
+    }, 0);
+  }, 0);
 };
 
 /**
@@ -209,4 +221,4 @@ export const sortSellsByRecentDate = (sells: Sell[]): Sell[] => {
   return [...sells].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
-}; 
+};

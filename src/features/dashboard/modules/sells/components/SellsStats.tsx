@@ -9,13 +9,14 @@
 
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useSellStore } from "../api/sellStore";
 import { OptimizedSell, ProductInSell } from "../types/optimized-sell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useAuthStore } from "@/features/auth/api/authStore";
 
 // Utilidades locales
 const formatCurrency = (amount: number): string => {
@@ -42,6 +43,12 @@ const calculateProductTotal = (product: ProductInSell): number => {
 };
 
 const calculateOrderTotal = (sell: OptimizedSell): number => {
+  // Usar el campo total directamente si existe
+  if (sell.total) {
+    return sell.total;
+  }
+  
+  // Calcular el total si no está disponible
   return sell.products.reduce(
     (acc: number, product: ProductInSell) => acc + calculateProductTotal(product), 
     0
@@ -185,8 +192,24 @@ export const SellsStats = ({
   period = 'month',
   onStatClick
 }: SellsStatsProps) => {
-  const { sells, isLoading } = useSellStore();
+  const { sells, isLoading, getSells, calculateStatsFromLoadedData } = useSellStore();
+  const { user } = useAuthStore();
   const [selectedTab, setSelectedTab] = useState<'overview' | 'products' | 'customers'>('overview');
+  
+  // Cargar datos cuando cambia el período
+  useEffect(() => {
+    if (user?.id && user.storeIds && user.storeIds.length > 0) {
+      // Cargar ventas si no hay datos
+      if (sells.length === 0) {
+        getSells(user.storeIds[0], {
+          limit: 100 // Cargar más ventas para tener mejores estadísticas
+        });
+      }
+      
+      // Calcular estadísticas
+      calculateStatsFromLoadedData();
+    }
+  }, [user, period, getSells, calculateStatsFromLoadedData, sells.length]);
 
   // Filtrar ventas por período
   const filteredSells = useMemo(() => {

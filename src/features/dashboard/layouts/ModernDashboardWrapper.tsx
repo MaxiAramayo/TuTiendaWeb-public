@@ -16,6 +16,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useUserChange } from "@/shared/hooks/useUserChange";
 // Store eliminado - se usa useProducts hook en componentes específicos
 import ModernSidebar from "../components/ModernSidebar";
 import ModernTopBar from "../components/ModernTopBar";
@@ -44,6 +45,9 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
   const { user, isReady, isLoading } = useAuthHydrated();
   // Los productos se cargan desde los componentes específicos que los necesitan
   const router = useRouter();
+  
+  // Hook para detectar cambios de usuario y limpiar datos
+  useUserChange();
   
   // Estado para controlar la visibilidad del sidebar en móvil
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);

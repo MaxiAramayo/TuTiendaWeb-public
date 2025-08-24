@@ -9,7 +9,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Package,
@@ -29,21 +29,9 @@ import {
 import { useAuthStore } from '@/features/auth/api/authStore';
 import { useProducts } from '@/features/dashboard/modules/products/hooks/useProducts';
 import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
-
-/**
- * Formatea números grandes agregando sufijos como 'k' para miles
- * @param num - Número a formatear
- * @returns Número formateado con sufijo
- */
-const formatNumber = (num: number): string => {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-  }
-  return num.toString();
-};
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { formatNumber } from '@/shared/utils/format.utils';
+import { toast } from 'sonner';
 
 /**
  * Componente de bienvenida del dashboard
@@ -52,18 +40,64 @@ const DashboardWelcome: React.FC = () => {
   const router = useRouter();
   const { user } = useAuthStore();
   const { stats, loadStats, loading } = useProducts();
-  const { stats: sellStats, calculateStats, isLoadingStats } = useSellStore();
+  const { stats: sellStats, calculateStatsFromLoadedData, calculateStats, isLoadingStats, getSells, sells } = useSellStore();
+  const { isOnline, wasOffline, resetWasOffline } = useNetworkStatus();
+
+  // Estado para controlar carga única por tienda
+  const [loadedForStore, setLoadedForStore] = useState<string | null>(null);
 
   /**
-   * Cargar estadísticas al montar el componente
+   * Cargar datos iniciales al montar el componente - UNA SOLA VEZ POR TIENDA
    */
   useEffect(() => {
-    loadStats();
-    // Cargar estadísticas de ventas si hay storeId
-    if (user?.storeIds && user.storeIds.length > 0) {
-      calculateStats(user.storeIds[0]);
+    const storeId = user?.storeIds?.[0];
+    if (storeId && loadedForStore !== storeId) {
+      
+      console.log('🚀 Inicializando dashboard para tienda:', storeId);
+      
+      // 1. Cargar productos si es necesario
+      if (!stats || Object.keys(stats).length === 0) {
+        console.log('🔄 Cargando estadísticas de productos...');
+        loadStats();
+      } else {
+        console.log('📦 Productos ya cargados');
+      }
+      
+      // 2. Para ventas, primero intentar calcular desde cache
+      calculateStatsFromLoadedData();
+      
+      // 3. Si no hay datos de ventas cached, cargar en segundo plano
+      if (sells.length === 0) {
+        console.log('🔄 Cargando ventas en segundo plano...');
+        getSells(storeId, { limit: 50 }).then(() => {
+          console.log('✅ Ventas cargadas, recalculando estadísticas...');
+          calculateStatsFromLoadedData();
+        }).catch((error: any) => {
+          console.warn('⚠️ Error cargando ventas:', error);
+        });
+      } else {
+        console.log(`📦 Usando ${sells.length} ventas desde persistencia`);
+      }
+      
+      setLoadedForStore(storeId);
+      console.log('✅ Dashboard inicializado para tienda:', storeId);
     }
-  }, [loadStats, calculateStats, user?.storeIds]);
+  }, [user?.storeIds?.[0], loadedForStore]);
+
+  /**
+   * Manejar reconexión a internet
+   */
+  useEffect(() => {
+    if (isOnline && wasOffline) {
+      console.log('🌐 Reconexión detectada, actualizando datos');
+      toast.success('Conexión restaurada. Actualizando datos...');
+      const storeId = user?.storeIds?.[0];
+      if (storeId) {
+        loadStats(); // Force refresh para productos
+      }
+      resetWasOffline();
+    }
+  }, [isOnline, wasOffline]);
 
   /**
    * Acciones rápidas principales
@@ -189,9 +223,63 @@ const DashboardWelcome: React.FC = () => {
                   <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
                   <span>Plan Básico</span>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span>{isOnline ? 'En línea' : 'Sin conexión'}</span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Manejo de errores de carga */}
+          {(loading || isLoadingStats) && (
+            <div className="bg-white rounded-xl p-6 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+              <p className="text-gray-600">Cargando estadísticas...</p>
+            </div>
+          )}
+
+          {/* Estadísticas rápidas */}
+          {!loading && !isLoadingStats && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Productos</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.totalProducts || 0}</p>
+                  </div>
+                  <Package className="w-8 h-8 text-blue-500" />
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Ventas</p>
+                    <p className="text-2xl font-bold text-gray-900">{sellStats?.totalOrders || 0}</p>
+                  </div>
+                  <ShoppingCart className="w-8 h-8 text-green-500" />
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Productos Activos</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.activeProducts || 0}</p>
+                  </div>
+                  <Eye className="w-8 h-8 text-purple-500" />
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Ventas Totales</p>
+                    <p className="text-2xl font-bold text-gray-900">${formatNumber(sellStats?.totalSales || 0)}</p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-orange-500" />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Acciones rápidas */}
           <section>

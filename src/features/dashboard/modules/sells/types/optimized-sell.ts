@@ -45,7 +45,7 @@ export interface OptimizedSell {
   // === CLIENTE ===
   customerName: string;
   customerPhone?: string;        // ✅ CRÍTICO para contacto
-  customerId?: string;           // ✅ Cliente recurrente
+  // customerId eliminado - no se usa en la aplicación
   
   // === PRODUCTOS ===
   products: ProductInSell[];

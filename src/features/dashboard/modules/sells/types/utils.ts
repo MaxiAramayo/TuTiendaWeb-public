@@ -2,46 +2,13 @@
  * Tipos utilitarios para el módulo de ventas
  * 
  * Define tipos auxiliares para operaciones específicas del dominio de ventas,
- * como exportación, validación y transformación de datos.
+ * como validación y transformación de datos.
  * 
  * @module features/dashboard/modules/sells/types/utils
  */
 
 import { Sells, ProductInCart } from "@/shared/types/store";
 import { SellsFilter } from "./base";
-
-/**
- * Configuración para exportar datos de ventas
- */
-export interface ExportConfig {
-  /** Formato de exportación */
-  format: 'csv' | 'excel' | 'pdf';
-  /** Incluir detalles de productos */
-  includeProducts?: boolean;
-  /** Incluir estadísticas */
-  includeStats?: boolean;
-  /** Rango de fechas personalizado */
-  dateRange?: {
-    start: Date;
-    end: Date;
-  };
-  /** Filtros aplicados */
-  filters?: SellsFilter;
-}
-
-/**
- * Resultado de una operación de exportación
- */
-export interface ExportResult {
-  /** Indica si la exportación fue exitosa */
-  success: boolean;
-  /** URL del archivo generado (si aplica) */
-  fileUrl?: string;
-  /** Nombre del archivo generado */
-  fileName?: string;
-  /** Error en caso de fallo */
-  error?: string;
-}
 
 /**
  * Opciones para agrupar ventas

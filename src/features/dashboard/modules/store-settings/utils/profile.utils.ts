@@ -8,6 +8,16 @@
  */
 
 import { StoreProfile, ProfileFormData, ProfileSection } from '../types/store.type';
+import { 
+  formatPrice, 
+  formatDate, 
+  formatTime, 
+  generateSlug, 
+  formatWhatsAppNumber 
+} from '@/shared/utils/format.utils';
+
+// Re-exportar funciones centralizadas para mantener compatibilidad
+export { formatPrice, formatDate, formatTime, generateSlug, formatWhatsAppNumber };
 
 /**
  * Configuración de utilidades
@@ -265,44 +275,6 @@ export function getProfileRecommendations(profile: StoreProfile): string[] {
 }
 
 /**
- * Valida y formatea un número de WhatsApp
- */
-export function formatWhatsAppNumber(phone: string): string {
-  // Remover todos los caracteres no numéricos excepto el +
-  const cleaned = phone.replace(/[^+\d]/g, '');
-  
-  // Si no tiene código de país, agregar +54 (Argentina)
-  if (!cleaned.startsWith('+')) {
-    return `+54${cleaned}`;
-  }
-  
-  return cleaned;
-}
-
-
-
-
-
-
-
-
-
-
-
-/**
- * Genera un slug a partir de un texto
- */
-export function generateSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '') // Remover caracteres especiales
-    .replace(/\s+/g, '-') // Reemplazar espacios con guiones
-    .replace(/-+/g, '-') // Reemplazar múltiples guiones con uno solo
-    .replace(/^-|-$/g, ''); // Remover guiones al inicio y final
-}
-
-/**
  * Convierte horarios del formato simple al formato de períodos
  */
 export function convertSimpleScheduleToPeriods(schedule: any): any {
@@ -456,52 +428,6 @@ export function profileToFormData(profile: StoreProfile): ProfileFormData {
       bannerUrl: profile.theme?.bannerUrl,
     },
   };
-}
-
-/**
- * Formatea un precio con la moneda correspondiente
- */
-export function formatPrice(amount: number, currency: string = 'ARS'): string {
-  const formatter = new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-  
-  return formatter.format(amount);
-}
-
-/**
- * Formatea una fecha
- */
-export function formatDate(date: Date | { seconds: number } | null): string {
-  if (!date) return '';
-  
-  const dateObj = date instanceof Date ? date : new Date(date.seconds * 1000);
-  
-  return new Intl.DateTimeFormat('es-AR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(dateObj);
-}
-
-/**
- * Formatea un horario
- */
-export function formatTime(time: string): string {
-  if (!time) return '';
-  
-  const [hours, minutes] = time.split(':');
-  const date = new Date();
-  date.setHours(parseInt(hours), parseInt(minutes));
-  
-  return new Intl.DateTimeFormat('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date);
 }
 
 /**

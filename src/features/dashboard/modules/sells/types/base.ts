@@ -10,6 +10,9 @@
 import { DocumentSnapshot } from "firebase/firestore";
 import { OptimizedSell, ProductInSell } from "./optimized-sell";
 
+// Alias para compatibilidad con código existente
+export type Sell = OptimizedSell;
+
 /**
  * Filtros para consultas de ventas
  */
@@ -79,6 +82,12 @@ export interface SellState {
   /** Indica si hay más documentos disponibles */
   hasMore: boolean;
 
+  // === OPTIMIZACIÓN DE CACHE ===
+  /** Timestamp del último cache válido */
+  _cacheTimestamp?: number | null;
+  /** ID de la tienda para la cual se cached los datos */
+  _cachedStoreId?: string | null;
+
   // === ACCIONES ===
   /** Agregar una nueva venta */
   addSell: (sell: OptimizedSell, storeId: string) => Promise<boolean>;
@@ -104,6 +113,10 @@ export interface SellState {
   clearState: () => void;
   /** Limpiar errores */
   clearError: () => void;
+  /** Calcular estadísticas desde datos ya cargados */
+  calculateStatsFromLoadedData: () => void;
+  /** Limpiar datos al cambiar de usuario */
+  clearDataForUser: () => void;
 }
 
 /**
