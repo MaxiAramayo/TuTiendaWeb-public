@@ -1,19 +1,19 @@
 /**
- * Módulo principal de Ventas - Dashboard Sells Module
+ * Módulo principal de Ventas - Dashboard Sells Module (Optimizado para Producción)
  * 
  * Componente optimizado que maneja la vista principal de ventas con:
- * - Lista de ventas con paginación
- * - Filtros avanzados de búsqueda
- * - Estadísticas en tiempo real
- * - Acciones CRUD completas
- * - Optimización server-side
+ * - Lista de ventas con paginación eficiente
+ * - Filtros avanzados con debounce
+ * - Estadísticas calculadas localmente
+ * - Acciones CRUD optimizadas
+ * - Aislamiento de datos por usuario
  * 
  * @module features/dashboard/modules/sells/components/SellsModule
  */
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, DownloadIcon, EditIcon, TrashIcon, EyeIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +52,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     hasMore,
     getSells,
     loadMoreSells,
-    calculateStats,
+    calculateStatsFromLoadedData,
     deleteSell,
     refreshWithFilters,
     clearError 
@@ -61,40 +61,101 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
   // Estados locales
   const [filters, setFilters] = useState<SellsFilter>({});
   const [activeFilters, setActiveFilters] = useState<SellsFilterValues>({
-    customerSearch: '',
+    startDate: undefined,
+    endDate: undefined,
     paymentMethod: 'all',
+    customerSearch: '',
     deliveryMethod: 'all',
     sortBy: 'date-desc'
   });
+  
+  // Estados para control de carga ÚNICA
+  const [dataLoadedForStore, setDataLoadedForStore] = useState<string | null>(null);
+  const loadingRef = useRef(false);
 
-  // Cargar ventas con filtros
-  const loadSells = useCallback(async () => {
-    if (!user?.id) return;
+  // OPTIMIZACIÓN CRÍTICA: Una sola función de carga sin dependencias complejas
+  const loadDataOnce = useCallback(async (storeId: string) => {
+    // Prevenir múltiples cargas simultáneas
+    if (loadingRef.current || dataLoadedForStore === storeId) {
+      return;
+    }
+
+    // Verificar si ya tenemos datos en el store
+    if (sells.length > 0 && dataLoadedForStore === storeId) {
+      // Ya tenemos datos para esta tienda, no cargar de nuevo
+      calculateStatsFromLoadedData();
+      return;
+    }
+
+    loadingRef.current = true;
+    
+    try {
+      const searchFilter: SellsFilter = { limit: 20 };
+      await getSells(storeId, searchFilter);
+      setDataLoadedForStore(storeId);
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [getSells, sells.length, dataLoadedForStore, calculateStatsFromLoadedData]);
+
+  // Función optimizada para recargar con filtros - SOLO cuando es necesario
+  const reloadWithFilters = useCallback(async () => {
+    const storeId = user?.storeIds?.[0];
+    if (!storeId) return;
+
+    // Reset del estado de carga para permitir recarga con filtros
+    setDataLoadedForStore(null);
+    loadingRef.current = false;
     
     const searchFilter: SellsFilter = {
       ...filters,
       limit: 20
     };
 
-    // Agregar filtro de búsqueda por nombre si existe
     if (activeFilters.customerSearch.trim()) {
       searchFilter.customerName = activeFilters.customerSearch.trim();
     }
 
-    const currentStoreId = user.storeIds?.[0];
-    if (currentStoreId) {
-      await getSells(currentStoreId, searchFilter);
-    }
-  }, [user?.storeIds, filters, activeFilters.customerSearch, getSells]);
+    await refreshWithFilters(storeId, searchFilter);
+    setDataLoadedForStore(storeId);
+  }, [user?.storeIds, filters, activeFilters.customerSearch, refreshWithFilters]);
 
-  // Efecto para cargar datos iniciales
+  // Efecto para carga inicial de ventas - Optimizado siguiendo el patrón de productos
   useEffect(() => {
-    if (user?.storeIds && user.storeIds.length > 0) {
-      const currentStoreId = user.storeIds[0];
-      loadSells();
-      calculateStats(currentStoreId);
+    const storeId = user?.storeIds?.[0];
+    if (!storeId) return;
+    
+    // Verificar si ya cargamos datos para esta tienda
+    if (dataLoadedForStore === storeId) {
+      console.log('Datos ya cargados para esta tienda:', storeId);
+      return;
     }
-  }, [user?.storeIds, loadSells, calculateStats]);
+    
+    // Limpiar el estado de carga para asegurar que se carguen los datos
+    setDataLoadedForStore(null);
+    loadingRef.current = false;
+    
+    console.log('Iniciando carga de ventas en SellsModule');
+    const searchFilter: SellsFilter = { limit: 20 };
+    
+    // Cargar ventas y calcular estadísticas
+    getSells(storeId, searchFilter)
+      .then(() => {
+        console.log('Ventas cargadas correctamente en SellsModule');
+        setDataLoadedForStore(storeId);
+        calculateStatsFromLoadedData();
+      })
+      .catch(error => {
+        console.error('Error al cargar ventas:', error);
+      });
+  }, [user?.storeIds, dataLoadedForStore, getSells, calculateStatsFromLoadedData]); // Dependencias correctas
+
+  // Efecto separado para calcular estadísticas cuando cambian las ventas
+  useEffect(() => {
+    if (sells.length > 0 && dataLoadedForStore) {
+      calculateStatsFromLoadedData();
+    }
+  }, [sells.length, dataLoadedForStore, calculateStatsFromLoadedData]); // Incluir dataLoadedForStore como dependencia
 
   // Cargar más ventas (paginación)
   const handleLoadMore = useCallback(async () => {
@@ -112,15 +173,6 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     const currentStoreId = user.storeIds[0];
     await loadMoreSells(currentStoreId, searchFilter);
   }, [user?.storeIds, hasMore, isLoading, filters, activeFilters.customerSearch, loadMoreSells]);
-
-  // Recargar cuando cambien los filtros
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadSells();
-    }, 300); // Debounce de 300ms
-
-    return () => clearTimeout(timeoutId);
-  }, [loadSells]);
 
   /**
    * Maneja la creación de nueva venta - Navegación real
@@ -155,23 +207,18 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     const currentStoreId = user.storeIds[0];
     const success = await deleteSell(currentStoreId, sellId);
     if (success) {
-      // Recargar lista con filtros aplicados después de eliminar
-      refreshWithFilters(currentStoreId, filters);
-      calculateStats(currentStoreId);
+      // Recalcular estadísticas inmediatamente
+      calculateStatsFromLoadedData();
     }
-  }, [user?.storeIds, deleteSell, refreshWithFilters, filters, calculateStats]);
+  }, [user?.storeIds?.[0], deleteSell, calculateStatsFromLoadedData]);
 
   /**
    * Maneja el éxito en operaciones del formulario
    */
   const handleFormSuccess = useCallback(() => {
-    // Recargar datos con filtros aplicados después de operaciones exitosas
-    if (user?.storeIds && user.storeIds.length > 0) {
-      const currentStoreId = user.storeIds[0];
-      refreshWithFilters(currentStoreId, filters);
-      calculateStats(currentStoreId);
-    }
-  }, [user?.storeIds, refreshWithFilters, filters, calculateStats]);
+    // Recalcular estadísticas inmediatamente
+    calculateStatsFromLoadedData();
+  }, [calculateStatsFromLoadedData]);
 
   /**
    * Maneja los cambios en los filtros
@@ -199,7 +246,12 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     }
     
     setFilters(storeFilters);
-  }, []);
+    
+    // Recargar con debounce para evitar llamadas excesivas
+    setTimeout(() => {
+      reloadWithFilters();
+    }, 300);
+  }, [reloadWithFilters]);
 
   /**
    * Limpia todos los filtros
@@ -212,7 +264,12 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
       deliveryMethod: 'all',
       sortBy: 'date-desc'
     });
-  }, []);
+    
+    // Recargar datos sin filtros
+    setTimeout(() => {
+      reloadWithFilters();
+    }, 100);
+  }, [reloadWithFilters]);
 
   /**
    * Exporta datos de ventas
@@ -393,7 +450,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
                           <div>
                             <strong>Total:</strong> 
                             <span className="font-bold text-green-600 ml-1">
-                              ${sell.products.reduce((sum, p) => sum + (p.price * p.cantidad), 0).toFixed(2)}
+                              ${(sell.total || sell.products.reduce((sum, p) => sum + (p.price * p.cantidad), 0)).toFixed(2)}
                             </span>
                           </div>
                         </div>

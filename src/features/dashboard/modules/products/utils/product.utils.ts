@@ -8,40 +8,13 @@
  */
 
 import { Product } from '@/shared/types/firebase.types';
+import { formatPrice, generateSlug } from '@/shared/utils/format.utils';
+
+// Re-exportar funciones centralizadas para mantener compatibilidad
+export { formatPrice, generateSlug };
 
 // Tipo para el estado del producto
 type ProductStatus = 'active' | 'inactive' | 'draft';
-
-/**
- * Genera un slug único a partir de un nombre de producto
- */
-export function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '') // Remover caracteres especiales
-    .replace(/\s+/g, '-') // Reemplazar espacios con guiones
-    .replace(/-+/g, '-') // Remover guiones duplicados
-    .replace(/^-|-$/g, ''); // Remover guiones al inicio y final
-}
-
-
-
-
-
-/**
- * Formatea un precio con la moneda especificada
- */
-export function formatPrice(price: number, currency: string = 'ARS'): string {
-  const formatter = new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  });
-  
-  return formatter.format(price);
-}
 
 /**
  * Calcula el porcentaje de descuento entre dos precios
@@ -178,83 +151,3 @@ export function generateProductSummary(description: string, maxLength: number = 
 
 
 
-/**
- * Genera variaciones de nombre para búsqueda
- */
-export function generateNameVariations(name: string): string[] {
-  const variations: string[] = [name.toLowerCase()];
-  
-  // Agregar sin acentos
-  const withoutAccents = name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-  variations.push(withoutAccents);
-  
-  // Agregar palabras individuales
-  const words = name.toLowerCase().split(/\s+/);
-  variations.push(...words);
-  
-  // Remover duplicados
-  return Array.from(new Set(variations));
-}
-
-/**
- * Calcula el peso total de un producto con sus variantes
- */
-export function calculateTotalWeight(product: Product): number {
-  // Peso base del producto (removido weight del tipo)
-  let totalWeight = 0;
-  
-  // ProductDocument no tiene variantes en la estructura simplificada
-  // Se mantiene el peso total en 0
-  totalWeight = 0;
-  
-  return totalWeight;
-}
-
-/**
- * Formatea el tamaño de archivo en formato legible
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-
-
-/**
- * Genera un nombre de archivo único para imágenes
- */
-export function generateImageFileName(originalName: string, productId?: string): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  const extension = originalName.split('.').pop()?.toLowerCase() || 'jpg';
-  
-  const prefix = productId ? `${productId}_` : '';
-  return `${prefix}${timestamp}_${random}.${extension}`;
-}
-
-/**
- * Convierte un producto a formato de exportación
- * Simplificado para restaurantes
- */
-export function productToExportFormat(product: Product): Record<string, any> {
-  return {
-    ID: product.id,
-    Nombre: product.name,
-    Descripción: product.description,
-    Precio: product.price,
-    Moneda: 'ARS', // ProductDocument no tiene currency, usar valor por defecto
-    Categoría: product.categoryId,
-    Estado: getProductStatusLabel(product.status),
-    'Fecha Creación': product.createdAt.toDate().toLocaleDateString(),
-    'Fecha Actualización': product.updatedAt.toDate().toLocaleDateString(),
-    'Tiene Imagen': (product.imageUrls && product.imageUrls.length > 0) ? 'Sí' : 'No'
-  };
-}

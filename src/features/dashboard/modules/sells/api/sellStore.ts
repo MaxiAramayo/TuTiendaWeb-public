@@ -1,16 +1,18 @@
 /**
- * Store de Ventas - Dashboard Sells Module
+ * Store de Ventas - Dashboard Sells Module (Optimizado para Producción)
  * 
  * Maneja todas las operaciones relacionadas con la gestión de ventas:
  * - Creación y registro de ventas
  * - Consulta y filtrado de ventas
  * - Cálculo de estadísticas de ventas
  * - Gestión de estado de ventas
+ * - Aislamiento de datos por usuario
  * 
  * @module features/dashboard/modules/sells/api/sellStore
  */
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { db } from "@/lib/firebase/client";
 import { 
   collection, 
@@ -32,14 +34,19 @@ import {
 import { OptimizedSell as Sell } from "../types/optimized-sell";
 import { SellsFilter, SellsStats, SellState } from "../types/base";
 
-export const useSellStore = create<SellState>((set, get) => ({
-  sells: [],
-  isLoading: false,
-  isLoadingStats: false,
-  error: null,
-  stats: null,
-  lastDoc: null,
-  hasMore: true,
+export const useSellStore = create<SellState>()(
+  persist(
+    (set, get) => ({
+      sells: [],
+      isLoading: false,
+      isLoadingStats: false,
+      error: null,
+      stats: null,
+      lastDoc: null,
+      hasMore: true,
+      // Cache management para UNA SOLA CARGA
+      _cacheTimestamp: null as number | null,
+      _cachedStoreId: null as string | null,
 
   addSell: async (sell: Sell, storeId: string): Promise<boolean> => {
     set({ isLoading: true, error: null });
@@ -54,7 +61,7 @@ export const useSellStore = create<SellState>((set, get) => ({
         orderNumber: sell.orderNumber || "ORD-" + Date.now(),
         customerName: sell.customerName || '',
         customerPhone: sell.customerPhone || '',
-        customerId: sell.customerId || '',
+        // customerId eliminado completamente
         deliveryMethod: sell.deliveryMethod || 'pickup',
         address: sell.address || '',
         deliveryNotes: sell.deliveryNotes || '',
@@ -95,7 +102,7 @@ export const useSellStore = create<SellState>((set, get) => ({
         orderNumber: cleanSellData.orderNumber,
         customerName: cleanSellData.customerName,
         customerPhone: cleanSellData.customerPhone,
-        customerId: cleanSellData.customerId,
+        // customerId eliminado completamente
         deliveryMethod: cleanSellData.deliveryMethod,
         address: cleanSellData.address,
         deliveryNotes: cleanSellData.deliveryNotes,
@@ -134,6 +141,26 @@ export const useSellStore = create<SellState>((set, get) => ({
   },
 
   getSells: async (storeId: string, filter?: SellsFilter): Promise<boolean> => {
+    const state = get();
+    
+    // OPTIMIZACIÓN CRÍTICA: Cache inteligente por tienda
+    const cacheValidTime = 5 * 60 * 1000; // 5 minutos de cache
+    const now = Date.now();
+    
+    // Verificar si ya tenemos datos válidos para esta tienda
+    if (
+      state._cachedStoreId === storeId &&
+      state._cacheTimestamp &&
+      (now - state._cacheTimestamp) < cacheValidTime &&
+      state.sells.length > 0 &&
+      !filter // Solo usar cache si no hay filtros específicos
+    ) {
+      // USAR CACHE - NO hacer llamada a Firebase
+      set({ isLoading: false });
+      return true;
+    }
+
+    // Solo hacer llamada si realmente es necesario
     set({ isLoading: true, error: null, lastDoc: null, hasMore: true });
     
     try {
@@ -142,7 +169,7 @@ export const useSellStore = create<SellState>((set, get) => ({
         orderBy("date", "desc")
       );
 
-      // Aplicar filtros
+      // Aplicar filtros solo si los hay
       if (filter) {
         if (filter.startDate) {
           sellsQuery = query(
@@ -153,7 +180,7 @@ export const useSellStore = create<SellState>((set, get) => ({
         
         if (filter.endDate) {
           const endDate = new Date(filter.endDate);
-          endDate.setHours(23, 59, 59, 999); // Incluir todo el día
+          endDate.setHours(23, 59, 59, 999);
           sellsQuery = query(
             sellsQuery,
             where("date", "<=", Timestamp.fromDate(endDate))
@@ -168,8 +195,8 @@ export const useSellStore = create<SellState>((set, get) => ({
           sellsQuery = query(sellsQuery, limit(filter.limit));
         }
       } else {
-        // Límite por defecto
-        sellsQuery = query(sellsQuery, limit(20));
+        // Límite por defecto más grande para mejor cache
+        sellsQuery = query(sellsQuery, limit(50));
       }
 
       const querySnapshot = await getDocs(sellsQuery);
@@ -178,12 +205,12 @@ export const useSellStore = create<SellState>((set, get) => ({
         const data = doc.data();
         return {
           ...data,
-          id: doc.id, // Usar el ID del documento
+          id: doc.id,
           date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
         } as Sell;
-      }).filter(sell => !(sell as any).deleted); // Filtrar eliminadas localmente
+      }).filter(sell => !(sell as any).deleted);
 
-      // Filtro por nombre de cliente (local, ya que Firestore no soporta búsqueda parcial eficiente)
+      // Filtro por nombre de cliente (local)
       if (filter?.customerName) {
         const searchTerm = filter.customerName.toLowerCase();
         sells = sells.filter(sell => 
@@ -194,8 +221,11 @@ export const useSellStore = create<SellState>((set, get) => ({
       set({ 
         sells,
         lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
-        hasMore: querySnapshot.docs.length === (filter?.limit || 20),
-        isLoading: false 
+        hasMore: querySnapshot.docs.length === (filter?.limit || 50),
+        isLoading: false,
+        // Actualizar cache info
+        _cacheTimestamp: now,
+        _cachedStoreId: storeId
       });
       
       return true;
@@ -289,30 +319,35 @@ export const useSellStore = create<SellState>((set, get) => ({
     set({ isLoadingStats: true, error: null });
     
     try {
-      // Para las estadísticas, obtenemos todas las ventas sin límite
-      const result = await get().getSells(storeId, { ...filter, limit: undefined });
-      
-      if (!result) {
-        set({ isLoadingStats: false });
-        return false;
-      }
-      
+      // Usar las ventas ya cargadas en lugar de volver a cargarlas
       const { sells } = get();
       
+      // Si no hay ventas cargadas, cargarlas solo una vez
+      if (sells.length === 0) {
+        const result = await get().getSells(storeId, { ...filter, limit: undefined });
+        if (!result) {
+          set({ isLoadingStats: false });
+          return false;
+        }
+      }
+      
+      // Obtener las ventas actuales del state
+      const currentSells = get().sells;
+      
       // Calcular estadísticas
-      const totalSales = sells.reduce((sum, sell) => {
+      const totalSales = currentSells.reduce((sum, sell) => {
         const sellTotal = sell.products.reduce((productSum, product) => 
           productSum + (product.price * product.cantidad), 0);
         return sum + sellTotal;
       }, 0);
       
-      const totalOrders = sells.length;
+      const totalOrders = currentSells.length;
       const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
       
       // Ventas de hoy
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todaySells = sells.filter(sell => {
+      const todaySells = currentSells.filter(sell => {
         const sellDate = new Date(sell.date);
         sellDate.setHours(0, 0, 0, 0);
         return sellDate.getTime() === today.getTime();
@@ -327,7 +362,7 @@ export const useSellStore = create<SellState>((set, get) => ({
       const thisMonth = new Date();
       thisMonth.setDate(1);
       thisMonth.setHours(0, 0, 0, 0);
-      const monthSells = sells.filter(sell => new Date(sell.date) >= thisMonth);
+      const monthSells = currentSells.filter(sell => new Date(sell.date) >= thisMonth);
       const monthSales = monthSells.reduce((sum, sell) => {
         const sellTotal = sell.products.reduce((productSum, product) => 
           productSum + (product.price * product.cantidad), 0);
@@ -336,7 +371,7 @@ export const useSellStore = create<SellState>((set, get) => ({
       
       // Producto más vendido
       const productCount: Record<string, { name: string; quantity: number }> = {};
-      sells.forEach(sell => {
+      currentSells.forEach(sell => {
         sell.products.forEach(product => {
           const key = product.idProduct;
           if (productCount[key]) {
@@ -357,7 +392,7 @@ export const useSellStore = create<SellState>((set, get) => ({
       
       // Cliente más frecuente
       const customerCount: Record<string, number> = {};
-      sells.forEach(sell => {
+      currentSells.forEach(sell => {
         if (sell.customerName) {
           customerCount[sell.customerName] = (customerCount[sell.customerName] || 0) + 1;
         }
@@ -570,5 +605,144 @@ export const useSellStore = create<SellState>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  // Método para calcular estadísticas desde los datos ya cargados
+  calculateStatsFromLoadedData: () => {
+    const { sells } = get();
+    
+    // OPTIMIZACIÓN: No calcular si no hay datos
+    if (sells.length === 0) {
+      // Solo establecer stats como null si actualmente hay stats
+      // Esto evita triggers innecesarios
+      const currentStats = get().stats;
+      if (currentStats !== null) {
+        console.log('📊 No hay ventas cargadas, limpiando estadísticas');
+        set({ stats: null });
+      }
+      return;
+    }
+
+    console.log('📊 Calculando estadísticas desde', sells.length, 'ventas cargadas');
+
+    // Calcular estadísticas usando el campo total de la venta
+    const totalSales = sells.reduce((sum, sell) => {
+      // Usar el campo total directamente si existe, sino calcularlo
+      return sum + (sell.total || sell.products.reduce((productSum, product) => 
+        productSum + (product.price * product.cantidad), 0));
+    }, 0);
+    
+    const totalOrders = sells.length;
+    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    
+    // Ventas de hoy
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todaySells = sells.filter(sell => {
+      const sellDate = new Date(sell.date);
+      sellDate.setHours(0, 0, 0, 0);
+      return sellDate.getTime() === today.getTime();
+    });
+    const todaySales = todaySells.reduce((sum, sell) => {
+      // Usar el campo total directamente si existe, sino calcularlo
+      return sum + (sell.total || sell.products.reduce((productSum, product) => 
+        productSum + (product.price * product.cantidad), 0));
+    }, 0);
+    
+    // Ventas del mes
+    const thisMonth = new Date();
+    thisMonth.setDate(1);
+    thisMonth.setHours(0, 0, 0, 0);
+    const monthSells = sells.filter(sell => new Date(sell.date) >= thisMonth);
+    const monthSales = monthSells.reduce((sum, sell) => {
+      // Usar el campo total directamente si existe, sino calcularlo
+      return sum + (sell.total || sell.products.reduce((productSum, product) => 
+        productSum + (product.price * product.cantidad), 0));
+    }, 0);
+    
+    // Producto más vendido
+    const productCount: Record<string, { name: string; quantity: number }> = {};
+    sells.forEach(sell => {
+      sell.products.forEach(product => {
+        const key = product.idProduct;
+        if (productCount[key]) {
+          productCount[key].quantity += product.cantidad;
+        } else {
+          productCount[key] = {
+            name: product.name,
+            quantity: product.cantidad
+          };
+        }
+      });
+    });
+    
+    const topProduct = Object.values(productCount).reduce((max, current) => 
+      current.quantity > (max?.quantity || 0) ? current : max, 
+      undefined as { name: string; quantity: number } | undefined
+    );
+    
+    // Cliente más frecuente
+    const customerCount: Record<string, number> = {};
+    sells.forEach(sell => {
+      if (sell.customerName) {
+        customerCount[sell.customerName] = (customerCount[sell.customerName] || 0) + 1;
+      }
+    });
+    
+    const topCustomerEntry = Object.entries(customerCount).reduce(
+      (max, [name, orders]) => {
+        if (!max || orders > max[1]) {
+          return [name, orders] as [string, number];
+        }
+        return max;
+      },
+      null as [string, number] | null
+    );
+    
+    const topCustomer = topCustomerEntry ? {
+      name: topCustomerEntry[0],
+      orders: topCustomerEntry[1]
+    } : undefined;
+    
+    const stats: SellsStats = {
+      totalSales,
+      totalOrders,
+      averageOrderValue,
+      todaySales,
+      monthSales,
+      topProduct,
+      topCustomer
+    };
+    
+    set({ stats });
+  },
+
+  // Función para limpiar datos al cambiar de usuario
+  clearDataForUser: () => {
+    set({
+      sells: [],
+      stats: null,
+      error: null,
+      lastDoc: null,
+      hasMore: true,
+      isLoading: false,
+      isLoadingStats: false,
+      // Limpiar también el cache
+      _cacheTimestamp: null,
+      _cachedStoreId: null
+    });
   }
-}));
+    }),
+    {
+      name: 'sell-store',
+      partialize: (state) => ({ 
+        // Persistir solo datos de cache, no el estado de carga
+        sells: state.sells,
+        stats: state.stats,
+        _cacheTimestamp: state._cacheTimestamp,
+        _cachedStoreId: state._cachedStoreId
+        // NO persistir: isLoading, isLoadingStats, error, lastDoc, hasMore
+      }),
+    }
+  )
+);

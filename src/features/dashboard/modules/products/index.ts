@@ -19,6 +19,9 @@ export { default as ProductForm } from "./forms/ProductForm";
 // Hooks
 export { useProducts, useProduct } from "./hooks/useProducts";
 
+// Store con persistencia
+export { useProductsStore } from "./stores/productsStore";
+
 // Servicios
 export * from "./api/products.service";
 
@@ -50,18 +53,12 @@ export {
   generateSlug,
   formatPrice,
   calculateDiscountPercentage,
-
   getProductStatusLabel,
   getProductStatusColor,
   filterProductsBySearch,
   sortProducts,
   getProductMainImage,
   generateProductSummary,
-  generateNameVariations,
-  calculateTotalWeight,
-  formatFileSize,
-  generateImageFileName,
-  productToExportFormat,
 } from "./utils/product.utils";
 
 // Validaciones centralizadas

@@ -52,26 +52,8 @@ class UserService {
         return null;
       });
     } catch (error: any) {
-      // Manejo específico de errores de Firebase
-      const isOfflineError = error?.message?.includes('client is offline') || 
-                            error?.message?.includes('Failed to get document because the client is offline') ||
-                            error?.code === 'unavailable';
-      
-      const isConfigError = error?.message?.includes('Variable de entorno faltante');
-      
-      if (isOfflineError) {
-        userLogger.warn('Firebase está offline al obtener datos del usuario', context, {
-          errorCode: error?.code,
-          errorMessage: error?.message
-        });
-        throw new Error('No se puede conectar a Firebase. Verifica tu configuración de red y las variables de entorno.');
-      } else if (isConfigError) {
-        userLogger.error('Error de configuración de Firebase al obtener usuario', context, error);
-        throw new Error('Error de configuración: Verifica que las variables de entorno de Firebase estén configuradas correctamente.');
-      } else {
-        userLogger.error('Error al obtener datos del usuario', context, error);
-        throw error;
-      }
+      userLogger.error('Error al obtener datos del usuario', context, error);
+      throw error;
     }
   }
 

@@ -214,60 +214,6 @@ export interface CartProps {
 }
 
 // ============================================================================
-// HORARIOS DINÁMICOS
-// ============================================================================
-
-/**
- * Horario diario de la tienda
- */
-export interface DailySchedule {
-  /** Está abierto este día */
-  isOpen: boolean;
-  /** Horario de apertura (formato HH:mm) */
-  openTime?: string;
-  /** Horario de cierre (formato HH:mm) */
-  closeTime?: string;
-  /** Horarios especiales (ej: almuerzo) */
-  breaks?: {
-    startTime: string;
-    endTime: string;
-    reason?: string;
-  }[];
-}
-
-/**
- * Horarios semanales de la tienda
- */
-export interface WeeklySchedule {
-  monday: DailySchedule;
-  tuesday: DailySchedule;
-  wednesday: DailySchedule;
-  thursday: DailySchedule;
-  friday: DailySchedule;
-  saturday: DailySchedule;
-  sunday: DailySchedule;
-  /** Zona horaria */
-  timezone: string;
-}
-
-/**
- * Estado actual de la tienda
- */
-export interface StoreStatus {
-  /** Está abierto actualmente */
-  isOpen: boolean;
-  /** Próximo cambio de estado */
-  nextChange?: {
-    /** Fecha/hora del próximo cambio */
-    dateTime: Date;
-    /** Tipo de cambio (open/close) */
-    type: 'open' | 'close';
-    /** Mensaje descriptivo */
-    message: string;
-  };
-}
-
-// ============================================================================
 // CONFIGURACIÓN DE TEMA AVANZADA
 // ============================================================================
 
