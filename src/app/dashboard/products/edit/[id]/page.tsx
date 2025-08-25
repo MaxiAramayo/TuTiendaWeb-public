@@ -12,7 +12,7 @@ import { ProductForm } from '@/features/dashboard/modules/products';
 import { UpdateProductData, CreateProductData } from '@/features/dashboard/modules/products/types/product.types';
 import { Product } from '@/shared/types/firebase.types';
 import { useProducts } from '@/features/dashboard/modules/products/hooks/useProducts';
-import { useAuthContext } from '@/components/providers/AuthProvider';
+import { useAuthStore } from '@/features/auth/api/authStore';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -34,7 +34,7 @@ interface EditProductPageProps {
 export default function EditProductPage({ params }: EditProductPageProps) {
   const router = useRouter();
   const { getProduct, updateProduct, removeProductImage } = useProducts();
-  const { user } = useAuthContext();
+  const { user } = useAuthStore();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
    * Resuelve los params y obtiene el ID del producto
    */
   useEffect(() => {
-    const resolveParams = async () => {
+    const resolveParams = async (): Promise<void> => {
       const resolvedParams = await params;
       setProductId(resolvedParams.id);
     };
@@ -73,8 +73,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           setError('Producto no encontrado');
         }
       } catch (err) {
-      setError('Error al cargar el producto');
-    } finally {
+        setError('Error al cargar el producto');
+      } finally {
         setLoading(false);
       }
     };

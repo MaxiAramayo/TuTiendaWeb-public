@@ -213,6 +213,49 @@ export class CategoriesService {
       return false;
     }
   }
+
+  /**
+   * Verifica si hay productos usando una categoría específica
+   */
+  async hasProductsInCategory(storeId: string, categoryId: string): Promise<{ hasProducts: boolean; count: number }> {
+    try {
+      const productsRef = collection(db, 'stores', storeId, 'products');
+      const q = query(
+        productsRef,
+        where('categoryId', '==', categoryId),
+        where('status', '==', 'active')
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      return {
+        hasProducts: !snapshot.empty,
+        count: snapshot.size
+      };
+    } catch (error) {
+      console.error('Error checking products in category:', error);
+      return { hasProducts: false, count: 0 };
+    }
+  }
+
+  /**
+   * Elimina una categoría completamente (hard delete) - solo si no tiene productos
+   */
+  async hardDeleteCategory(storeId: string, categoryId: string): Promise<void> {
+    try {
+      // Primero verificar si hay productos en la categoría
+      const { hasProducts, count } = await this.hasProductsInCategory(storeId, categoryId);
+      
+      if (hasProducts) {
+        throw new Error(`No se puede eliminar la categoría porque tiene ${count} producto(s) asociado(s). Primero mueve o elimina los productos.`);
+      }
+      
+      const categoryRef = doc(db, 'stores', storeId, 'categories', categoryId);
+      await deleteDoc(categoryRef);
+    } catch (error) {
+      throw error; // Re-throw para mantener el mensaje específico
+    }
+  }
 }
 
 // Instancia singleton del servicio
