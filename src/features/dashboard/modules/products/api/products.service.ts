@@ -428,6 +428,48 @@ export class ProductsService {
   }
 
   /**
+   * Verifica si existe un producto con el mismo nombre
+   * @param storeId - ID de la tienda
+   * @param productName - Nombre del producto a verificar
+   * @param excludeProductId - ID del producto a excluir (para edición)
+   * @returns Promise<boolean> - true si existe, false si no
+   */
+  async hasProductWithName(storeId: string, productName: string, excludeProductId?: string): Promise<boolean> {
+    try {
+      const productsRef = this.getProductsCollection(storeId);
+      
+      // Normalizar el nombre para comparación case-insensitive
+      const normalizedName = productName.trim().toLowerCase();
+      
+      // Consulta simple sin orderBy para evitar errores de índice
+      const q = query(
+        productsRef,
+        where('status', 'in', ['active', 'inactive']) // Excluir productos eliminados
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      // Verificar si algún producto tiene el mismo nombre (case-insensitive)
+      const duplicates = snapshot.docs.filter(doc => {
+        const product = doc.data() as Product;
+        const productNormalizedName = product.name.trim().toLowerCase();
+        
+        // Si estamos editando, excluir el producto actual
+        if (excludeProductId && doc.id === excludeProductId) {
+          return false;
+        }
+        
+        return productNormalizedName === normalizedName;
+      });
+      
+      return duplicates.length > 0;
+    } catch (error) {
+      console.error('Error checking for duplicate product name:', error);
+      throw new Error('Error al verificar nombre del producto');
+    }
+  }
+
+  /**
    * Duplica un producto
    * Estructura simplificada según especificación del usuario
    */

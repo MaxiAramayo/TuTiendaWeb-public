@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { ProductForm } from '@/features/dashboard/modules/products';
 import { CreateProductData, UpdateProductData } from '@/features/dashboard/modules/products/types/product.types';
 import { useProducts } from '@/features/dashboard/modules/products/hooks/useProducts';
-import { useAuthContext } from '@/components/providers/AuthProvider';
+import { useAuthStore } from '@/features/auth/api/authStore';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 export default function NewProductPage() {
   const router = useRouter();
   const { createProduct } = useProducts();
-  const { user } = useAuthContext();
+  const { user } = useAuthStore();
   
   // Obtener el storeId del usuario
   const storeId = user?.storeIds?.[0];

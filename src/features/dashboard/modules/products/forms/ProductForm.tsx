@@ -11,12 +11,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Save, X, Upload, Plus, Trash2, Eye, EyeOff, Check, AlertCircle, Loader2, Hash, Calculator, Package, Tag as TagIcon, DollarSign, Image as ImageIcon } from 'lucide-react';
+import { Save, X, Upload, Plus, Trash2, Eye, EyeOff, Check, AlertCircle, Loader2, Hash, Calculator, Package, Tag as TagIcon, DollarSign, Image as ImageIcon, Edit, AlertTriangle } from 'lucide-react';
 import { CreateProductData, UpdateProductData, ProductVariant } from '../types/product.types';
 import { Product } from '@/shared/types/firebase.types';
 import { Category, Tag } from '@/shared/types/firebase.types';
 import { categoriesService } from '../api/categories.service';
 import { tagsService } from '../api/tags.service';
+import { productsService } from '../api/products.service';
 import { generateSlug } from '../utils/product.utils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -167,9 +168,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const [newCategory, setNewCategory] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<{ id: string; name: string } | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<(Category & { hasProducts?: boolean }) | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newVariant, setNewVariant] = useState({ name: '', price: 0 });
   const [newTag, setNewTag] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isValidatingName, setIsValidatingName] = useState(false);
+  const [submitError, setSubmitError] = useState<string>('');
 
   // Cargar categorías y tags
   useEffect(() => {
@@ -310,7 +316,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Validar campo en tiempo real
+    // Para el nombre, no validar inmediatamente (usamos debounce)
+    if (field === 'name') {
+      // Limpiar errores cuando el usuario empiece a escribir
+      if (errors[field] || submitError) {
+        setErrors(prev => ({ ...prev, [field]: '' }));
+        setSubmitError('');
+      }
+      return;
+    }
+    
+    // Validar otros campos en tiempo real
     const validation = validateField(field, value);
     setValidationState(prev => ({
       ...prev,
@@ -322,6 +338,71 @@ const ProductForm: React.FC<ProductFormProps> = ({
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   }, [errors, validateField]);
+
+  /**
+   * Valida el nombre del producto con verificación de duplicados
+   */
+  const validateProductName = useCallback(async (name: string) => {
+    if (!name.trim()) {
+      return { isValid: false, message: 'El nombre es requerido' };
+    }
+
+    if (name.trim().length < 2) {
+      return { isValid: false, message: 'El nombre debe tener al menos 2 caracteres' };
+    }
+
+    if (name.trim().length > 100) {
+      return { isValid: false, message: 'El nombre no puede tener más de 100 caracteres' };
+    }
+
+    // Verificar duplicados solo si el nombre es válido
+    try {
+      setIsValidatingName(true);
+      const excludeProductId = product?.id;
+      const hasDuplicate = await productsService.hasProductWithName(
+        storeId, 
+        name.trim(), 
+        excludeProductId
+      );
+
+      if (hasDuplicate) {
+        return { isValid: false, message: 'Este nombre ya está en uso' };
+      }
+
+      return { isValid: true, message: 'Nombre disponible' };
+    } catch (error) {
+      return { isValid: null, message: '' };
+    } finally {
+      setIsValidatingName(false);
+    }
+  }, [storeId, product?.id]);
+
+  /**
+   * Debounce para la validación del nombre
+   */
+  useEffect(() => {
+    if (!formData.name.trim() || isSubmitting) return;
+
+    const timeoutId = setTimeout(() => {
+      validateProductName(formData.name).then(validation => {
+        setValidationState(prev => ({
+          ...prev,
+          name: validation
+        }));
+        
+        if (!validation.isValid) {
+          setErrors(prev => ({
+            ...prev,
+            name: validation.message
+          }));
+        } else {
+          setErrors(prev => ({ ...prev, name: '' }));
+        }
+      });
+    }, 500); // Debounce de 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.name, validateProductName, isSubmitting]);
 
   /**
    * Agrega una nueva categoría
@@ -345,6 +426,117 @@ const ProductForm: React.FC<ProductFormProps> = ({
       }
     }
   }, [newCategory, storeId, updateField]);
+
+  /**
+   * Inicia la edición de una categoría
+   */
+  const startEditingCategory = useCallback((category: Category) => {
+    setEditingCategory({ id: category.id, name: category.name });
+  }, []);
+
+  /**
+   * Cancela la edición de categoría
+   */
+  const cancelEditingCategory = useCallback(() => {
+    setEditingCategory(null);
+  }, []);
+
+  /**
+   * Guarda los cambios de una categoría editada
+   */
+  const saveEditedCategory = useCallback(async () => {
+    if (!editingCategory || !editingCategory.name.trim()) return;
+
+    try {
+      // Verificar si ya existe una categoría con el mismo nombre (excluyendo la actual)
+      const exists = await categoriesService.categoryExistsByName(
+        storeId, 
+        editingCategory.name.trim(), 
+        editingCategory.id
+      );
+      
+      if (exists) {
+        toast.error('Ya existe una categoría con ese nombre');
+        return;
+      }
+
+      await categoriesService.updateCategory(storeId, {
+        id: editingCategory.id,
+        name: editingCategory.name.trim()
+      });
+
+      // Actualizar la lista local
+      setAvailableCategories(prev => 
+        prev.map(cat => 
+          cat.id === editingCategory.id 
+            ? { ...cat, name: editingCategory.name.trim() }
+            : cat
+        )
+      );
+
+      setEditingCategory(null);
+      toast.success('Categoría actualizada exitosamente');
+    } catch (error) {
+      toast.error('Error al actualizar la categoría');
+    }
+  }, [editingCategory, storeId]);
+
+  /**
+   * Inicia el proceso de eliminación de categoría
+   */
+  const startDeleteCategory = useCallback(async (category: Category) => {
+    try {
+      // Verificar si hay productos en esta categoría
+      const { hasProducts, count } = await categoriesService.hasProductsInCategory(storeId, category.id);
+      
+      if (hasProducts) {
+        toast.error(
+          `No se puede eliminar la categoría "${category.name}" porque tiene ${count} producto(s) asociado(s). ` +
+          'Primero mueve los productos a otra categoría o elimínalos.'
+        );
+        return;
+      }
+
+      setCategoryToDelete(category);
+      setShowDeleteConfirm(true);
+    } catch (error) {
+      toast.error('Error al verificar la categoría');
+    }
+  }, [storeId]);
+
+  /**
+   * Confirma la eliminación de una categoría
+   */
+  const confirmDeleteCategory = useCallback(async () => {
+    if (!categoryToDelete) return;
+
+    try {
+      await categoriesService.hardDeleteCategory(storeId, categoryToDelete.id);
+      
+      // Actualizar la lista local
+      setAvailableCategories(prev => prev.filter(cat => cat.id !== categoryToDelete.id));
+      
+      // Si el producto actual tenía esa categoría, limpiar la selección
+      if (formData.categoryId === categoryToDelete.id) {
+        updateField('categoryId', '');
+      }
+
+      toast.success(`Categoría "${categoryToDelete.name}" eliminada exitosamente`);
+    } catch (error: any) {
+      toast.error(error.message || 'Error al eliminar la categoría');
+    } finally {
+      setShowDeleteConfirm(false);
+      setCategoryToDelete(null);
+    }
+  }, [categoryToDelete, storeId, formData.categoryId, updateField]);
+
+  /**
+   * Cancela la eliminación de categoría
+   */
+  const cancelDeleteCategory = useCallback(() => {
+    setShowDeleteConfirm(false);
+    setCategoryToDelete(null);
+  }, []);
 
   /**
    * Agrega una nueva variante
@@ -525,6 +717,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Limpiar errores previos
+    setSubmitError('');
+    
     if (!validateForm()) {
       toast.error('Por favor corrige los errores en el formulario');
       return;
@@ -533,6 +728,36 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setIsSubmitting(true);
     
     try {
+      // Verificar si existe un producto con el mismo nombre
+      const productName = formData.name.trim();
+      const excludeProductId = product?.id; // Excluir producto actual al editar
+      
+      const hasDuplicateName = await productsService.hasProductWithName(
+        storeId, 
+        productName, 
+        excludeProductId
+      );
+      
+      if (hasDuplicateName) {
+        const errorMessage = 'Este nombre ya está en uso';
+        setSubmitError(errorMessage);
+        toast.error(
+          product 
+            ? 'Ya existe otro producto con este nombre. Por favor elige un nombre diferente.'
+            : 'Ya existe un producto con este nombre. Por favor elige un nombre diferente.'
+        );
+        setValidationState(prev => ({
+          ...prev,
+          name: { isValid: false, message: errorMessage }
+        }));
+        setErrors(prev => ({
+          ...prev,
+          name: errorMessage
+        }));
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Combinar imágenes existentes con nuevas imágenes
       const allImages = [...existingImages, ...formData.images];
       
@@ -577,7 +802,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
   }
  
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto bg-white rounded-lg border border-gray-200 p-3 sm:p-4 lg:p-6">
+    <>
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto bg-white rounded-lg border border-gray-200 p-3 sm:p-4 lg:p-6">
         {/* Header integrado */}
         <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-200">
           <div>
@@ -621,17 +847,25 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   'w-full px-2 sm:px-3 py-2 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base',
                   validationState.name.isValid === false && 'border-red-500',
                   validationState.name.isValid === true && 'border-green-500',
-                  validationState.name.isValid === null && 'border-gray-300'
+                  validationState.name.isValid === null && 'border-gray-300',
+                  isValidatingName && 'border-blue-300'
                 )}
                 placeholder={`Ingresa el nombre del ${productTerm}`}
+                disabled={isSubmitting}
               />
-              {validationState.name.isValid === true && (
+              {isValidatingName && (
+                <div className="flex items-center space-x-1 text-blue-600 mt-1">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Verificando disponibilidad...</span>
+                </div>
+              )}
+              {!isValidatingName && validationState.name.isValid === true && (
                 <div className="flex items-center space-x-1 text-green-600 mt-1">
                   <Check className="w-4 h-4" />
                   <span className="text-sm">{validationState.name.message}</span>
                 </div>
               )}
-              {validationState.name.isValid === false && (
+              {!isValidatingName && validationState.name.isValid === false && (
                 <div className="flex items-center space-x-1 text-red-600 mt-1">
                   <AlertCircle className="w-4 h-4" />
                   <span className="text-sm">{validationState.name.message}</span>
@@ -773,6 +1007,76 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 <span className="text-sm">{validationState.categoryId.message}</span>
               </div>
             )}
+
+            {/* Gestión de categorías existentes */}
+            {availableCategories.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                  Gestionar categorías existentes:
+                </h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                  {availableCategories.map((category) => (
+                    <div key={category.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                      {editingCategory?.id === category.id ? (
+                        // Modo edición
+                        <div className="flex items-center space-x-2 flex-1">
+                          <input
+                            type="text"
+                            value={editingCategory.name}
+                            onChange={(e) => setEditingCategory(prev => prev ? { ...prev, name: e.target.value } : null)}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                            placeholder="Nombre de la categoría"
+                            onKeyPress={(e) => e.key === 'Enter' && saveEditedCategory()}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={saveEditedCategory}
+                            className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
+                            title="Guardar"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditingCategory}
+                            className="px-2 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500 transition-colors"
+                            title="Cancelar"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        // Modo visualización
+                        <>
+                          <span className="text-sm font-medium text-gray-900 flex-1">
+                            {category.name}
+                          </span>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditingCategory(category)}
+                              className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-xs transition-colors"
+                              title="Editar categoría"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => startDeleteCategory(category)}
+                              className="px-2 py-1 text-red-600 hover:bg-red-50 rounded text-xs transition-colors"
+                              title="Eliminar categoría"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {showAddCategory && (
               <div className="flex space-x-2 mt-3 p-3 bg-gray-50 rounded-lg border">
@@ -888,8 +1192,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-1 sm:space-y-0">
                   <span className="text-xs sm:text-sm font-medium text-blue-900">Margen de ganancia:</span>
                   <span className="text-xs sm:text-sm font-bold text-blue-900">
-                    ${(formData.price - formData.costPrice).toFixed(2)} 
-                    ({(((formData.price - formData.costPrice) / formData.price) * 100).toFixed(1)}%)
+                    ${((formData.price || 0) - (formData.costPrice || 0)).toFixed(2)} 
+                    ({(((formData.price || 0) - (formData.costPrice || 0)) / (formData.price || 1) * 100).toFixed(1)}%)
                   </span>
                 </div>
               </div>
@@ -1034,7 +1338,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     <div key={variant.id} className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
                       <span className="flex-1 font-medium text-gray-900">{variant.name}</span>
                       <span className="text-sm font-medium text-green-600">
-                        +${variant.price.toFixed(2)}
+                        +${(variant.price || 0).toFixed(2)}
                       </span>
                       <button
                         type="button"
@@ -1214,6 +1518,71 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </div>
         </div>
       </form>
+
+      {/* Modal de confirmación para eliminar categoría */}
+      {showDeleteConfirm && categoryToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Eliminar Categoría
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Esta acción no se puede deshacer
+                </p>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-700">
+                ¿Estás seguro de que quieres eliminar la categoría{' '}
+                <span className="font-semibold">&ldquo;{categoryToDelete.name}&rdquo;</span>?
+              </p>
+              
+              {categoryToDelete.hasProducts && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="text-red-800 font-medium">
+                        No se puede eliminar esta categoría
+                      </p>
+                      <p className="text-red-700 mt-1">
+                        Esta categoría tiene productos asociados. Para eliminarla, 
+                        primero debes reasignar o eliminar todos los productos de esta categoría.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex space-x-3 justify-end">
+              <button
+                type="button"
+                onClick={cancelDeleteCategory}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              {!categoryToDelete.hasProducts && (
+                <button
+                  type="button"
+                  onClick={confirmDeleteCategory}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Eliminar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
