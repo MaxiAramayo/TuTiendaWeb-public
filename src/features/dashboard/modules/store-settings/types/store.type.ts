@@ -11,15 +11,7 @@
 
 import { Timestamp } from 'firebase/firestore';
 import { PaymentMethod, DeliveryMethod, CommerceConfig } from '@/shared/types/firebase.types';
-import { 
-  StoreMetadata, 
-  StoreSettings as NewStoreSettings, 
-  ProductsConfig,
-  PaymentMethod as NewPaymentMethod,
-  DeliveryMethod as NewDeliveryMethod,
-  SubscriptionConfig
-} from '@/shared/types/firebase.types';
-import { StoreType } from '@shared/validations';
+import { StoreType } from '@/features/dashboard/modules/store-settings/validations/profile.validations';
 
 /**
  * Información básica de la tienda
@@ -36,17 +28,10 @@ export interface BasicStoreInfo {
   /** Categoría del negocio */
   category?: string;
 
+  /** whatsapp */
+  whatsapp?: string;
 }
 
-/**
- * Información de contacto
- */
-export interface ContactInfo {
-  /** Número de WhatsApp */
-  whatsapp: string;
-  /** Email de contacto */
-  website?: string;
-}
 
 /**
  * Dirección física
@@ -181,8 +166,6 @@ export interface StoreProfile {
   
   /** Información básica */
   basicInfo: BasicStoreInfo;
-  /** Información de contacto */
-  contactInfo: ContactInfo;
   /** Dirección física */
   address?: Address;
   /** Horarios de atención */
@@ -216,7 +199,6 @@ export interface StoreProfile {
  */
 export interface CreateStoreProfileData {
   basicInfo: Omit<BasicStoreInfo, 'slug'> & { slug?: string };
-  contactInfo: Pick<ContactInfo, 'whatsapp' | 'website'>;
   ownerId: string;
 }
 
@@ -225,7 +207,6 @@ export interface CreateStoreProfileData {
  */
 export interface UpdateStoreProfileData {
   basicInfo?: Partial<BasicStoreInfo>;
-  contactInfo?: Partial<ContactInfo>;
   address?: Partial<Address>;
   schedule?: Partial<WeeklySchedule>;
   socialLinks?: Partial<SocialLinks>;

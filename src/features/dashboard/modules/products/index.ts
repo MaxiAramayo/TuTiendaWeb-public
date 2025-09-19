@@ -65,7 +65,7 @@ export {
 export {
   validateProductData,
   validateImageDimensions,
-} from "@shared/validations";
+} from "@/shared/validations";
 
 // Validaciones
 export {

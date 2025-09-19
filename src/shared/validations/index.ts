@@ -1,8 +1,8 @@
 /**
  * Esquemas de validación centralizados usando Zod
  * 
- * Este archivo contiene todos los esquemas de validación reutilizables
- * para mantener consistencia en toda la aplicación.
+ * Este archivo contiene validaciones generales reutilizables
+ * para toda la aplicación, excluyendo las específicas de módulos.
  * 
  * @module shared/validations
  */
@@ -31,106 +31,7 @@ export const errorMessages = {
 };
 
 /**
- * Esquema para validar números de WhatsApp
- */
-export const whatsappSchema = z
-  .string()
-  .min(1, errorMessages.required)
-  .regex(
-    /^\+?[1-9]\d{1,14}$/,
-    'Número de WhatsApp inválido. Debe incluir código de país'
-  )
-  .transform((val) => {
-    // Normalizar número removiendo caracteres no numéricos excepto +
-    const cleaned = val.replace(/[^\d+]/g, '');
-    // Si no tiene código de país, agregar +54 para Argentina
-    if (!cleaned.startsWith('+')) {
-      return `+54${cleaned}`;
-    }
-    return cleaned;
-  });
-
-/**
- * Esquema para validar URLs de Instagram
- */
-export const instagramUrlSchema = z
-  .string()
-  .optional()
-  .refine(
-    (url) => {
-      if (!url) return true; // URL vacía es válida
-      const instagramPattern = /^https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9_.]+\/?$/;
-      return instagramPattern.test(url);
-    },
-    { message: 'URL de Instagram inválida' }
-  );
-
-/**
- * Esquema para validar URLs de Facebook
- */
-export const facebookUrlSchema = z
-  .string()
-  .optional()
-  .refine(
-    (url) => {
-      if (!url) return true; // URL vacía es válida
-      const facebookPattern = /^https?:\/\/(www\.)?facebook\.com\/[a-zA-Z0-9_.]+\/?$/;
-      return facebookPattern.test(url);
-    },
-    { message: 'URL de Facebook inválida' }
-  );
-
-/**
- * Esquema para validar slugs
- */
-export const slugSchema = z
-  .string()
-  .min(3, errorMessages.minLength(3))
-  .max(30, errorMessages.maxLength(30))
-  .regex(/^[a-z0-9-]+$/, errorMessages.slug)
-  .refine(
-    (val) => !val.includes('--'),
-    'No puede contener guiones dobles'
-  )
-  .refine(
-    (val) => !val.startsWith('-') && !val.endsWith('-'),
-    'No puede empezar o terminar con guión'
-  );
-
-/**
- * Esquema para validar nombres de tienda
- */
-export const storeNameSchema = z
-  .string()
-  .min(2, errorMessages.minLength(2))
-  .max(50, errorMessages.maxLength(50))
-  .regex(
-    /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
-    'El nombre solo puede contener letras y espacios'
-  )
-  .transform((val) => val.trim());
-
-/**
- * Esquema para validar descripciones
- */
-export const descriptionSchema = z
-  .string()
-  .min(10, errorMessages.minLength(10))
-  .max(500, errorMessages.maxLength(500))
-  .transform((val) => val.trim());
-
-/**
- * Esquema para validar colores hexadecimales
- */
-export const hexColorSchema = z
-  .string()
-  .regex(
-    /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/,
-    errorMessages.color
-  );
-
-/**
- * Esquema para validar emails
+ * Esquema para validar emails (GENERAL)
  */
 export const emailSchema = z
   .string()
@@ -145,63 +46,6 @@ export const urlSchema = z
   .string()
   .url(errorMessages.url)
   .optional();
-
-/**
- * Esquema para validar horarios (formato HH:MM)
- */
-export const timeSchema = z
-  .string()
-  .regex(
-    /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-    errorMessages.time
-  );
-
-/**
- * Esquema para validar días de la semana
- */
-export const dayOfWeekSchema = z.enum([
-  'monday', 'tuesday', 'wednesday', 'thursday', 
-  'friday', 'saturday', 'sunday'
-], {
-  errorMap: () => ({ message: 'Día de la semana inválido' })
-});
-
-/**
- * Esquema para validar horarios de apertura
- */
-export const scheduleSchema = z.object({
-  day: dayOfWeekSchema,
-  isOpen: z.boolean(),
-  openTime: timeSchema.optional(),
-  closeTime: timeSchema.optional()
-}).refine(
-  (data) => {
-    if (data.isOpen) {
-      return data.openTime && data.closeTime;
-    }
-    return true;
-  },
-  { message: 'Horarios de apertura y cierre son requeridos cuando está abierto' }
-).refine(
-  (data) => {
-    if (data.isOpen && data.openTime && data.closeTime) {
-      return data.openTime < data.closeTime;
-    }
-    return true;
-  },
-  { message: 'La hora de apertura debe ser anterior a la de cierre' }
-);
-
-/**
- * Esquema para validar direcciones
- */
-export const addressSchema = z.object({
-  street: z.string().min(5, 'La dirección debe tener al menos 5 caracteres').max(200, 'La dirección no puede exceder 200 caracteres'),
-  city: z.string().min(2, 'La ciudad debe tener al menos 2 caracteres').max(100, 'La ciudad no puede exceder 100 caracteres'),
-  state: z.string().min(2, 'La provincia debe tener al menos 2 caracteres').max(100, 'La provincia no puede exceder 100 caracteres'),
-  zipCode: z.string().regex(/^[0-9]{4,8}$/, 'Código postal inválido').optional(),
-  country: z.string().min(2, 'El país debe tener al menos 2 caracteres').max(100, 'El país no puede exceder 100 caracteres').default('Argentina')
-});
 
 /**
  * Esquema para validar coordenadas geográficas
@@ -287,55 +131,7 @@ export const qrStoreDataSchema = z.object({
 });
 
 /**
- * Esquema para validar configuración de tema
- */
-export const themeConfigSchema = z.object({
-  primaryColor: hexColorSchema,
-  secondaryColor: hexColorSchema.optional(),
-  backgroundColor: hexColorSchema.optional(),
-  textColor: hexColorSchema.optional(),
-  fontFamily: z.enum(['inter', 'roboto', 'poppins', 'montserrat'], {
-    errorMap: () => ({ message: 'Fuente no válida' })
-  }).default('inter')
-});
-
-/**
- * Esquema para validar información básica de tienda
- */
-export const storeBasicInfoSchema = z.object({
-  name: storeNameSchema,
-  slug: slugSchema,
-  description: descriptionSchema.optional(),
-  email: emailSchema.optional(),
-  phone: whatsappSchema.optional(),
-  website: urlSchema.optional()
-});
-
-/**
- * Esquema para validar redes sociales
- */
-export const socialMediaSchema = z.object({
-  instagram: instagramUrlSchema.optional(),
-  facebook: facebookUrlSchema.optional(),
-  twitter: urlSchema.optional(),
-  youtube: urlSchema.optional(),
-  tiktok: urlSchema.optional()
-});
-
-/**
- * Esquema para validar perfil completo de tienda
- */
-export const storeProfileSchema = z.object({
-  basicInfo: storeBasicInfoSchema,
-  address: addressSchema.optional(),
-  coordinates: coordinatesSchema.optional(),
-  schedule: z.array(scheduleSchema).length(7, 'Debe incluir horarios para todos los días').optional(),
-  socialMedia: socialMediaSchema.optional(),
-  theme: themeConfigSchema.optional()
-});
-
-/**
- * Esquema para validar nombres de sitio
+ * Esquema para validar nombres de sitio (GENERAL)
  */
 export const siteNameSchema = z
   .string()
@@ -361,7 +157,6 @@ export const sellTotalsSchema = z.object({
   }).optional()
 }).refine(
   (data) => {
-    // Validar que el total sea coherente con subtotal, descuentos e impuestos
     let calculatedTotal = data.subtotal;
     
     if (data.discount) {
@@ -381,26 +176,11 @@ export const sellTotalsSchema = z.object({
 );
 
 /**
- * Tipos derivados de los esquemas
+ * Tipos derivados de los esquemas GENERALES
  */
-export type WhatsappInput = z.infer<typeof whatsappSchema>;
-export type InstagramUrlInput = z.infer<typeof instagramUrlSchema>;
-export type FacebookUrlInput = z.infer<typeof facebookUrlSchema>;
-export type SlugInput = z.infer<typeof slugSchema>;
-export type StoreNameInput = z.infer<typeof storeNameSchema>;
-export type DescriptionInput = z.infer<typeof descriptionSchema>;
-export type HexColorInput = z.infer<typeof hexColorSchema>;
 export type EmailInput = z.infer<typeof emailSchema>;
 export type UrlInput = z.infer<typeof urlSchema>;
-export type TimeInput = z.infer<typeof timeSchema>;
-export type DayOfWeekInput = z.infer<typeof dayOfWeekSchema>;
-export type ScheduleInput = z.infer<typeof scheduleSchema>;
-export type AddressInput = z.infer<typeof addressSchema>;
 export type CoordinatesInput = z.infer<typeof coordinatesSchema>;
-export type ThemeConfigInput = z.infer<typeof themeConfigSchema>;
-export type StoreBasicInfoInput = z.infer<typeof storeBasicInfoSchema>;
-export type SocialMediaInput = z.infer<typeof socialMediaSchema>;
-export type StoreProfileInput = z.infer<typeof storeProfileSchema>;
 export type ImageDimensionsInput = z.infer<typeof imageDimensionsSchema>;
 export type ImageFileInput = z.infer<typeof imageFileSchema>;
 export type ProductDataInput = z.infer<typeof productDataSchema>;
@@ -410,204 +190,52 @@ export type SiteNameInput = z.infer<typeof siteNameSchema>;
 export type SellTotalsInput = z.infer<typeof sellTotalsSchema>;
 
 /**
- * Funciones de validación rápida
- */
-
-/**
- * Valida un número de WhatsApp
- */
-export const validateWhatsApp = (phone: string) => {
-  return whatsappSchema.safeParse(phone);
-};
-
-/**
- * Valida una URL de Instagram
- */
-export const validateInstagramUrl = (url: string) => {
-  return instagramUrlSchema.safeParse(url);
-};
-
-/**
- * Valida una URL de Facebook
- */
-export const validateFacebookUrl = (url: string) => {
-  return facebookUrlSchema.safeParse(url);
-};
-
-/**
- * Valida un slug
- */
-export const validateSlug = (slug: string) => {
-  return slugSchema.safeParse(slug);
-};
-
-/**
- * Valida un nombre de tienda
- */
-export const validateStoreName = (name: string) => {
-  return storeNameSchema.safeParse(name);
-};
-
-/**
- * Valida una descripción
- */
-export const validateDescription = (description: string) => {
-  return descriptionSchema.safeParse(description);
-};
-
-/**
- * Valida un color hexadecimal
- */
-export const validateHexColor = (color: string) => {
-  return hexColorSchema.safeParse(color);
-};
-
-/**
- * Valida un email
+ * Funciones de validación GENERALES
  */
 export const validateEmail = (email: string) => {
   return emailSchema.safeParse(email);
 };
 
-/**
- * Valida una URL general
- */
 export const validateUrl = (url: string) => {
   return urlSchema.safeParse(url);
 };
 
-/**
- * Valida un horario
- */
-export const validateTime = (time: string) => {
-  return timeSchema.safeParse(time);
-};
-
-/**
- * Valida un día de la semana
- */
-export const validateDayOfWeek = (day: string) => {
-  return dayOfWeekSchema.safeParse(day);
-};
-
-/**
- * Valida un horario de apertura
- */
-export const validateSchedule = (schedule: unknown) => {
-  return scheduleSchema.safeParse(schedule);
-};
-
-/**
- * Valida una dirección
- */
-export const validateAddress = (address: unknown) => {
-  return addressSchema.safeParse(address);
-};
-
-/**
- * Valida coordenadas geográficas
- */
 export const validateCoordinates = (coordinates: unknown) => {
   return coordinatesSchema.safeParse(coordinates);
 };
 
-/**
- * Valida configuración de tema
- */
-export const validateThemeConfig = (theme: unknown) => {
-  return themeConfigSchema.safeParse(theme);
-};
-
-/**
- * Valida información básica de tienda
- */
-export const validateStoreBasicInfo = (basicInfo: unknown) => {
-  return storeBasicInfoSchema.safeParse(basicInfo);
-};
-
-/**
- * Valida redes sociales
- */
-export const validateSocialMedia = (socialMedia: unknown) => {
-  return socialMediaSchema.safeParse(socialMedia);
-};
-
-/**
- * Valida perfil completo de tienda
- */
-export const validateStoreProfile = (profile: unknown) => {
-  return storeProfileSchema.safeParse(profile);
-};
-
-/**
- * Valida dimensiones de imagen
- */
 export const validateImageDimensions = (width: number, height: number) => {
   return imageDimensionsSchema.safeParse({ width, height });
 };
 
-/**
- * Valida un archivo de imagen
- */
 export const validateImageFile = (file: File, type: 'avatar' | 'cover') => {
   return imageFileSchema.safeParse({ file, type });
 };
 
-/**
- * Valida datos de producto
- */
 export const validateProductData = (data: unknown) => {
   return productDataSchema.safeParse(data);
 };
 
-/**
- * Valida datos de QR de usuario (legacy)
- */
 export const validateQrUserData = (data: unknown) => {
   return qrUserDataSchema.safeParse(data);
 };
 
-/**
- * Valida datos de QR de tienda
- */
 export const validateQrStoreData = (data: unknown) => {
   return qrStoreDataSchema.safeParse(data);
 };
 
-/**
- * Valida un nombre de sitio
- */
 export const validateSiteName = (siteName: string) => {
   return siteNameSchema.safeParse(siteName);
 };
 
-/**
- * Valida totales de venta
- */
 export const validateSellTotals = (data: unknown) => {
   return sellTotalsSchema.safeParse(data);
 };
 
 /**
- * Constantes de validación
+ * Constantes de validación GENERALES
  */
 export const VALIDATION_CONSTRAINTS = {
-  STORE_NAME: {
-    MIN_LENGTH: 2,
-    MAX_LENGTH: 50
-  },
-  DESCRIPTION: {
-    MIN_LENGTH: 10,
-    MAX_LENGTH: 500
-  },
-  WHATSAPP: {
-    MIN_LENGTH: 10,
-    MAX_LENGTH: 15
-  },
-  SLUG: {
-    MIN_LENGTH: 3,
-    MAX_LENGTH: 30
-  },
   SITE_NAME: {
     MIN_LENGTH: 3,
     MAX_LENGTH: 30
@@ -619,16 +247,6 @@ export const VALIDATION_CONSTRAINTS = {
   PRODUCT_DESCRIPTION: {
     MIN_LENGTH: 10,
     MAX_LENGTH: 2000
-  },
-  ADDRESS: {
-    STREET_MIN_LENGTH: 5,
-    STREET_MAX_LENGTH: 200,
-    CITY_MIN_LENGTH: 2,
-    CITY_MAX_LENGTH: 100,
-    STATE_MIN_LENGTH: 2,
-    STATE_MAX_LENGTH: 100,
-    COUNTRY_MIN_LENGTH: 2,
-    COUNTRY_MAX_LENGTH: 100
   },
   COORDINATES: {
     LATITUDE_MIN: -90,
@@ -647,27 +265,3 @@ export const VALIDATION_CONSTRAINTS = {
     COVER_MAX: 5 * 1024 * 1024   // 5MB
   }
 } as const;
-
-/**
- * Tipos de tienda permitidos
- */
-export const STORE_TYPES = [
-  'retail', 'restaurant', 'service', 'digital', 'fashion',
-  'beauty', 'health', 'sports', 'electronics', 'home',
-  'automotive', 'other'
-] as const;
-export type StoreType = typeof STORE_TYPES[number];
-
-/**
- * Esquema para validar tipo de tienda
- */
-export const storeTypeSchema = z.enum(STORE_TYPES, {
-  errorMap: () => ({ message: 'Tipo de tienda inválido' })
-});
-
-/**
- * Valida un tipo de tienda
- */
-export const validateStoreType = (type: string) => {
-  return storeTypeSchema.safeParse(type);
-};

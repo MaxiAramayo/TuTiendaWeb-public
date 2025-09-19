@@ -9,50 +9,42 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { useProfileStore, type BasicInfoData } from '../../api/profileStore';
+import { useProfileStore } from '../../api/profileStore';
+import { BasicStoreInfo } from '../../types/store.type';
 import { useAuthStore } from '@/features/auth/api/authStore';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
-  RefreshCw,
-  Store,
-  Tag,
-  Globe,
-  Save
-} from 'lucide-react';
-import { validateSlug as validateSlugZod } from '@shared/validations';
-  import { generateSlug } from '../../utils/profile.utils';
-  import { debounce } from 'lodash';
+import { AlertCircle, Loader2, RefreshCw, Store, Tag, Globe, Save, Phone, CheckCircle, ChevronDown } from 'lucide-react';
+import { generateSlug, formatWhatsAppNumber } from '../../utils/profile.utils';
 import { toast } from 'sonner';
+import { profileService } from '../../services/profile.service';
+import { COUNTRY_CODES } from '../../data/geographic.data';
 
-/**
- * Props del componente
- */
+import { 
+  StoreType,
+  validateBasicInfoFields,
+  validateSingleField,
+  validateWhatsApp
+} from '../../validations/profile.validations';
+
 interface BasicInfoSectionProps {
-  formData: ProfileFormData;
-  formState: FormState;
-  updateField: (field: keyof ProfileFormData, value: any) => void;
-  validateSlug: (slug: string) => Promise<boolean>;
-  profile: StoreProfile | null;
-  onSave?: () => Promise<void>;
-  isSaving?: boolean;
+  formData: {
+    name: string;
+    description: string;
+    siteName: string;
+    storeType: string;
+    whatsapp: string;
+  };
+  updateField: (field: string, value: any) => void;
 }
 
-/**
- * Tipos de tienda disponibles
- */
-const STORE_TYPES = [
+const STORE_TYPE_OPTIONS = [
   { value: 'retail', label: 'Tienda minorista', icon: '🏪' },
   { value: 'restaurant', label: 'Restaurante', icon: '🍽️' },
   { value: 'service', label: 'Servicios', icon: '🔧' },
@@ -67,173 +59,146 @@ const STORE_TYPES = [
   { value: 'other', label: 'Otro', icon: '📦' },
 ];
 
-
-/**
- * Componente de sección de información básica
- */
-export function BasicInfoSection({
-  formData,
-  formState,
-  updateField,
-  validateSlug,
-  profile,
-  onSave,
-  isSaving = false,
-}: BasicInfoSectionProps) {
-  const { updateBasicInfo, sections } = useProfileStore();
+export function BasicInfoSection({ formData, updateField }: BasicInfoSectionProps) {
+  const { updateBasicInfo, getSectionState, storeProfile } = useProfileStore();
   const { user } = useAuthStore();
-  // Toast functions using sonner
-  const success = (message: string) => toast.success(message);
-  const error = (message: string) => toast.error(message);
-  
-  // Obtener el estado de guardado de la sección básica
-  const basicSectionState = sections.basic || { isSaving: false, isDirty: false, lastSaved: null, error: null };
-  const isBasicSaving = basicSectionState.isSaving;
-  
-  const [slugValidation, setSlugValidation] = useState<{
-    isValidating: boolean;
-    isValid: boolean | null;
-    message: string;
-  }>({ isValidating: false, isValid: null, message: '' });
   
   const [autoSlug, setAutoSlug] = useState(true);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const selectedCountryCodeRef = useRef('+54');
 
-  // Validación de slug con debounce
-  const debouncedSlugValidation = useMemo(
-    () => debounce(async (slug: string) => {
-      if (!slug || slug === profile?.basicInfo.slug) {
-        setSlugValidation({ isValidating: false, isValid: null, message: '' });
-        return;
-      }
+  const sectionState = getSectionState('basicInfo');
 
-      if (!validateSlugZod(slug).success) {
-        setSlugValidation({
-          isValidating: false,
-          isValid: false,
-          message: 'El slug debe tener entre 3-50 caracteres y solo contener letras, números y guiones',
-        });
-        return;
-      }
+  // Formato de WhatsApp
+  const whatsappFormatted = useMemo(() => {
+    return formData.whatsapp ? formatWhatsAppNumber(formData.whatsapp) : '';
+  }, [formData.whatsapp]);
 
-      setSlugValidation({ isValidating: true, isValid: null, message: 'Verificando disponibilidad...' });
-      
-      try {
-        const slugValidationResult = validateSlugZod(slug);
-         if (!slugValidationResult.success) {
-           setSlugValidation({
-             isValidating: false,
-             isValid: false,
-             message: slugValidationResult.error?.issues[0]?.message || 'Slug inválido'
-           });
-           return;
-         }
-         const isUnique = true; // TODO: Implementar verificación de unicidad
-        setSlugValidation({
-          isValidating: false,
-          isValid: isUnique,
-          message: isUnique ? 'Disponible' : 'Este nombre ya está en uso',
-        });
-      } catch (error) {
-        setSlugValidation({
-          isValidating: false,
-          isValid: false,
-          message: 'Error al verificar disponibilidad',
-        });
-      }
-    }, 500),
-    [validateSlug, profile?.basicInfo.slug]
-  );
+  // Código de país actual
+  const currentCountryCode = useMemo(() => {
+    if (!formData.whatsapp) return '+54';
+    const match = formData.whatsapp.match(/^(\+\d{1,4})/);
+    return match ? match[1] : '+54';
+  }, [formData.whatsapp]);
 
-  // Efecto para validar slug cuando cambia
-  useEffect(() => {
-    if (formData.siteName) {
-      debouncedSlugValidation(formData.siteName);
-    }
+  // Manejar cambios de campos con validación simple
+  const handleFieldChange = useCallback((field: string, value: string) => {
+    updateField(field, value);
     
-    return () => {
-      debouncedSlugValidation.cancel();
-    };
-  }, [formData.siteName, debouncedSlugValidation]);
+    // Validar campo individual (sin verificación de slug único)
+    const error = validateSingleField(field, value);
+    setFormErrors(prev => ({ ...prev, [field]: error || '' }));
 
-  // Manejar cambio de nombre de tienda
-  const handleStoreNameChange = useCallback((value: string) => {
-    updateField('name', value);
-    
-    // Auto-generar slug si está habilitado
-    if (autoSlug && value) {
+    // Auto-generar slug para nombre
+    if (field === 'name' && autoSlug && value) {
       const newSlug = generateSlug(value);
       updateField('siteName', newSlug);
+      // Limpiar error de slug cuando se auto-genera
+      setFormErrors(prev => ({ ...prev, siteName: '' }));
     }
   }, [updateField, autoSlug]);
 
-  // Manejar cambio manual de slug
+  // Manejar cambio de slug
   const handleSlugChange = useCallback((value: string) => {
     setAutoSlug(false);
-    updateField('siteName', value.toLowerCase());
+    const cleanValue = value.toLowerCase();
+    updateField('siteName', cleanValue);
+    
+    // Validar slug (sin verificación de unicidad)
+    const error = validateSingleField('siteName', cleanValue);
+    setFormErrors(prev => ({ ...prev, siteName: error || '' }));
   }, [updateField]);
 
-  // Regenerar slug automáticamente
+  // Regenerar slug
   const handleRegenerateSlug = useCallback(() => {
     if (formData.name) {
       const newSlug = generateSlug(formData.name);
       updateField('siteName', newSlug);
       setAutoSlug(true);
+      setFormErrors(prev => ({ ...prev, siteName: '' }));
     }
   }, [formData.name, updateField]);
-  
-  // Manejar guardado de la sección
-  const handleSectionSave = useCallback(async () => {
-    if (!user?.id) {
-      error('No se pudo identificar al usuario');
-      return;
+
+  // Manejar WhatsApp
+  const handleWhatsAppChange = useCallback((value: string) => {
+    const cleaned = value.replace(/[^\d\s\-+]/g, '');
+    if (cleaned !== formData.whatsapp) {
+      handleFieldChange('whatsapp', cleaned);
     }
-    
-    if (!profile?.id) {
-      error('No se encontró el perfil de la tienda');
+  }, [formData.whatsapp, handleFieldChange]);
+
+  // Guardar sección con validación completa
+  const handleSectionSave = useCallback(async () => {
+    if (!user?.id || !storeProfile?.id) {
+      toast.error('No se pudo identificar la tienda');
       return;
     }
     
     try {
-      const basicData: BasicInfoData = {
-        name: formData.name,
-        description: formData.description,
-        slug: formData.siteName,
-        type: formData.storeType,
+      // Validar todos los campos incluyendo verificación de slug único
+      const validation = await validateBasicInfoFields(
+        {
+          name: formData.name,
+          description: formData.description,
+          siteName: formData.siteName,
+          storeType: formData.storeType,
+          whatsapp: formData.whatsapp,
+        },
+        // Función para verificar slug único usando el servicio
+        (slug, excludeStoreId) => profileService.isSlugUnique(slug, excludeStoreId),
+        storeProfile.id // Excluir la tienda actual
+      );
+
+      if (!validation.isValid) {
+        setFormErrors(validation.errors);
+        toast.error('Por favor corrige los errores antes de continuar');
+        return;
+      }
+
+      setFormErrors({});
+      
+      // Guardar datos validados
+      const basicData: Partial<BasicStoreInfo> = {
+        name: validation.data.name,
+        description: validation.data.description,
+        slug: validation.data.siteName,
+        type: validation.data.storeType as StoreType,
+        whatsapp: validation.data.whatsapp,
       };
       
-      const result = await updateBasicInfo(profile.id, basicData);
+      const success = await updateBasicInfo(basicData);
       
-      if (result) {
-        success('Información básica guardada correctamente');
+      if (success) {
+        toast.success('Información básica guardada correctamente');
       } else {
-        error('Error al guardar la información. Inténtalo de nuevo.');
+        toast.error('Error al guardar la información');
       }
     } catch (err) {
-      error('Error al guardar la información. Inténtalo de nuevo.');
+      console.error('Error al guardar:', err);
+      toast.error('Error al guardar la información');
     }
-  }, [user?.id, formData.name, formData.description, formData.siteName, formData.storeType, updateBasicInfo, profile?.id, success, error]);
-
+  }, [user?.id, storeProfile?.id, formData, updateBasicInfo]);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header con título y botón de guardar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-3 sm:space-y-0">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Información básica</h2>
-          <p className="text-xs sm:text-sm text-gray-500">Configura los datos principales de tu tienda</p>
+          <h2 className="text-xl font-semibold text-gray-900">Información básica</h2>
+          <p className="text-sm text-gray-500">Configura los datos principales de tu tienda</p>
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={isBasicSaving || !formState.isDirty}
-          className="flex items-center justify-center space-x-2 w-full sm:w-auto"
+          disabled={sectionState.isSaving}
+          className="flex items-center space-x-2"
           size="sm"
         >
-          {isBasicSaving ? (
+          {sectionState.isSaving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Save className="w-4 h-4" />
           )}
-          <span className="text-sm">{isBasicSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span>{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
@@ -245,28 +210,22 @@ export function BasicInfoSection({
         className="space-y-2"
       >
         <Label htmlFor="name" className="flex items-center space-x-2">
-          <Store className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="text-sm sm:text-base">Nombre de la tienda *</span>
+          <Store className="w-4 h-4" />
+          <span>Nombre de la tienda *</span>
         </Label>
         <Input
           id="name"
-          value={formData.name}
-          onChange={(e) => handleStoreNameChange(e.target.value)}
+          value={formData.name || ''}
+          onChange={(e) => handleFieldChange('name', e.target.value)}
           placeholder="Ej: Mi Tienda Online"
-          className={cn(
-            'text-sm',
-            formState.errors.name && 'border-red-500 focus:border-red-500'
-          )}
+          className={cn(formErrors.name && 'border-red-500')}
         />
-        {formState.errors.name && (
-          <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>{formState.errors.name}</span>
+        {formErrors.name && (
+          <p className="text-sm text-red-600 flex items-center space-x-1">
+            <AlertCircle className="w-4 h-4" />
+            <span>{formErrors.name}</span>
           </p>
         )}
-        <p className="text-xs sm:text-sm text-gray-500">
-          Este será el nombre principal de tu tienda que verán los clientes.
-        </p>
       </motion.div>
 
       {/* Descripción */}
@@ -276,37 +235,26 @@ export function BasicInfoSection({
         transition={{ delay: 0.2 }}
         className="space-y-2"
       >
-        <Label htmlFor="description" className="text-sm sm:text-base">Descripción</Label>
+        <Label htmlFor="description">Descripción</Label>
         <Textarea
           id="description"
-          value={formData.description}
-          onChange={(e) => {
-            updateField('description', e.target.value);
-          }}
+          value={formData.description || ''}
+          onChange={(e) => handleFieldChange('description', e.target.value)}
           placeholder="Describe tu tienda, productos o servicios..."
           rows={4}
-          className={cn(
-            'text-sm',
-            formState.errors.description && 'border-red-500 focus:border-red-500'
-          )}
+          className={cn(formErrors.description && 'border-red-500')}
         />
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
-          <p className="text-xs sm:text-sm text-gray-500">
-            Una buena descripción ayuda a los clientes a entender qué ofreces.
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-gray-500">
+            {(formData.description || '').length}/500 caracteres
           </p>
-          <span className={cn(
-            'text-xs sm:text-sm',
-            formData.description.length < 50 ? 'text-red-500' : 'text-green-600'
-          )}>
-            {formData.description.length}/500
-          </span>
+          {formErrors.description && (
+            <p className="text-sm text-red-600 flex items-center space-x-1">
+              <AlertCircle className="w-4 h-4" />
+              <span>{formErrors.description}</span>
+            </p>
+          )}
         </div>
-        {formState.errors.description && (
-          <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>{formState.errors.description}</span>
-          </p>
-        )}
       </motion.div>
 
       {/* Nombre del sitio (slug) */}
@@ -317,26 +265,24 @@ export function BasicInfoSection({
         className="space-y-2"
       >
         <Label htmlFor="siteName" className="flex items-center space-x-2">
-          <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="text-sm sm:text-base">Nombre del sitio *</span>
+          <Globe className="w-4 h-4" />
+          <span>Nombre del sitio *</span>
         </Label>
         
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+        <div className="flex space-x-2">
           <div className="flex-1">
             <div className="flex">
-              <span className="inline-flex items-center px-2 sm:px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs sm:text-sm">
+              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
                 tutienda.com/
               </span>
               <Input
                 id="siteName"
-                value={formData.siteName}
+                value={formData.siteName || ''}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 placeholder="mi-tienda"
                 className={cn(
-                  'rounded-l-none text-sm',
-                  formState.errors.siteName && 'border-red-500 focus:border-red-500',
-                  slugValidation.isValid === true && 'border-green-500',
-                  slugValidation.isValid === false && 'border-red-500'
+                  'rounded-l-none',
+                  formErrors.siteName && 'border-red-500'
                 )}
               />
             </div>
@@ -348,47 +294,18 @@ export function BasicInfoSection({
             size="sm"
             onClick={handleRegenerateSlug}
             disabled={!formData.name}
-            className="flex items-center justify-center space-x-1 w-full sm:w-auto"
+            title="Regenerar desde el nombre"
           >
-            <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="text-xs sm:text-sm">Regenerar</span>
+            <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
         
-        {/* Estado de validación del slug */}
-        <div className="flex items-center space-x-2">
-          {slugValidation.isValidating && (
-            <div className="flex items-center space-x-1 text-blue-600">
-              <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-              <span className="text-xs sm:text-sm">{slugValidation.message}</span>
-            </div>
-          )}
-          
-          {slugValidation.isValid === true && (
-            <div className="flex items-center space-x-1 text-green-600">
-              <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="text-xs sm:text-sm">{slugValidation.message}</span>
-            </div>
-          )}
-          
-          {slugValidation.isValid === false && (
-            <div className="flex items-center space-x-1 text-red-600">
-              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="text-xs sm:text-sm">{slugValidation.message}</span>
-            </div>
-          )}
-        </div>
-        
-        {formState.errors.siteName && (
-          <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>{formState.errors.siteName}</span>
+        {formErrors.siteName && (
+          <p className="text-sm text-red-600 flex items-center space-x-1">
+            <AlertCircle className="w-4 h-4" />
+            <span>{formErrors.siteName}</span>
           </p>
         )}
-        
-        <p className="text-xs sm:text-sm text-gray-500">
-          Esta será la URL de tu tienda. Solo letras, números y guiones.
-        </p>
       </motion.div>
 
       {/* Tipo de tienda */}
@@ -399,24 +316,19 @@ export function BasicInfoSection({
         className="space-y-2"
       >
         <Label className="flex items-center space-x-2">
-          <Tag className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="text-sm sm:text-base">Tipo de tienda *</span>
+          <Tag className="w-4 h-4" />
+          <span>Tipo de tienda *</span>
         </Label>
         
         <Select
-          value={formData.storeType}
-          onValueChange={(value) => {
-            updateField('storeType', value);
-          }}
+          value={formData.storeType || ''}
+          onValueChange={(value) => handleFieldChange('storeType', value)}
         >
-          <SelectTrigger className={cn(
-            'text-sm',
-            formState.errors.storeType && 'border-red-500'
-          )}>
+          <SelectTrigger className={cn(formErrors.storeType && 'border-red-500')}>
             <SelectValue placeholder="Selecciona el tipo de tu tienda" />
           </SelectTrigger>
           <SelectContent>
-            {STORE_TYPES.map((type) => (
+            {STORE_TYPE_OPTIONS.map((type) => (
               <SelectItem key={type.value} value={type.value}>
                 <div className="flex items-center space-x-2">
                   <span>{type.icon}</span>
@@ -427,41 +339,118 @@ export function BasicInfoSection({
           </SelectContent>
         </Select>
         
-        {formState.errors.storeType && (
-          <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>{formState.errors.storeType}</span>
+        {formErrors.storeType && (
+          <p className="text-sm text-red-600 flex items-center space-x-1">
+            <AlertCircle className="w-4 h-4" />
+            <span>{formErrors.storeType}</span>
           </p>
         )}
       </motion.div>
 
+      {/* WhatsApp */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="space-y-2"
+      >
+        <Label htmlFor="whatsapp" className="flex items-center space-x-2">
+          <Phone className="w-4 h-4" />
+          <span>WhatsApp de contacto *</span>
+        </Label>
+        
+        <div className="relative flex items-center bg-white border-2 border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:border-green-300 focus-within:border-green-500">
+          {/* Selector de país */}
+          <div className="relative flex-shrink-0">
+            <select
+              value={currentCountryCode}
+              onChange={(e) => {
+                const value = e.target.value;
+                selectedCountryCodeRef.current = value;
+                if (!formData.whatsapp || formData.whatsapp.trim() === '') {
+                  updateField('whatsapp', value + ' ');
+                } else {
+                  const numberWithoutCode = formData.whatsapp.replace(/^\+\d{1,4}\s*/, '');
+                  updateField('whatsapp', value + ' ' + numberWithoutCode);
+                }
+              }}
+              className="h-12 pl-3 pr-8 bg-transparent border-0 text-sm font-medium text-gray-700 cursor-pointer focus:outline-none focus:ring-0 appearance-none"
+            >
+              {COUNTRY_CODES.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.code}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <div className="absolute right-0 top-2 bottom-2 w-px bg-gray-200"></div>
+          </div>
+          
+          {/* Input principal */}
+          <Input
+            id="whatsapp"
+            value={formData.whatsapp ? formData.whatsapp.replace(/^\+\d{1,4}\s*/, '') : ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              const fullNumber = selectedCountryCodeRef.current + ' ' + value;
+              handleWhatsAppChange(fullNumber);
+            }}
+            placeholder="Ej: 9 11 1234-5678"
+            className={cn(
+              'h-12 border-0 bg-transparent px-3 focus:ring-0 focus:outline-none placeholder:text-gray-400 flex-1',
+              formErrors.whatsapp && 'text-red-600'
+            )}
+          />
+          
+          {/* Indicador de estado */}
+          {formData.whatsapp && (
+            <div className="flex-shrink-0 pr-3">
+              {!formErrors.whatsapp ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              )}
+            </div>
+          )}
+        </div>
+        
+        {formErrors.whatsapp && (
+          <p className="text-sm text-red-600 flex items-center space-x-1">
+            <AlertCircle className="w-4 h-4" />
+            <span>{formErrors.whatsapp}</span>
+          </p>
+        )}
+        
+        {/* Formato sugerido */}
+        {whatsappFormatted && whatsappFormatted !== formData.whatsapp && (
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+            <p className="text-sm font-medium text-blue-700 mb-1">Formato sugerido:</p>
+            <p className="text-sm font-mono text-blue-700 bg-white px-2 py-1 rounded border">
+              {whatsappFormatted}
+            </p>
+          </div>
+        )}
+      </motion.div>
 
       {/* Preview de la URL */}
-      {formData.siteName && (
+      {formData.siteName && !formErrors.siteName && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4"
+          transition={{ delay: 0.5 }}
+          className="bg-blue-50 border border-blue-200 rounded-lg p-4"
         >
-          <h4 className="text-xs sm:text-sm font-medium text-blue-900 mb-2">
+          <h4 className="text-sm font-medium text-blue-900 mb-2">
             Vista previa de tu tienda
           </h4>
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Globe className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-              <span className="text-xs sm:text-sm text-blue-800 font-mono break-all">
-                tutienda.com/{formData.siteName}
-              </span>
-            </div>
-            <p className="text-xs text-blue-700">
-              Los clientes podrán acceder a tu tienda desde esta URL.
-            </p>
+          <div className="flex items-center space-x-2">
+            <Globe className="w-4 h-4 text-blue-600" />
+            <span className="text-sm text-blue-800 font-mono">
+              tutienda.com/{formData.siteName}
+            </span>
           </div>
         </motion.div>
       )}
-      
-
     </div>
   );
 }

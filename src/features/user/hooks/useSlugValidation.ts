@@ -8,7 +8,7 @@
 
 import { useState, useCallback } from 'react';
 import { useUserStore } from '@/features/user/api/userStore';
-import { validateSlug } from '@shared/validations';
+import { validateSlug } from '@/shared/validations';
 import { generateSlug, generateSlugSuggestions } from '@/features/user/utils/slugUtils';
 
 export interface UseSlugValidationOptions {

@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
 import { UserData, StoreData } from './MultiStepRegister';
-import type { StoreType } from '@shared/validations';
+import type { StoreType } from '@/shared/validations';
 
 // Schema de validación para el segundo paso
 const storeSetupSchema = z.object({

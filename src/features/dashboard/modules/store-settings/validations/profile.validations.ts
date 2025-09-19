@@ -1,436 +1,519 @@
 /**
- * Esquemas de validación para el módulo de perfil
+ * Esquemas de validación para el módulo de perfil de tienda
  * 
- * Define todas las validaciones usando Zod para garantizar la integridad de los datos
+ * Define todas las validaciones usando Zod de forma centralizada
+ * para garantizar la integridad de los datos
  * 
- * @module features/dashboard/modules/profile/validations
+ * @module features/dashboard/modules/store-settings/validations
  */
 
 import { z } from "zod";
-import { 
-  StoreType,
-  whatsappSchema,
-  instagramUrlSchema,
-  facebookUrlSchema,
-  slugSchema,
-  storeNameSchema,
-  descriptionSchema,
-  emailSchema,
-  urlSchema,
-  timeSchema,
-  dayOfWeekSchema,
-  scheduleSchema,
-  hexColorSchema,
-  validateInstagramUrl,
-  validateFacebookUrl,
-  validateWhatsApp,
-  validateSlug,
-  validateStoreName,
-  validateDescription,
-  validateHexColor,
-  validateEmail,
-  validateUrl,
-  validateTime,
-  errorMessages as sharedErrorMessages
-} from "@shared/validations";
+import { PROVINCES } from '../data/geographic.data';
 
 /**
- * Mensajes de error específicos del módulo (complementan los compartidos)
+ * Mensajes de error centralizados en español
  */
-const errorMessages = {
-  ...sharedErrorMessages,
-  slugTaken: "Este nombre ya está en uso",
-  tooShort: "Demasiado corto",
-  tooLong: "Demasiado largo",
-};
+export const errorMessages = {
+  required: 'Este campo es obligatorio',
+  minLength: (min: number) => `Debe contener al menos ${min} caracteres`,
+  maxLength: (max: number) => `No puede exceder ${max} caracteres`,
+  email: 'Formato de email inválido',
+  url: 'Formato de URL inválido',
+  slug: 'Solo letras minúsculas, números y guiones',
+  slugTaken: 'Este nombre ya está en uso',
+} as const;
 
 /**
- * Validación para URLs de redes sociales (usa validación centralizada)
+ * Tipos de tienda permitidos
  */
-const socialUrlSchema = urlSchema.optional().or(z.literal(''));
+export const STORE_TYPES = [
+  'retail', 'restaurant', 'service', 'digital', 'fashion',
+  'beauty', 'health', 'sports', 'electronics', 'home',
+  'automotive', 'other'
+] as const;
+
+export type StoreType = typeof STORE_TYPES[number];
+
+// ============================================================================
+// ESQUEMAS BASE
+// ============================================================================
 
 /**
- * Esquema para información básica de la tienda
+ * Esquema para validar nombres de tienda
  */
-export const basicInfoSchema = z.object({
-  name: storeNameSchema,
-  description: descriptionSchema,
-  slug: slugSchema,
-  
-  type: z.enum([
-    'retail', 'restaurant', 'service', 'digital', 'fashion',
-    'beauty', 'health', 'sports', 'electronics', 'home',
-    'automotive', 'other'
-  ] as const, {
-    required_error: "Debe seleccionar un tipo de tienda",
-    invalid_type_error: "Tipo de tienda no válido"
-  }),
+export const storeNameSchema = z
+  .string()
+  .min(2, errorMessages.minLength(2))
+  .max(50, errorMessages.maxLength(50))
+  .regex(
+    /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s0-9]+$/,
+    'El nombre solo puede contener letras, números y espacios'
+  )
+  .transform((val) => val.trim());
+
+/**
+ * Esquema para validar descripciones
+ */
+export const descriptionSchema = z
+  .string()
+  .min(10, errorMessages.minLength(10))
+  .max(500, errorMessages.maxLength(500))
+  .transform((val) => val.trim());
+
+/**
+ * Esquema para validar slugs
+ */
+export const slugSchema = z
+  .string()
+  .min(3, errorMessages.minLength(3))
+  .max(30, errorMessages.maxLength(30))
+  .regex(/^[a-z0-9-]+$/, errorMessages.slug)
+  .refine(
+    (val) => !val.includes('--'),
+    'No puede contener guiones dobles'
+  )
+  .refine(
+    (val) => !val.startsWith('-') && !val.endsWith('-'),
+    'No puede empezar o terminar con guión'
+  );
+
+/**
+ * Esquema para validar tipo de tienda
+ */
+export const storeTypeSchema = z.enum(STORE_TYPES, {
+  errorMap: () => ({ message: 'Tipo de tienda inválido' })
 });
 
 /**
- * Esquema para información de contacto
+ * Esquema para validar números de WhatsApp
  */
-export const contactInfoSchema = z.object({
-  whatsapp: whatsappSchema,
-  email: emailSchema.optional().or(z.literal('')),
-  
-  phone: z
-    .string()
-    .min(8, { message: errorMessages.minLength(8) })
-    .max(15, { message: errorMessages.maxLength(15) })
-    .optional()
-    .or(z.literal('')),
-  
-  website: urlSchema.optional().or(z.literal('')),
-});
+export const whatsappSchema = z
+  .string()
+  .min(1, errorMessages.required)
+  .regex(
+    /^\+?[1-9]\d{8,14}$/,
+    'Número de WhatsApp inválido. Formato: +543851234567'
+  )
+  .transform((val) => {
+    const cleaned = val.replace(/[^\d+]/g, '');
+    if (!cleaned.startsWith('+')) {
+      return `+54${cleaned}`;
+    }
+    return cleaned;
+  });
 
 /**
- * Esquema para dirección
+ * Esquema para validar direcciones
  */
 export const addressSchema = z.object({
   street: z
     .string()
-    .min(5, { message: errorMessages.minLength(5) })
-    .max(100, { message: errorMessages.maxLength(100) })
-    .optional(),
+    .min(5, errorMessages.minLength(5))
+    .max(200, errorMessages.maxLength(200))
+    .optional()
+    .or(z.literal('')),
   
   city: z
     .string()
-    .min(2, { message: errorMessages.minLength(2) })
-    .max(50, { message: errorMessages.maxLength(50) })
-    .optional(),
+    .min(2, errorMessages.minLength(2))
+    .max(100, errorMessages.maxLength(100))
+    .optional()
+    .or(z.literal('')),
   
   province: z
     .string()
-    .min(2, { message: errorMessages.minLength(2) })
-    .max(50, { message: errorMessages.maxLength(50) })
-    .optional(),
+    .refine(
+      (val) => !val || PROVINCES.includes(val as any),
+      'Provincia no válida'
+    )
+    .optional()
+    .or(z.literal('')),
   
   country: z
     .string()
-    .min(2, { message: errorMessages.minLength(2) })
-    .max(50, { message: errorMessages.maxLength(50) })
+    .min(2, errorMessages.minLength(2))
+    .max(100, errorMessages.maxLength(100))
     .default('Argentina'),
   
   zipCode: z
     .string()
-    .min(4, { message: errorMessages.minLength(4) })
-    .max(10, { message: errorMessages.maxLength(10) })
-    .optional(),
-});
-
-/**
- * Esquema para período de tiempo individual
- */
-const timePeriodSchema = z.object({
-  open: timeSchema,
-  close: timeSchema,
-  nextDay: z.boolean().default(false),
-}).refine(
-  (data) => {
-    // Si nextDay es true, no validamos que open < close
-    if (data.nextDay) return true;
-    
-    // Validar que la hora de apertura sea anterior a la de cierre
-    const openTime = new Date(`1970-01-01T${data.open}:00`);
-    const closeTime = new Date(`1970-01-01T${data.close}:00`);
-    
-    return openTime < closeTime;
-  },
-  {
-    message: "La hora de apertura debe ser anterior a la de cierre",
-    path: ["close"]
-  }
-);
-
-/**
- * Esquema para horario diario con soporte para múltiples períodos
- */
-export const dailyScheduleSchema = z.object({
-  closed: z.boolean().default(false),
-  periods: z.array(timePeriodSchema).default([]),
-  // Campos legacy para compatibilidad hacia atrás
-  open: timeSchema.optional(),
-  close: timeSchema.optional(),
-  break: z.object({
-    start: timeSchema,
-    end: timeSchema,
-  }).optional(),
-}).refine(
-  (data) => {
-    // Si está cerrado, no necesita períodos
-    if (data.closed) return true;
-    
-    // Si no está cerrado, debe tener al menos un período
-    return data.periods && data.periods.length > 0;
-  },
-  {
-    message: "Debe configurar al menos un horario de atención",
-    path: ["periods"]
-  }
-);
-
-/**
- * Esquema para horario semanal
- */
-export const weeklyScheduleSchema = z.object({
-  monday: dailyScheduleSchema,
-  tuesday: dailyScheduleSchema,
-  wednesday: dailyScheduleSchema,
-  thursday: dailyScheduleSchema,
-  friday: dailyScheduleSchema,
-  saturday: dailyScheduleSchema,
-  sunday: dailyScheduleSchema,
-});
-
-/**
- * Esquema para redes sociales
- */
-export const socialLinksSchema = z.object({
-  instagram: instagramUrlSchema,
-  facebook: socialUrlSchema,
-});
-
-/**
- * Esquema para configuración de tema
- */
-export const themeConfigSchema = z.object({
-  logoUrl: z.string().url({ message: errorMessages.url }).optional(),
-  bannerUrl: z.string().url({ message: errorMessages.url }).optional(),
-  primaryColor: hexColorSchema,
-  secondaryColor: hexColorSchema,
-  accentColor: hexColorSchema,
-  fontFamily: z.string().optional(),
-  style: z.enum(['modern', 'classic', 'minimal', 'colorful']).optional(),
-});
-
-/**
- * Esquema principal del formulario de perfil
- */
-export const profileFormSchema = z.object({
-  // Información básica
-  name: z
-    .string({ required_error: errorMessages.required })
-    .min(2, { message: errorMessages.minLength(2) })
-    .max(50, { message: errorMessages.maxLength(50) })
-    .trim(),
-  
-  description: z
-    .string({ required_error: errorMessages.required })
-    .min(10, { message: errorMessages.minLength(10) })
-    .max(300, { message: errorMessages.maxLength(300) })
-    .trim(),
-  
-  siteName: slugSchema,
-  
-  storeType: z.enum([
-    'retail', 'restaurant', 'service', 'digital', 'fashion',
-    'beauty', 'health', 'sports', 'electronics', 'home',
-    'automotive', 'other'
-  ] as const, {
-    required_error: "Debe seleccionar un tipo de tienda"
-  }),
-  
-  category: z.string().optional(),
-  
-  // Contacto
-  whatsapp: whatsappSchema,
-  email: z.string().email({ message: errorMessages.email }).optional().or(z.literal('')),
-  website: z.string().url({ message: errorMessages.url }).optional().or(z.literal('')),
-  
-  // Dirección
-  street: z.string().min(5, { message: errorMessages.minLength(5) }).optional().or(z.literal('')),
-  city: z.string().min(2, { message: errorMessages.minLength(2) }).optional().or(z.literal('')),
-  province: z.string().min(2, { message: errorMessages.minLength(2) }).optional().or(z.literal('')),
-  country: z.string().default('Argentina'),
-  zipCode: z.string().optional().or(z.literal('')),
-  
-  // Horarios simplificado
-  openingHours: z
-    .string()
-    .min(5, { message: "Ingrese los horarios de atención" })
-    .max(200, { message: errorMessages.maxLength(200) })
+    .regex(/^[0-9]{4,8}$/, 'Código postal inválido')
     .optional()
     .or(z.literal('')),
-  
-  // Horarios
-  schedule: weeklyScheduleSchema.optional(),
-  
-  // Redes sociales
-  instagram: instagramUrlSchema.or(z.literal('')),
-  facebook: socialUrlSchema.or(z.literal('')),
-  
-  // Configuración
-  currency: z.string().default('ARS'),
-  language: z.string().default('es'),
-  timezone: z.string().optional(),
-  
-  // Métodos de pago y entrega
-  paymentMethods: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    enabled: z.boolean(),
-    requiresVerification: z.boolean().optional(),
-    instructions: z.string().optional(),
-    config: z.record(z.any()).optional(),
-  })).optional(),
-  deliveryMethods: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    enabled: z.boolean(),
-    price: z.number().optional(),
-    freeOver: z.number().optional(),
-    estimatedTime: z.string().optional(),
-    instructions: z.string().optional(),
-    coverageAreas: z.array(z.string()).optional(),
-  })).optional(),
-  
-  // Configuración de productos
-  skuEnabled: z.boolean().optional(),
-  skuFormat: z.string().optional(),
-  taxEnabled: z.boolean().optional(),
-  taxRate: z.number().min(0).max(100).optional(),
-  stockControlEnabled: z.boolean().optional(),
-  stockAlertLevel: z.number().min(0).optional(),
-  promotionsEnabled: z.boolean().optional(),
-  allowedPromotionTypes: z.array(z.string()).optional(),
-  
-
-  
-  // Tema
-  primaryColor: hexColorSchema.optional(),
-  secondaryColor: hexColorSchema.optional(),
 });
 
-/**
- * Esquema para validación de slug único
- */
-export const slugValidationSchema = z.object({
-  slug: slugSchema,
-  currentSlug: z.string().optional(),
-});
+// ============================================================================
+// FUNCIONES DE VALIDACIÓN INDIVIDUAL
+// ============================================================================
 
 /**
- * Esquema para subida de imágenes
+ * Valida un nombre de tienda
  */
-export const imageUploadSchema = z.object({
-  file: z.instanceof(File, { message: "Debe seleccionar un archivo" }),
-  type: z.enum(['logo', 'banner', 'profile'], { 
-    required_error: "Debe especificar el tipo de imagen" 
-  }),
-}).refine(
-  (data) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    return allowedTypes.includes(data.file.type);
-  },
-  {
-    message: "Solo se permiten archivos JPG, PNG o WebP",
-    path: ["file"]
+export const validateStoreName = (name: string) => {
+  return storeNameSchema.safeParse(name);
+};
+
+/**
+ * Valida una descripción
+ */
+export const validateDescription = (description: string) => {
+  return descriptionSchema.safeParse(description);
+};
+
+/**
+ * Valida un slug
+ */
+export const validateSlug = (slug: string) => {
+  return slugSchema.safeParse(slug);
+};
+
+/**
+ * Valida un tipo de tienda
+ */
+export const validateStoreType = (type: string) => {
+  return storeTypeSchema.safeParse(type);
+};
+
+/**
+ * Valida un número de WhatsApp
+ */
+export const validateWhatsApp = (phone: string) => {
+  return whatsappSchema.safeParse(phone);
+};
+
+/**
+ * Valida una dirección completa
+ */
+export const validateAddress = (address: unknown) => {
+  return addressSchema.safeParse(address);
+};
+
+// ============================================================================
+// VALIDACIÓN DE CAMPOS INDIVIDUALES (TIEMPO REAL)
+// ============================================================================
+
+/**
+ * Valida un solo campo en tiempo real
+ */
+export const validateSingleField = (field: string, value: string) => {
+  switch (field) {
+    case 'name':
+      if (!value.trim()) return 'El nombre es obligatorio';
+      const nameResult = validateStoreName(value);
+      return nameResult.success ? null : nameResult.error.errors[0]?.message || 'Nombre inválido';
+      
+    case 'description':
+      if (!value.trim()) return null; // Opcional
+      const descResult = validateDescription(value);
+      return descResult.success ? null : descResult.error.errors[0]?.message || 'Descripción inválida';
+      
+    case 'siteName':
+      if (!value.trim()) return 'El nombre del sitio es obligatorio';
+      const slugResult = validateSlug(value);
+      return slugResult.success ? null : slugResult.error.errors[0]?.message || 'Formato inválido';
+      
+    case 'storeType':
+      if (!value.trim()) return 'El tipo de tienda es obligatorio';
+      const typeResult = validateStoreType(value);
+      return typeResult.success ? null : typeResult.error.errors[0]?.message || 'Tipo inválido';
+      
+    case 'whatsapp':
+      if (!value.trim()) return 'El WhatsApp es obligatorio';
+      const whatsappResult = validateWhatsApp(value);
+      return whatsappResult.success ? null : whatsappResult.error.errors[0]?.message || 'WhatsApp inválido';
+      
+    case 'street':
+      if (!value.trim()) return null; // Opcional
+      if (value.length < 5) return 'La dirección debe tener al menos 5 caracteres';
+      if (value.length > 200) return 'La dirección no puede superar los 200 caracteres';
+      return null;
+      
+    case 'city':
+      if (!value.trim()) return null; // Opcional
+      if (value.length < 2) return 'La ciudad debe tener al menos 2 caracteres';
+      if (value.length > 100) return 'La ciudad no puede superar los 100 caracteres';
+      return null;
+      
+    case 'province':
+      if (!value.trim()) return null; // Opcional
+      if (!PROVINCES.includes(value as any)) return 'Provincia no válida';
+      return null;
+      
+    case 'zipCode':
+      if (!value.trim()) return null; // Opcional
+      if (!/^[0-9]{4,8}$/.test(value)) return 'Código postal inválido';
+      return null;
+      
+    /**
+     * Valida un URL de Instagram
+     */
+    case 'instagram':
+      if (!value.trim()) return null; // Opcional
+      const instaResult = validateInstagram(value);
+      return instaResult.success ? null : instaResult.error.errors[0]?.message || 'Instagram inválido';
+      
+    /**
+     * Valida un URL de Facebook
+     */
+    case 'facebook':
+      if (!value.trim()) return null; // Opcional
+      const fbResult = validateFacebook(value);
+      return fbResult.success ? null : fbResult.error.errors[0]?.message || 'Facebook inválido';
+      
+    default:
+      return null;
   }
-).refine(
-  (data) => {
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    return data.file.size <= maxSize;
-  },
-  {
-    message: "El archivo no puede superar los 5MB",
-    path: ["file"]
-  }
-);
+};
+
+// ============================================================================
+// VALIDACIÓN COMPLETA (AL GUARDAR)
+// ============================================================================
 
 /**
- * Tipos derivados de los esquemas
+ * Valida todos los campos de información básica (CON VERIFICACIÓN DE SLUG ÚNICO)
  */
-export type BasicInfoFormData = z.infer<typeof basicInfoSchema>;
-export type ContactInfoFormData = z.infer<typeof contactInfoSchema>;
-export type AddressFormData = z.infer<typeof addressSchema>;
-export type SocialLinksFormData = z.infer<typeof socialLinksSchema>;
-export type ThemeConfigFormData = z.infer<typeof themeConfigSchema>;
-export type ProfileFormData = z.infer<typeof profileFormSchema>;
-export type SlugValidationData = z.infer<typeof slugValidationSchema>;
-export type ImageUploadData = z.infer<typeof imageUploadSchema>;
+export const validateBasicInfoFields = async (
+  data: {
+    name?: string;
+    description?: string;
+    siteName?: string;
+    storeType?: string;
+    whatsapp?: string;
+  },
+  slugCheckFn?: (slug: string, excludeStoreId?: string) => Promise<boolean>,
+  excludeStoreId?: string
+) => {
+  const errors: Record<string, string> = {};
 
-/**
- * Funciones de validación personalizadas específicas del módulo
- */
-export const customValidations = {
-  /**
-   * Valida si un slug está disponible
-   */
-  validateSlugAvailability: async (slug: string, currentSlug?: string): Promise<boolean> => {
-    if (slug === currentSlug) return true;
-    
-    // Aquí iría la lógica para verificar en la base de datos
-    // Por ahora retornamos true como placeholder
-    return true;
-  },
-  
-  /**
-   * Valida formato de número de WhatsApp argentino
-   */
-  validateArgentineWhatsApp: (phone: string): boolean => {
-    const cleanPhone = phone.replace(/\s/g, '');
-    const argentineRegex = /^\+54(9)?\d{8,10}$/;
-    return argentineRegex.test(cleanPhone);
-  },
-  
-  /**
-   * Valida horarios de apertura y cierre
-   */
-  validateBusinessHours: (open: string, close: string): boolean => {
-    try {
-      const openTime = new Date(`1970-01-01T${open}:00`);
-      const closeTime = new Date(`1970-01-01T${close}:00`);
-      return openTime < closeTime;
-    } catch {
-      return false;
+  // Validar nombre (requerido)
+  if (!data.name?.trim()) {
+    errors.name = 'El nombre es obligatorio';
+  } else {
+    const nameResult = validateStoreName(data.name);
+    if (!nameResult.success) {
+      errors.name = nameResult.error.errors[0]?.message || 'Nombre inválido';
     }
-  },
+  }
+
+  // Validar WhatsApp (requerido)
+  if (!data.whatsapp?.trim()) {
+    errors.whatsapp = 'El WhatsApp es obligatorio';
+  } else {
+    const whatsappResult = validateWhatsApp(data.whatsapp);
+    if (!whatsappResult.success) {
+      errors.whatsapp = whatsappResult.error.errors[0]?.message || 'WhatsApp inválido';
+    }
+  }
+
+  // Validar slug (requerido)
+  if (!data.siteName?.trim()) {
+    errors.siteName = 'El nombre del sitio es obligatorio';
+  } else {
+    const slugResult = validateSlug(data.siteName);
+    if (!slugResult.success) {
+      errors.siteName = slugResult.error.errors[0]?.message || 'Formato inválido';
+    } else if (slugCheckFn) {
+      const isUnique = await slugCheckFn(data.siteName, excludeStoreId);
+      if (!isUnique) {
+        errors.siteName = errorMessages.slugTaken;
+      }
+    }
+  }
+
+  // Validar tipo de tienda (requerido)
+  if (!data.storeType?.trim()) {
+    errors.storeType = 'El tipo de tienda es obligatorio';
+  } else {
+    const typeResult = validateStoreType(data.storeType);
+    if (!typeResult.success) {
+      errors.storeType = typeResult.error.errors[0]?.message || 'Tipo inválido';
+    }
+  }
+
+  // Validar descripción (opcional)
+  if (data.description && data.description.trim()) {
+    const descResult = validateDescription(data.description);
+    if (!descResult.success) {
+      errors.description = descResult.error.errors[0]?.message || 'Descripción inválida';
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+    data: {
+      name: data.name?.trim(),
+      description: data.description?.trim() || '',
+      siteName: data.siteName?.trim(),
+      storeType: data.storeType?.trim(),
+      whatsapp: data.whatsapp?.trim(),
+    }
+  };
 };
 
 /**
- * Re-exportar funciones de validación centralizadas para compatibilidad
+ * Valida todos los campos de dirección
  */
-export {
-  validateInstagramUrl,
-  validateFacebookUrl,
-  validateWhatsApp,
-  validateSlug,
-  validateStoreName,
-  validateDescription,
-  validateHexColor,
-  validateEmail,
-  validateUrl,
-  validateTime
+export const validateAddressFields = (data: {
+  street?: string;
+  city?: string;
+  province?: string;
+  country?: string;
+  zipCode?: string;
+}) => {
+  const errors: Record<string, string> = {};
+
+  // Validar cada campo solo si tiene contenido
+  if (data.street && data.street.trim()) {
+    const streetError = validateSingleField('street', data.street);
+    if (streetError) errors.street = streetError;
+  }
+
+  if (data.city && data.city.trim()) {
+    const cityError = validateSingleField('city', data.city);
+    if (cityError) errors.city = cityError;
+  }
+
+  if (data.province && data.province.trim()) {
+    const provinceError = validateSingleField('province', data.province);
+    if (provinceError) errors.province = provinceError;
+  }
+
+  if (data.zipCode && data.zipCode.trim()) {
+    const zipError = validateSingleField('zipCode', data.zipCode);
+    if (zipError) errors.zipCode = zipError;
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+    data: {
+      street: data.street?.trim() || '',
+      city: data.city?.trim() || '',
+      province: data.province?.trim() || '',
+      country: data.country?.trim() || 'Argentina',
+      zipCode: data.zipCode?.trim() || '',
+    }
+  };
+};
+
+// ============================================================================
+// CONSTANTES
+// ============================================================================
+
+/**
+ * Constantes de validación
+ */
+export const VALIDATION_CONSTRAINTS = {
+  STORE_NAME: {
+    MIN_LENGTH: 2,
+    MAX_LENGTH: 50
+  },
+  DESCRIPTION: {
+    MIN_LENGTH: 10,
+    MAX_LENGTH: 500
+  },
+  SLUG: {
+    MIN_LENGTH: 3,
+    MAX_LENGTH: 30
+  },
+  WHATSAPP: {
+    MIN_LENGTH: 8,
+    MAX_LENGTH: 15
+  },
+  ADDRESS: {
+    STREET_MIN: 5,
+    STREET_MAX: 200,
+    CITY_MIN: 2,
+    CITY_MAX: 100,
+    ZIP_MIN: 4,
+    ZIP_MAX: 8
+  }
+} as const;
+
+/**
+ * Esquemas para validar URLs de redes sociales
+ */
+export const instagramSchema = z
+  .string()
+  .optional()
+  .or(z.literal(''))
+  .refine(
+    (val) => !val || /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/.+/i.test(val),
+    'URL de Instagram inválida. Ejemplo: https://instagram.com/usuario'
+  );
+
+export const facebookSchema = z
+  .string()
+  .optional()
+  .or(z.literal(''))
+  .refine(
+    (val) => !val || /^https?:\/\/(www\.)?facebook\.com\/.+/i.test(val),
+    'URL de Facebook inválida. Ejemplo: https://facebook.com/pagina'
+  );
+
+/**
+ * Validaciones individuales para redes sociales
+ */
+export const validateInstagram = (url: string) => {
+  return instagramSchema.safeParse(url);
+};
+
+export const validateFacebook = (url: string) => {
+  return facebookSchema.safeParse(url);
 };
 
 /**
- * Mensajes de error personalizados por campo
+ * Validar campo social individual
  */
-export const fieldErrorMessages = {
-  name: {
-    required: "El nombre de la tienda es obligatorio",
-    minLength: "El nombre debe tener al menos 2 caracteres",
-    maxLength: "El nombre no puede superar los 50 caracteres",
-  },
-  description: {
-    required: "La descripción es obligatoria",
-    minLength: "La descripción debe tener al menos 10 caracteres",
-    maxLength: "La descripción no puede superar los 300 caracteres",
-  },
-  siteName: {
-    required: "El nombre del sitio es obligatorio",
-    invalid: "Solo se permiten letras, números y guiones",
-    taken: "Este nombre ya está en uso",
-  },
-  whatsapp: {
-    required: "El número de WhatsApp es obligatorio",
-    invalid: "Formato: +543851234567",
-  },
-  email: {
-    invalid: "Ingrese un email válido",
-  },
-  instagram: {
-    invalid: "Ingrese una URL válida de Instagram",
-  },
+export const validateSocialField = (field: string, value: string) => {
+  switch (field) {
+    case 'instagram':
+      if (!value.trim()) return null; // Opcional
+      const instaResult = validateInstagram(value);
+      return instaResult.success ? null : instaResult.error.errors[0]?.message || 'Instagram inválido';
+      
+    case 'facebook':
+      if (!value.trim()) return null; // Opcional
+      const fbResult = validateFacebook(value);
+      return fbResult.success ? null : fbResult.error.errors[0]?.message || 'Facebook inválido';
+      
+    default:
+      return null;
+  }
+};
+
+/**
+ * Validar todos los campos sociales
+ */
+export const validateSocialFields = (data: {
+  instagram?: string;
+  facebook?: string;
+}) => {
+  const errors: Record<string, string> = {};
+
+  // Validar Instagram (opcional)
+  if (data.instagram && data.instagram.trim()) {
+    const instaResult = validateInstagram(data.instagram);
+    if (!instaResult.success) {
+      errors.instagram = instaResult.error.errors[0]?.message || 'Instagram inválido';
+    }
+  }
+
+  // Validar Facebook (opcional)
+  if (data.facebook && data.facebook.trim()) {
+    const fbResult = validateFacebook(data.facebook);
+    if (!fbResult.success) {
+      errors.facebook = fbResult.error.errors[0]?.message || 'Facebook inválido';
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+    data: {
+      instagram: data.instagram?.trim() || '',
+      facebook: data.facebook?.trim() || '',
+    }
+  };
 };

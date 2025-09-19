@@ -21,7 +21,7 @@ import { useUserChange } from "@/shared/hooks/useUserChange";
 import ModernSidebar from "../components/ModernSidebar";
 import ModernTopBar from "../components/ModernTopBar";
 import Spinner from "@/components/ui/spinners/Spinner";
-
+import { useProfileStore } from '@/features/dashboard/modules/store-settings/api/profileStore';
 
 /**
  * Props para el componente ModernDashboardWrapper
@@ -44,6 +44,9 @@ interface ModernDashboardWrapperProps {
 const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
   const { user, isReady, isLoading } = useAuthHydrated();
   // Los productos se cargan desde los componentes específicos que los necesitan
+  
+  
+
   const router = useRouter();
   
   // Hook para detectar cambios de usuario y limpiar datos
@@ -74,6 +77,7 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
   useEffect(() => {
     if (isReady && !user) {
       // Agregar un pequeño delay para evitar problemas de hidratación
+      
       const timer = setTimeout(() => {
         router.replace("/sign-in"); // usar replace en lugar de push
       }, 150);

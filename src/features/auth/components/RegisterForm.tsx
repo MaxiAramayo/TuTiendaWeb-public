@@ -23,7 +23,7 @@ import { GoogleButton } from '@/features/auth/components/GoogleButton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
 import { registerSchema, type RegisterFormValues } from '@/features/auth/validation';
-import type { StoreType } from '@shared/validations';
+import type { StoreType } from '@/shared/validations';
 
 
 

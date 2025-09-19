@@ -22,8 +22,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
-import type { StoreType } from '@shared/validations';
 import { googleProfileSchema, type GoogleProfileSetupValues } from '@/features/auth/validation';
+import { StoreType } from '@/features/dashboard/modules/store-settings/validations/profile.validations';
 
 
 

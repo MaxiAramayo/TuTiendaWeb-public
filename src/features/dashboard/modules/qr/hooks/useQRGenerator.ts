@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { QRGeneratorState } from "../types/qr-types";
 import { generateStoreURL, getQRDataURL, isQRReady } from "../utils/qr-utils";
-import { validateQrStoreData } from '@shared/validations';
+import { validateQrStoreData } from '@/shared/validations';
 import { User } from "@/features/user/user.types";
 import { StoreProfile } from "@/features/dashboard/modules/store-settings/types/store.type";
 import { profileService } from "@/features/dashboard/modules/store-settings/services/profile.service";

@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import { slugSchema } from './registerSchema';
-import { storeTypeSchema } from '@shared/validations';
+import { storeTypeSchema } from '@/shared/validations';
 
 /**
  * Esquema de validación para la dirección

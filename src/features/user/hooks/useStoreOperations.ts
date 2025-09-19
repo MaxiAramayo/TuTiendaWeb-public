@@ -11,7 +11,7 @@ import { useUserStore } from '@/features/user/api/userStore';
 import { StoreProfile, CreateStoreProfileData } from '@/features/dashboard/modules/store-settings/types/store.type';
 import { toast } from 'sonner';
 import { errorService, ErrorType, ErrorSeverity } from '@/shared/services/error.service';
-import { validateStoreName as validateStoreNameZod, validateStoreType } from '@shared/validations';
+import { validateStoreName as validateStoreNameZod, validateStoreType } from '@/shared/validations';
 
 export interface UseStoreOperationsReturn {
   /** Estado de carga */

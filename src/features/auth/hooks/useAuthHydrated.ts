@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth/api/authStore';
 import { useUserStore } from '@/features/user/api/userStore';
 import { useHydrated } from '@/hooks/useHydrated';
 import { User } from '@/features/user/user.types';
+import { StoreData } from '@/shared/types/store';
 
 /**
  * Hook que combina autenticación con hidratación para evitar errores de SSR
@@ -20,6 +21,7 @@ import { User } from '@/features/user/user.types';
  */
 export const useAuthHydrated = () => {
   const [user, setUser] = useState<User | undefined | null>(undefined);
+  const [store, setStore] = useState<StoreData | undefined>(undefined);
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export const useAuthHydrated = () => {
       dataLoadedRef.current = persistedUser.id; // Mark as loaded
       return;
     }
+      
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (unsubscribedRef.current) return;

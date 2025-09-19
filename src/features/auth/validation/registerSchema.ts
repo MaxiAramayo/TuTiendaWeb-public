@@ -11,7 +11,7 @@ import {
   slugSchema as centralSlugSchema,
   storeNameSchema,
   storeTypeSchema
-} from '@shared/validations';
+} from '@/shared/validations';
 
 /**
  * Esquema de validación para contraseña con confirmación

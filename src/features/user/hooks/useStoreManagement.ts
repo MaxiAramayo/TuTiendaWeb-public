@@ -11,7 +11,7 @@ import { useUserStore } from '@/features/user/api/userStore';
 import { StoreProfile, CreateStoreProfileData } from '@/features/dashboard/modules/store-settings/types/store.type';
 import { toast } from 'sonner';
 import { useSlugValidation } from './useSlugValidation';
-import { validateStoreName, validateWhatsApp, validateQrStoreData } from '@shared/validations';
+import { validateStoreName, validateWhatsApp, validateQrStoreData } from '@/shared/validations';
 
 /**
  * Normaliza un número de WhatsApp

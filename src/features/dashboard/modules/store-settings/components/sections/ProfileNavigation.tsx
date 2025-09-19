@@ -56,7 +56,7 @@ export function ProfileNavigation({
       let status: 'error' | 'modified' | 'clean' = 'clean';
       if (hasErrors || sectionState.error) {
         status = 'error';
-      } else if (sectionState.isDirty) {
+      } else if ('isDirty' in sectionState && (sectionState as any).isDirty) {
         status = 'modified';
       }
       

@@ -81,7 +81,7 @@ const sellSchema = z.object({
 
 type SellInput = z.infer<typeof sellSchema>;
 
-import { validateSellTotals } from '@shared/validations';
+import { validateSellTotals } from '@/shared/validations';
 
 interface SellFormProps {
   /** ID de la venta a editar (undefined para nueva venta) */

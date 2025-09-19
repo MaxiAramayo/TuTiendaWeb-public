@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { User } from "@/features/user/user.types";
+import { useUserStore } from "@/features/user/api/userStore";
 
 /**
  * Props para el componente ModernSidebar
@@ -120,6 +121,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
     return pathname.startsWith(href);
   };
 
+  
   /**
    * Contenido del sidebar
    */
@@ -242,7 +244,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Footer - Tienda Link */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4">
         <Link
-          href={`/tienda`}
+          href={`/`}
           target="_blank"
           className={cn(
             "flex items-center rounded-lg p-2 sm:p-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group",
