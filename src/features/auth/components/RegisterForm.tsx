@@ -22,8 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GoogleButton } from '@/features/auth/components/GoogleButton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
-import { registerSchema, type RegisterFormValues } from '@/features/auth/validation';
-import type { StoreType } from '@shared/validations';
+import { registerSchema, type RegisterFormData as RegisterFormValues } from '@/features/auth/schemas/auth.schema';
+import type { StoreType } from '@/features/store/schemas/store.schema';
 
 
 
@@ -33,7 +33,7 @@ import type { StoreType } from '@shared/validations';
 export const RegisterForm = () => {
   const { signUp, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const {
     slug,
     isAvailable: slugAvailable,
@@ -93,7 +93,7 @@ export const RegisterForm = () => {
         ...data,
         slug: slug
       };
-      
+
       await signUp(formDataWithSlug);
       toast.success('Cuenta y tienda creadas correctamente');
     } catch (error) {
@@ -110,7 +110,7 @@ export const RegisterForm = () => {
           Regístrate para crear tu tienda online
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Datos personales */}
@@ -204,7 +204,7 @@ export const RegisterForm = () => {
           {/* Datos de la tienda */}
           <div className="pt-4 border-t border-gray-200">
             <h3 className="font-medium mb-3">Información de tu tienda</h3>
-            
+
             <div className="space-y-2">
               <Label htmlFor="name">Nombre de la tienda</Label>
               <Input
@@ -228,7 +228,7 @@ export const RegisterForm = () => {
 
             <div className="space-y-2 mt-4">
               <Label htmlFor="storeType">Tipo de negocio</Label>
-              <Select 
+              <Select
                 defaultValue="other"
                 onValueChange={(value) => setValue('storeType', value as StoreType)}
                 disabled={isLoading}
@@ -290,9 +290,9 @@ export const RegisterForm = () => {
 
           {/* Términos y condiciones */}
           <div className="flex items-start space-x-2 mt-4">
-            <Checkbox  
-              id="terms" 
-              {...register('terms')} 
+            <Checkbox
+              id="terms"
+              {...register('terms')}
               disabled={isLoading}
             />
             <div className="grid gap-1.5 leading-none">
@@ -308,9 +308,9 @@ export const RegisterForm = () => {
             </div>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full mt-6" 
+          <Button
+            type="submit"
+            className="w-full mt-6"
             disabled={isLoading || isCheckingSlug || slugAvailable === false}
           >
             {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}

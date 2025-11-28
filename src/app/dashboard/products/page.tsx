@@ -8,7 +8,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { ProductsMain } from '@/features/dashboard/modules/products';
+import ProductsMain from '@/features/dashboard/modules/products/components/ProductsMain';
 import { Product } from '@/shared/types/firebase.types';
 
 /**

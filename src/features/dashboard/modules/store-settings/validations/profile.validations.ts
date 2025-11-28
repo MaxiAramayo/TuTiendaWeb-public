@@ -1,13 +1,10 @@
 /**
  * Esquemas de validación para el módulo de perfil
- * 
- * Define todas las validaciones usando Zod para garantizar la integridad de los datos
- * 
  * @module features/dashboard/modules/profile/validations
  */
 
 import { z } from "zod";
-import { 
+import {
   StoreType,
   whatsappSchema,
   instagramUrlSchema,
@@ -32,7 +29,7 @@ import {
   validateUrl,
   validateTime,
   errorMessages as sharedErrorMessages
-} from "@shared/validations";
+} from "@/features/store/schemas/store.schema";
 
 /**
  * Mensajes de error específicos del módulo (complementan los compartidos)
@@ -56,7 +53,7 @@ export const basicInfoSchema = z.object({
   name: storeNameSchema,
   description: descriptionSchema,
   slug: slugSchema,
-  
+
   type: z.enum([
     'retail', 'restaurant', 'service', 'digital', 'fashion',
     'beauty', 'health', 'sports', 'electronics', 'home',
@@ -73,14 +70,14 @@ export const basicInfoSchema = z.object({
 export const contactInfoSchema = z.object({
   whatsapp: whatsappSchema,
   email: emailSchema.optional().or(z.literal('')),
-  
+
   phone: z
     .string()
     .min(8, { message: errorMessages.minLength(8) })
     .max(15, { message: errorMessages.maxLength(15) })
     .optional()
     .or(z.literal('')),
-  
+
   website: urlSchema.optional().or(z.literal('')),
 });
 
@@ -93,25 +90,25 @@ export const addressSchema = z.object({
     .min(5, { message: errorMessages.minLength(5) })
     .max(100, { message: errorMessages.maxLength(100) })
     .optional(),
-  
+
   city: z
     .string()
     .min(2, { message: errorMessages.minLength(2) })
     .max(50, { message: errorMessages.maxLength(50) })
     .optional(),
-  
+
   province: z
     .string()
     .min(2, { message: errorMessages.minLength(2) })
     .max(50, { message: errorMessages.maxLength(50) })
     .optional(),
-  
+
   country: z
     .string()
     .min(2, { message: errorMessages.minLength(2) })
     .max(50, { message: errorMessages.maxLength(50) })
     .default('Argentina'),
-  
+
   zipCode: z
     .string()
     .min(4, { message: errorMessages.minLength(4) })
@@ -130,11 +127,11 @@ const timePeriodSchema = z.object({
   (data) => {
     // Si nextDay es true, no validamos que open < close
     if (data.nextDay) return true;
-    
+
     // Validar que la hora de apertura sea anterior a la de cierre
     const openTime = new Date(`1970-01-01T${data.open}:00`);
     const closeTime = new Date(`1970-01-01T${data.close}:00`);
-    
+
     return openTime < closeTime;
   },
   {
@@ -160,7 +157,7 @@ export const dailyScheduleSchema = z.object({
   (data) => {
     // Si está cerrado, no necesita períodos
     if (data.closed) return true;
-    
+
     // Si no está cerrado, debe tener al menos un período
     return data.periods && data.periods.length > 0;
   },
@@ -214,15 +211,15 @@ export const profileFormSchema = z.object({
     .min(2, { message: errorMessages.minLength(2) })
     .max(50, { message: errorMessages.maxLength(50) })
     .trim(),
-  
+
   description: z
     .string({ required_error: errorMessages.required })
     .min(10, { message: errorMessages.minLength(10) })
     .max(300, { message: errorMessages.maxLength(300) })
     .trim(),
-  
+
   siteName: slugSchema,
-  
+
   storeType: z.enum([
     'retail', 'restaurant', 'service', 'digital', 'fashion',
     'beauty', 'health', 'sports', 'electronics', 'home',
@@ -230,21 +227,21 @@ export const profileFormSchema = z.object({
   ] as const, {
     required_error: "Debe seleccionar un tipo de tienda"
   }),
-  
+
   category: z.string().optional(),
-  
+
   // Contacto
   whatsapp: whatsappSchema,
   email: z.string().email({ message: errorMessages.email }).optional().or(z.literal('')),
   website: z.string().url({ message: errorMessages.url }).optional().or(z.literal('')),
-  
+
   // Dirección
   street: z.string().min(5, { message: errorMessages.minLength(5) }).optional().or(z.literal('')),
   city: z.string().min(2, { message: errorMessages.minLength(2) }).optional().or(z.literal('')),
   province: z.string().min(2, { message: errorMessages.minLength(2) }).optional().or(z.literal('')),
   country: z.string().default('Argentina'),
   zipCode: z.string().optional().or(z.literal('')),
-  
+
   // Horarios simplificado
   openingHours: z
     .string()
@@ -252,19 +249,19 @@ export const profileFormSchema = z.object({
     .max(200, { message: errorMessages.maxLength(200) })
     .optional()
     .or(z.literal('')),
-  
+
   // Horarios
   schedule: weeklyScheduleSchema.optional(),
-  
+
   // Redes sociales
   instagram: instagramUrlSchema.or(z.literal('')),
   facebook: socialUrlSchema.or(z.literal('')),
-  
+
   // Configuración
   currency: z.string().default('ARS'),
   language: z.string().default('es'),
   timezone: z.string().optional(),
-  
+
   // Métodos de pago y entrega
   paymentMethods: z.array(z.object({
     id: z.string(),
@@ -284,7 +281,7 @@ export const profileFormSchema = z.object({
     instructions: z.string().optional(),
     coverageAreas: z.array(z.string()).optional(),
   })).optional(),
-  
+
   // Configuración de productos
   skuEnabled: z.boolean().optional(),
   skuFormat: z.string().optional(),
@@ -294,9 +291,9 @@ export const profileFormSchema = z.object({
   stockAlertLevel: z.number().min(0).optional(),
   promotionsEnabled: z.boolean().optional(),
   allowedPromotionTypes: z.array(z.string()).optional(),
-  
 
-  
+
+
   // Tema
   primaryColor: hexColorSchema.optional(),
   secondaryColor: hexColorSchema.optional(),
@@ -315,8 +312,8 @@ export const slugValidationSchema = z.object({
  */
 export const imageUploadSchema = z.object({
   file: z.instanceof(File, { message: "Debe seleccionar un archivo" }),
-  type: z.enum(['logo', 'banner', 'profile'], { 
-    required_error: "Debe especificar el tipo de imagen" 
+  type: z.enum(['logo', 'banner', 'profile'], {
+    required_error: "Debe especificar el tipo de imagen"
   }),
 }).refine(
   (data) => {
@@ -359,12 +356,12 @@ export const customValidations = {
    */
   validateSlugAvailability: async (slug: string, currentSlug?: string): Promise<boolean> => {
     if (slug === currentSlug) return true;
-    
+
     // Aquí iría la lógica para verificar en la base de datos
     // Por ahora retornamos true como placeholder
     return true;
   },
-  
+
   /**
    * Valida formato de número de WhatsApp argentino
    */
@@ -373,7 +370,7 @@ export const customValidations = {
     const argentineRegex = /^\+54(9)?\d{8,10}$/;
     return argentineRegex.test(cleanPhone);
   },
-  
+
   /**
    * Valida horarios de apertura y cierre
    */
@@ -416,21 +413,6 @@ export const fieldErrorMessages = {
   description: {
     required: "La descripción es obligatoria",
     minLength: "La descripción debe tener al menos 10 caracteres",
-    maxLength: "La descripción no puede superar los 300 caracteres",
-  },
-  siteName: {
-    required: "El nombre del sitio es obligatorio",
-    invalid: "Solo se permiten letras, números y guiones",
-    taken: "Este nombre ya está en uso",
-  },
-  whatsapp: {
-    required: "El número de WhatsApp es obligatorio",
-    invalid: "Formato: +543851234567",
-  },
-  email: {
-    invalid: "Ingrese un email válido",
-  },
-  instagram: {
     invalid: "Ingrese una URL válida de Instagram",
   },
 };

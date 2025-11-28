@@ -1,4 +1,3 @@
-
 ## 📂 Colecciones Raíz
 
 ```
@@ -6,103 +5,152 @@
 /stores/{storeId}
 ```
 
----
+-----
 
-### 🔑 /users/{userId}
+### 👤 /users/{userId}
 
-* **Campos (document fields)**
-  – `email`
-  – `displayName`
-  – `role`
-  – `storeIds: string[]`
-  – `preferences`
-  – `createdAt`, `updatedAt`
+*(Inferido por el campo `ownerId` en la tienda)*
 
----
+  * **Campos (document fields)**
+      * `uid`: string (ID de autenticación)
+      * `email`: string
+      * `displayName`: string
+      * `storeIds`: string[] (Array de IDs de tiendas que posee)
+      * `createdAt`, `updatedAt`
+
+-----
 
 ### 🏪 /stores/{storeId}
 
-Cada documento `{storeId}` agrupa todas las secciones del perfil de la tienda como campos anidados:
+Este es el **documento maestro**. Agrupa toda la configuración global del negocio para reducir lecturas en la base de datos.
 
 ```
 /stores/{storeId}
-   • basicInfo: { name, description, slug, type }
+   • id: string (mismo que el document ID)
+   • ownerId: string (referencia a /users)
+   • basicInfo: { name, slug, description, type }
    • contactInfo: { whatsapp, website }
-   • address: { street, city, province, country, zipCode, mapsLink? }
-   • schedule: { monday:…, tuesday:…, …, sunday:… }
+   • address: { street, city, province, country, zipCode }
    • socialLinks: { instagram?, facebook? }
-   • theme: { logoUrl?, bannerUrl?, primaryColor?, secondaryColor?, accentColor?, fontFamily?, style? }
+   • subscription: 
+       – plan: "free" | "premium"
+       – active: boolean
+       – trialUsed: boolean
+       – startDate, endDate
+   • theme: 
+       – primaryColor, secondaryColor, accentColor
+       – logoUrl, bannerUrl
+       – fontFamily, buttonStyle, style
+   • schedule: 
+       – monday...sunday: { 
+             closed: boolean, 
+             periods: [ { open: "HH:MM", close: "HH:MM", nextDay: boolean } ] 
+         }
    • settings:
+       – currency: "ARS"
+       – language: "es"
+       – timezone: "America/Argentina/Buenos_Aires"
+       – orderSettings: { preparationTime: number }
        – paymentMethods: [ { id, name, enabled, instructions? }, … ]
        – deliveryMethods: [ { id, name, enabled, price?, instructions? }, … ]
-       – notifications: { receiveOrdersOnWhatsApp, receiveOrdersInApp, pushNotifications }
-       – currency, language, timezone
-   • subscription:
-       – active, plan, startDate, graceUntil, trialUsed
-       – billing: { provider?, customerId?, subscriptionId?, autoRenew? }
-   • metadata: { createdAt, updatedAt, version, status, completeness }
+   • metadata: { createdAt, updatedAt, status, version }
 ```
 
----
+-----
 
 ## 📁 Subcolecciones de la Tienda
 
-Bajo cada tienda, mantenemos subcolecciones para **productos**, **ventas** u **órdenes**, aislando la alta cardinalidad:
+Para manejar la escalabilidad (alta cardinalidad), los elementos transaccionales se guardan en subcolecciones dentro de cada tienda.
 
 ```
+/stores/{storeId}/categories/{categoryId}
+/stores/{storeId}/tags/{tagId}
 /stores/{storeId}/products/{productId}
-/stores/{storeId}/sales/{saleId}
-/stores/{storeId}/orders/{orderId}
+/stores/{storeId}/sells/{sellId}
 ```
 
-#### /stores/{storeId}/products/{productId}
+#### 🏷️ /stores/{storeId}/categories/{categoryId}
 
-* `name`, `description?`, `price`, `imageUrl?`
-* `category`, `tags?`, `availableDays?`, `availableHours?`
-* `extras: ExtraGroup[]`, `status`
-* `createdAt`, `updatedAt`
+Organización jerárquica del menú.
 
-#### /stores/{storeId}/sales/{saleId}
+  * `name`: string ("Hamburguesas")
+  * `slug`: string ("hamburguesas")
+  * `isActive`: boolean
+  * `parentId`: string | null (para subcategorías)
+  * `createdAt`, `updatedAt`
 
-* `items: SaleItem[]`
-* `subtotal`, `discount?`, `tax?`, `total`
-* `deliveryMethod`, `paymentMethod`, `orderSource`
-* `customer: { name, phone?, address?, notes? }`
-* `status`, `paymentStatus`
-* `createdBy`, `createdAt`, `updatedAt`
+#### 🔖 /stores/{storeId}/tags/{tagId}
 
-#### /stores/{storeId}/orders/{orderId}
+Etiquetas para filtros rápidos (ej: "Sin TACC", "Picante").
 
-* igual que `Sale` pero con `status: received|confirmed|cancelled`
-* se transforma en `Sale` al confirmarse
+  * `name`: string ("Sandwich")
+  * `slug`: string ("sandwich")
 
----
+#### 🍔 /stores/{storeId}/products/{productId}
 
-### 🔗 Resumen de Paths
+El inventario de venta.
+
+  * `name`, `description`, `shortDescription?`
+  * `slug`, `imageUrls: string[]`
+  * `price` (precio venta), `costPrice` (costo interno)
+  * `categoryId` (Link a la colección categories)
+  * `tags: string[]` (Array de IDs de tags)
+  * `status`: "active" | "paused" | "archived"
+  * `promotionsEnabled?`, `hasPromotion?`
+  * `variants: Variant[]`
+      * `{ id, name, price?, additionalPrice?, available?, isAvailable? }`
+  * `createdAt`, `updatedAt`
+
+#### 🧾 /stores/{storeId}/sells/{sellId}
+
+Historial de órdenes y ventas. Funciona como "Snapshot" (guarda la foto del producto al momento de la compra).
+
+  * `orderNumber`: string ("ORD-1754...")
+  * `date`: ISO string
+  * `status`: "pending" | "confirmed" | "completed" | "cancelled"
+  * `source`: "web" | "local"
+  * **Totales:**
+      * `total`, `subtotal`, `paidAmount`
+      * `discount?`, `tax?`
+  * **Cliente:**
+      * `customerName`, `customerPhone`
+      * `address?`, `customerId?`
+  * **Métodos:**
+      * `paymentMethod`: "efectivo" | "mercadopago" | "transferencia"
+      * `paymentStatus`: "pending" | "paid"
+      * `deliveryMethod`: "pickup" | "delivery" | "retiro"
+      * `deliveryDate?`, `deliveryNotes?`, `notes?`
+  * **Items (Snapshot):**
+      * `products: OrderItem[]`
+          * `{ id, idProduct, name, price, cantidad, category, aclaracion?, appliedTopics[] }`
+  * `createdBy` (ID del empleado si es venta local)
+
+-----
+
+### 🔗 Resumen de Paths (Árbol de Directorios)
 
 ```
 /users/{userId}
 
 /stores/{storeId}
     basicInfo
-    contactInfo
     address
     schedule
-    socialLinks
-    theme
     settings
     subscription
-    metadata
+    theme
+    ...
 
-/stores/{storeId}/products/{productId}
-/stores/{storeId}/sales/{saleId}
-/stores/{storeId}/orders/{orderId}
+    /categories/{categoryId}
+    /tags/{tagId}
+    /products/{productId}
+        variants[...]
+    /sells/{sellId}
+        products[...] (items de la orden)
 ```
 
-Con esta organización:
+### 💡 Puntos Clave de este Diseño
 
-* **Lecturas rápidas**: todos los datos del perfil en un único documento `/stores/{storeId}`.
-* **Escalabilidad**: subcolecciones separadas para productos/ventas/órdenes.
-* **Seguridad**: reglas sobre `/stores/{storeId}` (lectura pública) y subcolecciones (solo dueño autenticado).
-
-¡Listo para definir tus Firestore Rules y arrancar el desarrollo!
+1.  **Lectura Ultra-Rápida:** Al cargar la tienda (`/stores/KFk1...`), obtienes de un solo golpe el nombre, colores, horarios y métodos de pago. No necesitas hacer 5 consultas diferentes.
+2.  **Inventario Escalable:** Si tienes 10,000 productos, no ralentizan la carga inicial de la tienda porque están en una subcolección `/products`.
+3.  **Historial Seguro:** La colección `/sells` (Ventas) guarda una copia de los precios. Si cambias el precio de la hamburguesa mañana, las ventas de ayer no se modifican.
