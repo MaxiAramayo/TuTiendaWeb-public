@@ -29,7 +29,7 @@ interface RootLayoutProps {
  */
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -41,14 +41,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
       </head>
       <body className={`${mulish.className} antialiased`}>
 
-        
+
         {/* Contenido principal */}
         <ErrorBoundary>
           <AuthProvider>
             {children}
-            <Toaster 
-              position="top-right" 
-              richColors 
+            <Toaster
+              position="top-right"
+              richColors
               expand={true}
               closeButton
               toastOptions={{

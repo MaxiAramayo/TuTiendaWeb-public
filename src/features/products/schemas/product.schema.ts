@@ -1,72 +1,33 @@
 import { z } from 'zod';
 
-export const errorMessages = {
-    required: 'Este campo es obligatorio',
-    invalid: 'Valor inválido',
-    minLength: (min: number) => `Debe contener al menos ${min} caracteres`,
-    maxLength: (max: number) => `No puede exceder ${max} caracteres`,
-    price: 'El precio debe ser mayor a 0',
-    fileSize: 'El archivo es muy grande',
-    fileType: 'Tipo de archivo no permitido',
-};
-
-/**
- * Esquema para validar dimensiones de imagen
- */
-export const imageDimensionsSchema = z.object({
-    width: z.number().min(300, 'Ancho mínimo: 300px').max(4000, 'Ancho máximo: 4000px'),
-    height: z.number().min(300, 'Alto mínimo: 300px').max(4000, 'Alto máximo: 4000px')
+// Extraer de validations/product.validations.ts
+export const productSchema = z.object({
+    name: z.string().min(3, 'Nombre debe tener al menos 3 caracteres'),
+    description: z.string().optional(),
+    price: z.coerce.number().positive('Precio debe ser positivo'),
+    categoryId: z.string().min(1, 'Categoría requerida'),
+    tags: z.array(z.string()).optional(),
+    variants: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        price: z.number(),
+        isAvailable: z.boolean().optional(),
+    })).optional(),
+    imageUrl: z.string().url().optional(),
+    active: z.boolean().default(true),
 });
 
-/**
- * Esquema para validar archivos de imagen
- */
-export const imageFileSchema = z.object({
-    file: z.instanceof(File, { message: 'Archivo requerido' }),
-    type: z.enum(['avatar', 'cover'], { message: 'Tipo de imagen inválido' })
-}).refine(
-    (data) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        return allowedTypes.includes(data.file.type);
-    },
-    { message: errorMessages.fileType }
-).refine(
-    (data) => {
-        const maxSizes = {
-            avatar: 2 * 1024 * 1024, // 2MB
-            cover: 5 * 1024 * 1024   // 5MB
-        };
-        return data.file.size <= maxSizes[data.type];
-    },
-    { message: errorMessages.fileSize }
-);
-
-/**
- * Esquema para validar datos básicos de productos
- */
-export const productDataSchema = z.object({
-    name: z
-        .string()
-        .min(1, 'El nombre del plato es requerido')
-        .max(200, 'El nombre no puede exceder 200 caracteres'),
-    description: z
-        .string()
-        .min(10, 'La descripción debe tener al menos 10 caracteres')
-        .max(2000, 'La descripción no puede exceder 2000 caracteres'),
-    price: z
-        .number()
-        .min(0.01, errorMessages.price)
-        .max(999999.99, 'El precio no puede exceder 999,999.99'),
-    categoryId: z
-        .string()
-        .min(1, 'La categoría es requerida'),
-    status: z
-        .enum(['active', 'inactive', 'draft'], {
-            errorMap: () => ({ message: 'Estado inválido' })
-        })
-        .default('active')
+// Para formularios
+export const productFormSchema = productSchema.extend({
+    image: z.any().optional(), // FileList en cliente, File en servidor
+    active: z.boolean().optional(),
 });
 
-export type ImageDimensionsInput = z.infer<typeof imageDimensionsSchema>;
-export type ImageFileInput = z.infer<typeof imageFileSchema>;
-export type ProductDataInput = z.infer<typeof productDataSchema>;
+// Para actualizaciones parciales
+export const productUpdateSchema = productSchema.partial().extend({
+    id: z.string().min(1),
+});
+
+export type Product = z.infer<typeof productSchema> & { id: string };
+export type ProductFormData = z.infer<typeof productFormSchema>;
+export type ProductUpdate = z.infer<typeof productUpdateSchema>;

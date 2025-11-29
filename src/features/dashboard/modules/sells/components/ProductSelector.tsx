@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useProducts } from "@/features/dashboard/modules/products/hooks/useProducts";
+
 import { useAuthStore } from "@/features/auth/api/authStore";
 import { Product, ProductInCart, Topics } from "@/shared/types/store";
 import { Product as ProductDocument } from "@/shared/types/firebase.types";
@@ -44,13 +44,14 @@ const mapProductDocumentToProduct = (productDoc: ProductDocument): Product => {
     imageUrl: productDoc.imageUrls?.[0],
     category: productDoc.categoryId, // Mapear categoryId a category
     available: productDoc.status === 'active',
-    tags: [], // tags no están disponibles en ProductDocument
     stock: 0, // ProductDocument no tiene quantity, usar valor por defecto
     topics: [] // ProductDocument no tiene topics, usar array vacío
   };
 };
 
 interface ProductSelectorProps {
+  /** Productos disponibles para seleccionar (Firebase Type) */
+  products: ProductDocument[];
   /** Productos actualmente seleccionados */
   selectedProducts: ProductInCart[];
   /** Callback para agregar producto */
@@ -65,18 +66,18 @@ interface ProductSelectorProps {
  * Componente selector de productos con funcionalidades avanzadas
  */
 export const ProductSelector: React.FC<ProductSelectorProps> = ({
+  products: productsFromProps,
   selectedProducts,
   onAddProduct,
   onUpdateQuantity,
   onRemoveProduct
 }) => {
   const { user } = useAuthStore();
-  const { products: productsFromStore } = useProducts();
-  
+
   // Mapear ProductDocument[] a Product[]
   const products = useMemo(() => {
-    return productsFromStore.map(mapProductDocumentToProduct);
-  }, [productsFromStore]);
+    return productsFromProps.map(mapProductDocumentToProduct);
+  }, [productsFromProps]);
 
   // Estados locales
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,14 +97,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     return products.filter(product => {
       // Filtro de búsqueda
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
       // Filtro de categoría
       const matchesCategory = selectedCategory === "all" || product.category === selectedCategory;
-      
+
       // Filtro de disponibilidad
       const matchesAvailability = !showAvailableOnly || product.available !== false;
-      
+
       // No mostrar productos ya seleccionados
       const notAlreadySelected = !selectedProducts.some(sp => sp.idProduct === product.idProduct);
 
@@ -194,7 +195,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        
+
         {/* Filtros */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Búsqueda */}
@@ -285,7 +286,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     {/* Controles de cantidad */}
                     <div className="flex items-center gap-1">
@@ -307,14 +308,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
-                    
+
                     {/* Precio total */}
                     <div className="text-right min-w-[70px]">
                       <div className="font-bold">
                         ${(calculateProductPrice(product.price, product.topics) * product.cantidad).toFixed(2)}
                       </div>
                     </div>
-                    
+
                     {/* Botón eliminar */}
                     <Button
                       variant="ghost"
@@ -471,7 +472,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
           <h4 className="font-medium mb-3">
             Productos disponibles ({filteredProducts.length})
           </h4>
-          
+
           {filteredProducts.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -525,7 +526,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
           )}
         </div>
       </CardContent>
-    </Card>
+    </Card >
   );
 };
 

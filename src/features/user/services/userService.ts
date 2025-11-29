@@ -35,10 +35,10 @@ class UserService {
    */
   async getUserData(uid: string): Promise<User | null> {
     const context = { function: 'getUserData', userId: uid };
-    
+
     try {
       userLogger.debug('Obteniendo datos del usuario', context);
-      
+
       return await withRetry(async () => {
         const userRef = doc(db, 'users', uid);
         const userDoc = await getDoc(userRef);
@@ -47,7 +47,7 @@ class UserService {
           userLogger.debug('Usuario encontrado exitosamente', context);
           return userDoc.data() as User;
         }
-        
+
         userLogger.info('Usuario no encontrado', context);
         return null;
       });
@@ -62,26 +62,26 @@ class UserService {
    */
   async updateUser(uid: string, data: Partial<User>): Promise<void> {
     const context = { function: 'updateUser', userId: uid };
-    
+
     try {
       userLogger.debug('Actualizando datos del usuario', context, {
         fieldsToUpdate: Object.keys(data)
       });
-      
+
       await withRetry(async () => {
         const userRef = doc(db, 'users', uid);
-        
+
         // Filtrar campos undefined para evitar errores de Firestore
         const cleanData = Object.fromEntries(
           Object.entries(data).filter(([_, value]) => value !== undefined)
         );
-        
+
         await setDoc(userRef, {
           ...cleanData,
           updatedAt: serverTimestamp()
         }, { merge: true });
       });
-      
+
       userLogger.info('Usuario actualizado exitosamente', context);
     } catch (error: any) {
       userLogger.error('Error al actualizar usuario', context, error);
@@ -94,10 +94,10 @@ class UserService {
    */
   async getUserStores(uid: string): Promise<StoreProfile[]> {
     const context = { function: 'getUserStores', userId: uid };
-    
+
     try {
       userLogger.debug('Obteniendo tiendas del usuario', context);
-      
+
       // 1. Obtener el usuario para ver sus storeIds
       const user = await this.getUserData(uid);
       if (!user || !user.storeIds || user.storeIds.length === 0) {
@@ -122,7 +122,7 @@ class UserService {
 
       const storeDocs = await Promise.all(storePromises);
       const stores: StoreProfile[] = [];
-      
+
       storeDocs.forEach(storeDoc => {
         if (storeDoc.exists()) {
           stores.push(storeDoc.data() as StoreProfile);
@@ -137,18 +137,23 @@ class UserService {
       return stores;
     } catch (error: any) {
       // Manejo específico de errores de Firebase
-      const isOfflineError = error?.message?.includes('client is offline') || 
-                            error?.message?.includes('Failed to get document because the client is offline') ||
-                            error?.code === 'unavailable';
-      
+      const isOfflineError = error?.message?.includes('client is offline') ||
+        error?.message?.includes('Failed to get document because the client is offline') ||
+        error?.code === 'unavailable';
+
       const isConfigError = error?.message?.includes('Variable de entorno faltante');
-      
+
       if (isOfflineError) {
         userLogger.warn('Firebase está offline - verificar configuración', context, {
           errorCode: error?.code,
           errorMessage: error?.message
         });
-        throw new Error('No se puede conectar a Firebase. Verifica tu configuración de red y las variables de entorno.');
+        userLogger.warn('Firebase está offline o no disponible temporalmente', context, {
+          errorCode: error?.code,
+          errorMessage: error?.message
+        });
+        // Retornar array vacío en lugar de lanzar error para no bloquear la UI
+        return [];
       } else if (isConfigError) {
         userLogger.error('Error de configuración de Firebase', context, error);
         throw new Error('Error de configuración: Verifica que las variables de entorno de Firebase estén configuradas correctamente.');
@@ -164,12 +169,12 @@ class UserService {
    */
   async checkSiteNameAvailability(siteName: string): Promise<boolean> {
     const context = { function: 'checkSiteNameAvailability' };
-    
+
     try {
       userLogger.debug('Verificando disponibilidad del nombre de sitio', context, {
         siteName
       });
-      
+
       // Verificar disponibilidad consultando Firestore directamente
       const storesQuery = query(
         collection(db, 'stores'),
@@ -178,12 +183,12 @@ class UserService {
       );
       const querySnapshot = await getDocs(storesQuery);
       const isAvailable = querySnapshot.empty;
-      
+
       userLogger.debug('Verificación de disponibilidad completada', context, {
         siteName,
         isAvailable
       });
-      
+
       return isAvailable;
     } catch (error: any) {
       userLogger.error('Error al verificar disponibilidad del nombre de sitio', context, error);
@@ -196,24 +201,24 @@ class UserService {
    */
   async createStore(storeData: CreateStoreProfileData): Promise<string> {
     const context = { function: 'createStore', userId: storeData.ownerId };
-    
+
     try {
       userLogger.info('Iniciando creación de tienda', context, {
         name: storeData.basicInfo.name,
         storeType: storeData.basicInfo.type,
         slug: storeData.basicInfo.slug
       });
-      
+
       // 1. Validar formato del slug
       if (!storeData.basicInfo.slug) {
         throw new Error('El slug es requerido');
       }
-      
+
       userLogger.debug('Validando formato del slug', context, { slug: storeData.basicInfo.slug });
       const slugRegex = /^[a-z0-9-]+$/;
       if (!slugRegex.test(storeData.basicInfo.slug) || storeData.basicInfo.slug.length < 3 || storeData.basicInfo.slug.length > 50) {
-        userLogger.warn('Formato de slug inválido', context, { 
-          slug: storeData.basicInfo.slug, 
+        userLogger.warn('Formato de slug inválido', context, {
+          slug: storeData.basicInfo.slug,
           error: 'El slug debe contener solo letras minúsculas, números y guiones'
         });
         throw new Error('Slug inválido: El slug debe contener solo letras minúsculas, números y guiones');
@@ -232,21 +237,21 @@ class UserService {
         userLogger.warn('Slug ya está en uso', context, { slug: storeData.basicInfo.slug });
         throw new Error('El nombre de sitio ya está en uso');
       }
-      
+
       // 3. Usar transacción para operación atómica
       userLogger.debug('Iniciando transacción atómica', context);
       const result = await runTransaction(db, async (transaction) => {
         // Verificar que el usuario existe
         const userRef = doc(db, 'users', storeData.ownerId);
         const userDoc = await transaction.get(userRef);
-        
+
         if (!userDoc.exists()) {
           userLogger.error('Usuario no encontrado en transacción', context);
           throw new Error('Usuario no encontrado');
         }
 
         userLogger.debug('Usuario verificado, preparando datos del perfil', context);
-        
+
         // Preparar datos para el profileService
         const profileData: CreateStoreProfileData = {
           ownerId: storeData.ownerId,
@@ -261,44 +266,44 @@ class UserService {
             website: storeData.contactInfo.website || '',
           },
         };
-        
+
         userLogger.debug('Datos preparados para profileService', context, {
           hasBasicInfo: !!profileData.basicInfo,
           hasContactInfo: !!profileData.contactInfo
         });
-        
+
         // Crear perfil usando profileService
         const profile = await profileService.createProfile(profileData);
         userLogger.info('Perfil creado exitosamente', context, { profileId: profile.id });
-        
+
         // Actualizar el usuario con el ID de la tienda
         const userData = userDoc.data() as User;
         const storeIds = [...(userData.storeIds || []), profile.id];
-        
+
         transaction.update(userRef, {
           storeIds,
           updatedAt: serverTimestamp()
         });
-        
-        userLogger.debug('Usuario actualizado con nuevo storeId', context, { 
+
+        userLogger.debug('Usuario actualizado con nuevo storeId', context, {
           newStoreIds: storeIds,
           addedStoreId: profile.id
         });
-        
+
         return profile.id;
       });
 
-      userLogger.info('Transacción completada exitosamente', context, { 
-        createdStoreId: result 
+      userLogger.info('Transacción completada exitosamente', context, {
+        createdStoreId: result
       });
       return result;
-      
+
     } catch (error: any) {
       userLogger.error('Error al crear tienda', context, error);
-      
+
       // Crear error estructurado
       let structuredError;
-      
+
       if (error.message.includes('Slug inválido')) {
         structuredError = errorService.createError(
           ErrorType.VALIDATION,
@@ -356,7 +361,7 @@ class UserService {
           }
         );
       }
-      
+
       errorService.handleError(structuredError);
       throw new Error(structuredError.userMessage);
     }
@@ -367,21 +372,21 @@ class UserService {
    */
   async createUserDocument(uid: string, userData: User): Promise<void> {
     const context = { function: 'createUserDocument', userId: uid };
-    
+
     try {
       userLogger.info('Creando documento de usuario', context, {
         providedFields: Object.keys(userData)
       });
-      
+
       const userRef = doc(db, 'users', uid);
-      
+
       // Filtrar campos undefined para evitar errores de Firestore
       const cleanUserData = Object.fromEntries(
         Object.entries(userData).filter(([_, value]) => value !== undefined)
       );
-      
+
       await setDoc(userRef, cleanUserData);
-      
+
       userLogger.info('Documento de usuario creado exitosamente', context);
     } catch (error: any) {
       userLogger.error('Error al crear documento de usuario', context, error);

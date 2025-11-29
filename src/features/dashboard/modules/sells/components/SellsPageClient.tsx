@@ -11,12 +11,15 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/api/authStore";
 import { SellForm } from "./SellForm";
 import { SellsModule } from "./SellsModule";
+import { Product as ProductDocument } from "@/shared/types/firebase.types";
 
 interface SellsPageClientProps {
   /** ID de venta para mostrar/editar (opcional) */
   sellId?: string;
   /** Modo de la página */
   mode?: "list" | "new" | "edit" | "view";
+  /** Productos disponibles */
+  products: ProductDocument[];
 }
 
 /**
@@ -25,6 +28,7 @@ interface SellsPageClientProps {
 export const SellsPageClient: React.FC<SellsPageClientProps> = ({
   sellId,
   mode = "list",
+  products = [],
 }) => {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -51,6 +55,7 @@ export const SellsPageClient: React.FC<SellsPageClientProps> = ({
         sellId={sellId}
         storeId={storeId}
         readOnly={readOnly}
+        products={products}
         onSuccess={() => {
           // Navegar de vuelta a la lista
           router.push("/dashboard/sells");

@@ -32,7 +32,7 @@ import Cart from "./Cart";
 import { useCartStore } from "@/features/store/api/cartStore";
 import { formatearItemsCarrito } from "./CartUtils";
 import { ShoppingBag, X } from "lucide-react";
-import { formatPrice } from "@/features/dashboard/modules/products/utils/product.utils";
+import { formatPrice } from "@/features/products/utils/product.utils";
 import { useRouter, useParams } from "next/navigation";
 
 /**

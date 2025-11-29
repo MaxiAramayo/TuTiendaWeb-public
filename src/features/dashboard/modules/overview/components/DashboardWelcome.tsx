@@ -9,7 +9,7 @@
 
 "use client";
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Package,
@@ -27,20 +27,27 @@ import {
   Calendar
 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/api/authStore';
-import { useProducts } from '@/features/dashboard/modules/products/hooks/useProducts';
+
 import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { formatNumber } from '@/shared/utils/format.utils';
 import { toast } from 'sonner';
 
+interface DashboardWelcomeProps {
+  initialStats?: {
+    totalProducts: number;
+    activeProducts: number;
+  };
+}
+
 /**
  * Componente de bienvenida del dashboard
  */
-const DashboardWelcome: React.FC = () => {
+const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { stats, loadStats, loading } = useProducts();
-  const { stats: sellStats, calculateStatsFromLoadedData, calculateStats, isLoadingStats, getSells, sells } = useSellStore();
+  // const { stats, loadStats, loading } = useProducts();
+  const { stats: sellStats, calculateStatsFromLoadedData, getSells, sells, isLoadingStats } = useSellStore();
   const { isOnline, wasOffline, resetWasOffline } = useNetworkStatus();
 
   // Estado para controlar carga única por tienda
@@ -52,20 +59,20 @@ const DashboardWelcome: React.FC = () => {
   useEffect(() => {
     const storeId = user?.storeIds?.[0];
     if (storeId && loadedForStore !== storeId) {
-      
+
       console.log('🚀 Inicializando dashboard para tienda:', storeId);
-      
+
       // 1. Cargar productos si es necesario
-      if (!stats || Object.keys(stats).length === 0) {
-        console.log('🔄 Cargando estadísticas de productos...');
-        loadStats();
-      } else {
-        console.log('📦 Productos ya cargados');
-      }
-      
+      // if (!stats || Object.keys(stats).length === 0) {
+      //   console.log('🔄 Cargando estadísticas de productos...');
+      //   loadStats();
+      // } else {
+      //   console.log('📦 Productos ya cargados');
+      // }
+
       // 2. Para ventas, primero intentar calcular desde cache
       calculateStatsFromLoadedData();
-      
+
       // 3. Si no hay datos de ventas cached, cargar en segundo plano
       if (sells.length === 0) {
         console.log('🔄 Cargando ventas en segundo plano...');
@@ -78,11 +85,11 @@ const DashboardWelcome: React.FC = () => {
       } else {
         console.log(`📦 Usando ${sells.length} ventas desde persistencia`);
       }
-      
+
       setLoadedForStore(storeId);
       console.log('✅ Dashboard inicializado para tienda:', storeId);
     }
-  }, [user?.storeIds?.[0], loadedForStore]);
+  }, [user?.storeIds, loadedForStore, calculateStatsFromLoadedData, getSells, sells.length]);
 
   /**
    * Manejar reconexión a internet
@@ -93,11 +100,11 @@ const DashboardWelcome: React.FC = () => {
       toast.success('Conexión restaurada. Actualizando datos...');
       const storeId = user?.storeIds?.[0];
       if (storeId) {
-        loadStats(); // Force refresh para productos
+        // loadStats(); // Force refresh para productos
       }
       resetWasOffline();
     }
-  }, [isOnline, wasOffline]);
+  }, [isOnline, wasOffline, user?.storeIds, resetWasOffline]);
 
   /**
    * Acciones rápidas principales
@@ -147,7 +154,7 @@ const DashboardWelcome: React.FC = () => {
       description: 'Gestiona tu catálogo',
       icon: Package,
       path: '/dashboard/products',
-      stats: `${stats?.totalProducts || 0} productos`,
+      stats: `${initialStats?.totalProducts || 0} productos`,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
@@ -232,7 +239,7 @@ const DashboardWelcome: React.FC = () => {
           </div>
 
           {/* Manejo de errores de carga */}
-          {(loading || isLoadingStats) && (
+          {(isLoadingStats) && (
             <div className="bg-white rounded-xl p-6 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
               <p className="text-gray-600">Cargando estadísticas...</p>
@@ -240,13 +247,13 @@ const DashboardWelcome: React.FC = () => {
           )}
 
           {/* Estadísticas rápidas */}
-          {!loading && !isLoadingStats && (
+          {!isLoadingStats && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Productos</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.totalProducts || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">{initialStats?.totalProducts || 0}</p>
                   </div>
                   <Package className="w-8 h-8 text-blue-500" />
                 </div>
@@ -264,7 +271,7 @@ const DashboardWelcome: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Productos Activos</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.activeProducts || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">{initialStats?.activeProducts || 0}</p>
                   </div>
                   <Eye className="w-8 h-8 text-purple-500" />
                 </div>
@@ -317,7 +324,7 @@ const DashboardWelcome: React.FC = () => {
                   <div>
                     <p className="text-xs sm:text-sm font-medium text-gray-600 mb-0.5 sm:mb-1">Productos</p>
                     <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                      {loading ? '...' : formatNumber(stats?.totalProducts || 0)}
+                      {initialStats?.totalProducts || 0}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">Total en catálogo</p>
                   </div>
@@ -326,7 +333,7 @@ const DashboardWelcome: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -341,7 +348,7 @@ const DashboardWelcome: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -354,7 +361,7 @@ const DashboardWelcome: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>

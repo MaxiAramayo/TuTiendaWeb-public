@@ -16,14 +16,15 @@ import { useAuthStore } from '@/features/auth/api/authStore';
 import { useUserStore } from '@/features/user/api/userStore';
 import { userService } from '@/features/user/services/userService';
 import { AuthCredentials } from '@/features/auth/auth.types';
-import { 
-  RegisterFormValues, 
-  GoogleProfileSetupValues 
+import {
+  RegisterFormValues,
+  GoogleProfileSetupValues
 } from '@/features/auth/validation';
 import { useUserData } from '@/features/user/hooks/useUserData';
 import { useStoreOperations } from '@/features/user/hooks/useStoreOperations';
 import { errorService, ErrorType, ErrorSeverity } from '@/shared/services/error.service';
 import { handleAuthError } from '../utils/errorHandling';
+import { createSession, deleteSession } from '@/lib/auth/actions';
 // Removido: import { optimizeFirestoreSettings, checkFirestoreConnection } from '@/lib/firebase/client';
 
 /**
@@ -37,7 +38,7 @@ export const useAuth = () => {
   // Stores
   const { setUser, resetPassword } = useAuthStore();
   const { getUser } = useUserStore();
-  
+
   // Hooks especializados
   const { loadUserData } = useUserData();
   const { createUserStore } = useStoreOperations();
@@ -52,11 +53,15 @@ export const useAuth = () => {
 
       // Primero intentar autenticar con Firebase
       const userCredential = await authService.signIn(credentials);
-      
+
+      // Crear sesión en el servidor
+      const token = await userCredential.user.getIdToken();
+      await createSession(token);
+
       // Solo cargar datos del usuario si la autenticación fue exitosa
       try {
         await loadUserData(userCredential.user.uid);
-        
+
         // Sincronizar estado entre stores
         const userState = useUserStore.getState().user;
         setUser(userState);
@@ -69,7 +74,7 @@ export const useAuth = () => {
         // Si falla la carga de datos del usuario, pero la autenticación fue exitosa,
         // crear el documento del usuario y continuar de forma segura
         console.warn('Usuario autenticado pero sin datos en Firestore, creando documento básico:', userDataError);
-        
+
         try {
           // Crear datos básicos del usuario
           const basicUserData = {
@@ -81,13 +86,13 @@ export const useAuth = () => {
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
           };
-          
+
           // Intentar crear el documento en Firestore
           await userService.createUserDocument(userCredential.user.uid, basicUserData);
-          
+
           // Actualizar el store con los datos básicos
           setUser(basicUserData);
-          
+
           console.log('ℹ️ Creando datos básicos para usuario nuevo');
           // Toast de éxito manejado por el componente que llama
           router.push('/complete-profile'); // Redirigir a completar perfil
@@ -95,7 +100,7 @@ export const useAuth = () => {
         } catch (createError: any) {
           // Si también falla la creación del documento, al menos establecer el estado básico
           console.error('Error al crear documento de usuario:', createError);
-          
+
           const basicUserData = {
             id: userCredential.user.uid,
             email: userCredential.user.email || credentials.email,
@@ -105,7 +110,7 @@ export const useAuth = () => {
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
           };
-          
+
           setUser(basicUserData);
           // Toast de éxito manejado por el componente que llama
           router.push('/complete-profile');
@@ -114,10 +119,10 @@ export const useAuth = () => {
       }
     } catch (error: any) {
       console.error('❌ Error en signIn:', error?.code, error?.message);
-      
+
       // Manejar errores de autenticación de Firebase
       let userMessage = 'Error al iniciar sesión. Verifica tus credenciales.';
-      
+
       // Mensajes específicos para errores comunes de Firebase Auth
       switch (error?.code) {
         case 'auth/user-not-found':
@@ -148,7 +153,7 @@ export const useAuth = () => {
           }
           break;
       }
-      
+
       const structuredError = errorService.createError(
         ErrorType.AUTHENTICATION,
         error?.code || 'AUTH_SIGNIN_ERROR',
@@ -162,11 +167,11 @@ export const useAuth = () => {
           retryable: true
         }
       );
-      
+
       // Solo mostrar toast para errores de autenticación, no logging interno
       toast.error(userMessage);
       setError(structuredError.userMessage);
-      
+
       // Preservar el código de error original para manejo específico
       const enhancedError = new Error(structuredError.userMessage);
       (enhancedError as any).code = error?.code || 'unknown';
@@ -185,9 +190,13 @@ export const useAuth = () => {
       setError(null);
 
       const { userCredential, isNewUser } = await authService.signInWithGoogle();
-      
+
+      // Crear sesión en el servidor
+      const token = await userCredential.user.getIdToken();
+      await createSession(token);
+
       let userState = null;
-      
+
       // Intentar cargar datos del usuario
       try {
         await loadUserData(userCredential.user.uid);
@@ -197,7 +206,7 @@ export const useAuth = () => {
       } catch (userDataError: any) {
         // Si falla la carga de datos del usuario, crear datos básicos
         console.warn('Usuario de Google autenticado pero sin datos en Firestore:', userDataError);
-        
+
         const basicUserData = {
           id: userCredential.user.uid,
           email: userCredential.user.email || '',
@@ -207,7 +216,7 @@ export const useAuth = () => {
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         };
-        
+
         userState = basicUserData;
         setUser(userState);
         console.log('ℹ️ Creando datos básicos para usuario de Google');
@@ -228,10 +237,10 @@ export const useAuth = () => {
       return { userCredential, isNewUser, hasIncompleteProfile: !userState?.storeIds || userState.storeIds.length === 0 };
     } catch (error: any) {
       console.error('❌ Error en signInWithGoogle:', error?.code, error?.message);
-      
+
       // Manejar errores específicos de Google Auth
       let userMessage = 'Error al iniciar sesión con Google. Inténtalo de nuevo.';
-      
+
       switch (error?.code) {
         case 'auth/popup-closed-by-user':
           userMessage = 'Inicio de sesión cancelado.';
@@ -252,7 +261,7 @@ export const useAuth = () => {
           }
           break;
       }
-      
+
       const structuredError = errorService.createError(
         ErrorType.AUTHENTICATION,
         error?.code || 'AUTH_GOOGLE_ERROR',
@@ -266,7 +275,7 @@ export const useAuth = () => {
           retryable: true
         }
       );
-      
+
       // Solo mostrar toast para errores reales, no para cancelaciones
       if (error?.code !== 'auth/popup-closed-by-user' && error?.code !== 'auth/cancelled-popup-request') {
         toast.error(userMessage);
@@ -297,7 +306,12 @@ export const useAuth = () => {
         }
       };
 
-      const userId = await authService.signUp(userData);
+      const userCredential = await authService.signUp(userData);
+      const userId = userCredential.user.uid;
+
+      // Crear sesión en el servidor
+      const token = await userCredential.user.getIdToken();
+      await createSession(token);
 
       // 2. Crear tienda usando el hook especializado
       const storeData = {
@@ -315,10 +329,10 @@ export const useAuth = () => {
       };
 
       await createUserStore(storeData);
-      
+
       // 3. Cargar datos actualizados
       await loadUserData(userId);
-      
+
       // Sincronizar estado entre stores
       const userState = useUserStore.getState().user;
       setUser(userState);
@@ -362,10 +376,10 @@ export const useAuth = () => {
       };
 
       await createUserStore(storeData);
-      
+
       // 2. Cargar datos actualizados
       await loadUserData(uid);
-      
+
       // Sincronizar estado entre stores
       const userState = useUserStore.getState().user;
       setUser(userState);
@@ -386,7 +400,7 @@ export const useAuth = () => {
           retryable: true
         }
       );
-      
+
       errorService.handleError(structuredError);
       setError(structuredError.userMessage);
       throw error;
@@ -403,6 +417,7 @@ export const useAuth = () => {
       setIsLoading(true);
       setError(null);
 
+      await deleteSession();
       await authService.signOut();
       // Toast de éxito manejado por el componente que llama
       router.push('/');
@@ -420,7 +435,7 @@ export const useAuth = () => {
           retryable: true
         }
       );
-      
+
       errorService.handleError(structuredError);
       setError(structuredError.userMessage);
     } finally {
@@ -452,7 +467,7 @@ export const useAuth = () => {
           retryable: true
         }
       );
-      
+
       errorService.handleError(structuredError);
       setError(structuredError.userMessage);
       throw error;

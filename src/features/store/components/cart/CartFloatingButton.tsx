@@ -9,7 +9,7 @@
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/features/store/api/cartStore";
-import { formatPrice } from "@/features/dashboard/modules/products/utils/product.utils";
+import { formatPrice } from "@/features/products/utils/product.utils";
 import { Badge } from "@/components/ui/badge";
 import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";
 
@@ -17,7 +17,7 @@ const CartFloatingButton = () => {
   const { items, total, openCart } = useCartStore();
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
-  
+
   if (!items.length) return null;
 
   return (

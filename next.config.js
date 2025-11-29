@@ -14,6 +14,9 @@ const nextConfig = {
   // Optimizaciones para evitar errores ERR_ABORTED
   experimental: {
     optimizePackageImports: ['@firebase/app', '@firebase/auth', '@firebase/firestore'],
+    serverActions: {
+      bodySizeLimit: '5mb',
+    },
   },
   // Paquetes externos del servidor
   serverExternalPackages: ['firebase-admin'],

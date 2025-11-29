@@ -52,39 +52,39 @@ class AuthService {
       let isNewUser = additionalInfo?.isNewUser || false;
 
       // Verificar si el usuario ya existe en Firestore para evitar duplicados
-       if (userCredential.user) {
-         try {
-           const existingUser = await userService.getUserData(userCredential.user.uid);
-           if (existingUser) {
-             // Usuario ya existe en Firestore
-             isNewUser = false;
-           } else if (isNewUser) {
-             // Usuario nuevo confirmado, crear documento en Firestore
-             await userService.createUserDocument(userCredential.user.uid, {
-               id: userCredential.user.uid,
-               email: userCredential.user.email || '',
-               displayName: userCredential.user.displayName || '',
-               role: 'owner',
-               storeIds: [],
-               createdAt: Timestamp.now(),
-               updatedAt: Timestamp.now()
-             });
-           }
-         } catch (userError) {
-           // Si hay error al obtener el usuario, asumimos que es nuevo
-           if (isNewUser) {
-             await userService.createUserDocument(userCredential.user.uid, {
-               id: userCredential.user.uid,
-               email: userCredential.user.email || '',
-               displayName: userCredential.user.displayName || '',
-               role: 'owner',
-               storeIds: [],
-               createdAt: Timestamp.now(),
-               updatedAt: Timestamp.now()
-             });
-           }
-         }
-       }
+      if (userCredential.user) {
+        try {
+          const existingUser = await userService.getUserData(userCredential.user.uid);
+          if (existingUser) {
+            // Usuario ya existe en Firestore
+            isNewUser = false;
+          } else if (isNewUser) {
+            // Usuario nuevo confirmado, crear documento en Firestore
+            await userService.createUserDocument(userCredential.user.uid, {
+              id: userCredential.user.uid,
+              email: userCredential.user.email || '',
+              displayName: userCredential.user.displayName || '',
+              role: 'owner',
+              storeIds: [],
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now()
+            });
+          }
+        } catch (userError) {
+          // Si hay error al obtener el usuario, asumimos que es nuevo
+          if (isNewUser) {
+            await userService.createUserDocument(userCredential.user.uid, {
+              id: userCredential.user.uid,
+              email: userCredential.user.email || '',
+              displayName: userCredential.user.displayName || '',
+              role: 'owner',
+              storeIds: [],
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now()
+            });
+          }
+        }
+      }
 
       return { userCredential, isNewUser };
     } catch (error: any) {
@@ -95,7 +95,7 @@ class AuthService {
   /**
    * Registrar nuevo usuario con email y contraseña
    */
-  async signUp({ email, password, userData }: CreateUserData): Promise<string> {
+  async signUp({ email, password, userData }: CreateUserData): Promise<UserCredential> {
     try {
       // 1. Crear usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -118,7 +118,7 @@ class AuthService {
       }
 
       await userService.createUserDocument(uid, user);
-      return uid;
+      return userCredential;
     } catch (error: any) {
       throw this.handleAuthError(error);
     }
