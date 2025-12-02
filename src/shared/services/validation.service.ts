@@ -90,7 +90,7 @@ export class ValidationService {
   private static instance: ValidationService;
   private readonly DEFAULT_MAX_ERRORS = 100;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): ValidationService {
     if (!ValidationService.instance) {
@@ -186,12 +186,12 @@ export class ValidationService {
       };
 
       console.log(`✅ Validación de datos migrados completada en ${result.performance.duration}ms`);
-      
+
       return result;
 
     } catch (error) {
       console.error('❌ Error durante validación de datos migrados:', error);
-      
+
       return {
         isValid: false,
         summary: {
@@ -231,7 +231,7 @@ export class ValidationService {
   ): Promise<{ errors: ValidationError[]; warnings: ValidationWarning[] }> {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
-    
+
     const categoryIds = new Set(categories.map(c => c.id));
     const tagIds = new Set(tags.map(t => t.id));
 
@@ -397,20 +397,6 @@ export class ValidationService {
   ): Promise<{ errors: ValidationError[]; warnings: ValidationWarning[] }> {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
-
-    // Validar estructura de productos
-    if (!settings.products) {
-      errors.push({
-        id: 'migrated_settings_products_missing',
-        type: 'error',
-        entity: 'settings',
-        entityId: 'products',
-        field: 'products',
-        message: 'Configuración de productos faltante',
-        value: null,
-        suggestion: 'Agregar configuración de productos con valores por defecto'
-      });
-    }
 
     // Validar estructura de comercio
     if (!settings.commerce) {

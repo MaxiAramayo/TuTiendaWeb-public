@@ -121,9 +121,25 @@ const ProductDataTable: React.FC<ProductDataTableProps> = ({
                     bValue = b.status;
                     break;
                 case 'createdAt':
-                    // Handle Firestore Timestamp or serialized date
-                    aValue = (a.createdAt as any)?.seconds || (a.createdAt as any)?.toDate?.()?.getTime() || 0;
-                    bValue = (b.createdAt as any)?.seconds || (b.createdAt as any)?.toDate?.()?.getTime() || 0;
+                    // Handle all possible date formats
+                    const getTimestamp = (date: any): number => {
+                        if (!date) return 0;
+                        // Case 1: ISO String (from serializer)
+                        if (typeof date === 'string') {
+                            return new Date(date).getTime();
+                        }
+                        // Case 2: Firestore Timestamp (client-side SDK)
+                        if (typeof date.toDate === 'function') {
+                            return date.toDate().getTime();
+                        }
+                        // Case 3: Serialized Timestamp object (seconds/nanoseconds)
+                        if (date.seconds) {
+                            return date.seconds * 1000;
+                        }
+                        return 0;
+                    };
+                    aValue = getTimestamp(a.createdAt);
+                    bValue = getTimestamp(b.createdAt);
                     break;
                 default:
                     return 0;
@@ -304,9 +320,11 @@ const ProductDataTable: React.FC<ProductDataTableProps> = ({
                                         <div className="font-medium text-gray-900 text-xs sm:text-sm">
                                             {product.name}
                                         </div>
-                                        {product.shortDescription && (
+                                        {product.description && (
                                             <div className="text-xs text-gray-500 line-clamp-1">
-                                                {product.shortDescription}
+                                                {product.description.length > 70
+                                                    ? `${product.description.substring(0, 70)}...`
+                                                    : product.description}
                                             </div>
                                         )}
                                         <div className="sm:hidden">
@@ -331,7 +349,7 @@ const ProductDataTable: React.FC<ProductDataTableProps> = ({
                                         <div className="font-semibold text-gray-900 text-xs sm:text-sm">
                                             {formatPrice(product.price)}
                                         </div>
-                                        {product.costPrice && product.costPrice > 0 && (
+                                        {product.costPrice && Number(product.costPrice) > 0 && (
                                             <div className="text-xs text-gray-500">
                                                 Costo: {formatPrice(product.costPrice)}
                                             </div>

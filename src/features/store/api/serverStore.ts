@@ -21,18 +21,18 @@ import { cache } from "react";
  */
 function serializeTimestamps(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
-  
+
   // Si es un array, serializar cada elemento
   if (Array.isArray(obj)) {
     return obj.map(item => serializeTimestamps(item));
   }
-  
+
   const serialized = { ...obj };
-  
+
   // Serializar todos los campos que pueden ser Timestamp
   Object.keys(serialized).forEach(key => {
     const value = serialized[key];
-    
+
     // Si es un Timestamp de Firebase, convertir a ISO string
     if (value && typeof value === 'object' && value.toDate) {
       serialized[key] = value.toDate().toISOString();
@@ -46,7 +46,7 @@ function serializeTimestamps(obj: any): any {
       serialized[key] = value.map(item => serializeTimestamps(item));
     }
   });
-  
+
   return serialized;
 }
 
@@ -128,15 +128,15 @@ export const getStoreProducts = cache(async (storeId: string): Promise<Product[]
     const products: Product[] = [];
     querySnapshot.forEach((doc) => {
       const productData = doc.data() as FirebaseProduct;
-      
+
       // Obtener nombre de categoría o usar el ID si no se encuentra
       const categoryName = categoriesMap.get(productData.categoryId) || productData.categoryId || "Sin categoría";
-      
+
       // Mapear de la estructura Firebase a la estructura legacy
       const mappedProduct: Product = {
         idProduct: doc.id,
         name: productData.name,
-        description: productData.description || productData.shortDescription || "",
+        description: productData.description || "",
         price: productData.price,
         image: productData.imageUrls?.[0] || "",
         imageUrl: productData.imageUrls?.[0] || "",
@@ -146,7 +146,7 @@ export const getStoreProducts = cache(async (storeId: string): Promise<Product[]
         stock: productData.stockQuantity || 0,
         topics: []
       };
-      
+
       // Serializar campos Timestamp del producto
       const serializedProduct = serializeTimestamps(mappedProduct);
       products.push(serializedProduct as Product);

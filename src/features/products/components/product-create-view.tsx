@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import ProductForm from '../forms/product-form';
 import { createProductAction } from '../actions/product.actions';
 import { Category, Tag } from '@/shared/types/firebase.types';
+import { ProductFormData } from '../schemas/product.schema';
 
 interface ProductCreateViewProps {
     storeId: string;
@@ -17,14 +18,20 @@ interface ProductCreateViewProps {
 export default function ProductCreateView({ storeId, categories, tags }: ProductCreateViewProps) {
     const router = useRouter();
 
-    const handleSave = async (data: any) => {
+    const handleSave = async (data: ProductFormData) => {
         const formData = new FormData();
         Object.entries(data).forEach(([key, value]) => {
             if (key === 'images') {
-                (value as File[]).forEach(file => formData.append('images', file));
+                if (Array.isArray(value)) {
+                    value.forEach((file: any) => {
+                        if (file instanceof File) {
+                            formData.append('images', file);
+                        }
+                    });
+                }
             } else if (key === 'tags' || key === 'variants') {
                 formData.append(key, JSON.stringify(value));
-            } else {
+            } else if (value !== undefined && value !== null) {
                 formData.append(key, String(value));
             }
         });

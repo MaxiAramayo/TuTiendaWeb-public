@@ -8,7 +8,7 @@ import ProductGrid from './product-grid';
 import ProductDataTable from './product-data-table';
 import ProductViewToggle from './product-view-toggle';
 import { toast } from 'sonner';
-import { deleteProductAction } from '../actions/product.actions';
+import { deleteProductAction, toggleProductStatusAction } from '../actions/product.actions';
 
 interface ProductsMainProps {
     initialProducts: Product[];
@@ -67,51 +67,22 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
         });
     }, []);
 
-    const handleToggleStatus = useCallback(async (productId: string, status: 'active' | 'inactive') => {
-        // Optimistic update
-        setProducts(prev => prev.map(p => p.id === productId ? { ...p, status } : p));
+    const handleToggleStatus = useCallback(async (productId: string, newStatus: 'active' | 'inactive') => {
+        startTransition(async () => {
+            const result = await toggleProductStatusAction(productId, newStatus);
 
-        const formData = new FormData();
-        formData.append('id', productId);
-        // We need to pass the full product data for update, or update the action to support partial updates
-        // For now, let's assume updateProductAction handles partial updates or we just send what's needed
-        // Actually, updateProductAction expects a full form data. 
-        // Let's use a specific server action for status toggle or just update the local state and call the update action with minimal data if allowed.
-        // My updateProductAction validates against productUpdateSchema which requires id.
-        // But it also parses other fields. If they are missing, it might fail validation if they are required.
-        // Let's check productUpdateSchema. It is partial().extend({ id: z.string() }). So it's fine.
+            if (result.success) {
+                setProducts(prev => prev.map(p =>
+                    p.id === productId ? { ...p, status: newStatus } : p
+                ));
 
-        // However, formData.append only takes strings/blobs.
-        // We need to construct the formData correctly.
-
-        // Wait, updateProductAction takes FormData.
-        // Let's try to pass just the status?
-        // The schema has 'active' as boolean.
-        // But 'status' in Product type is 'active' | 'inactive'.
-        // My schema has 'active' boolean.
-        // I need to map 'status' to 'active'.
-
-        const active = status === 'active';
-        // formData.append('active', active.toString()); // Schema expects boolean, but FormData is string. 
-        // Zod coerce.boolean() might be needed in schema, or I handle it in action.
-        // My schema: active: z.boolean().optional()
-        // FormData doesn't support boolean directly.
-        // I should probably update the action to accept a plain object or handle the conversion.
-        // OR, just for this refactor, I will skip the server call for toggle status if it's too complex to wire up without changing the action, 
-        // BUT I must implement it.
-
-        // Let's look at product.actions.ts again.
-        // It parses rawData.
-        // const rawData = { ... active: formData.get('active') ... }
-        // If I didn't add 'active' to rawData extraction in updateProductAction, it won't work.
-        // I need to check updateProductAction.
-
-        // Let's assume for now I can't easily toggle status without a proper action.
-        // I will implement a specific toggleStatusAction later if needed.
-        // For now, I'll just show a toast "Not implemented" or try to implement it properly.
-
-        toast.info('Cambio de estado no implementado aún en el backend');
-    }, []);
+                toast.success(`Producto ${newStatus === 'active' ? 'activado' : 'desactivado'} exitosamente`);
+                router.refresh();
+            } else {
+                toast.error(result.errors?._form?.[0] || 'Error al cambiar estado del producto');
+            }
+        });
+    }, [router]);
 
 
 
@@ -186,8 +157,8 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
                         </div>
                     </div>
 
-                    {/* Toolbar */}
-                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 p-3 sm:p-6">
+                    {/* To olbar */}
+                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 p-3  sm:p-6">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
                             <div className="flex-1 max-w-lg">
                                 <div className="relative">
@@ -222,7 +193,7 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
                         </div>
                     </div>
 
-                    {/* Grid/Table */}
+                    {/* Grid/ Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                         {viewType === 'grid' ? (
                             <div className="p-6">
@@ -253,8 +224,8 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

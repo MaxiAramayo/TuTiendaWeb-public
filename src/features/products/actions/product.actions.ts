@@ -75,6 +75,7 @@ export async function createProductAction(
         name: formData.get('name'),
         description: formData.get('description') || undefined,
         price: formData.get('price'),
+        costPrice: formData.get('costPrice'),
         categoryId: formData.get('categoryId'),
         tags: formData.getAll('tags').map(t => {
             try { return JSON.parse(t as string); } catch { return t; }
@@ -82,6 +83,7 @@ export async function createProductAction(
         variants: formData.getAll('variants').map(v => {
             try { return JSON.parse(v as string); } catch { return v; }
         }).flat(),
+        active: formData.get('active') === 'true',
         imageUrl: formData.get('imageUrl') || undefined,
         image: formData.getAll('images'), // Get ALL images
     };
@@ -174,6 +176,7 @@ export async function updateProductAction(
         name: formData.get('name'),
         description: formData.get('description') || undefined,
         price: formData.get('price'),
+        costPrice: formData.get('costPrice'),
         categoryId: formData.get('categoryId'),
         tags: formData.getAll('tags').map(t => {
             try { return JSON.parse(t as string); } catch { return t; }
@@ -181,6 +184,7 @@ export async function updateProductAction(
         variants: formData.getAll('variants').map(v => {
             try { return JSON.parse(v as string); } catch { return v; }
         }).flat(),
+        active: formData.get('active') === 'true',
         imageUrl: formData.get('imageUrl') || undefined,
         image: formData.getAll('images'), // Get ALL new images
     };
@@ -306,7 +310,7 @@ export async function deleteProductAction(
             }
         }
 
-        // 3. Delete product document (soft delete)
+        // 3. Delete product document (hard delete)
         await deleteProduct(productId, session.storeId);
 
         revalidatePath('/dashboard/products');
@@ -317,6 +321,38 @@ export async function deleteProductAction(
         return {
             success: false,
             errors: { _form: ['Error al eliminar producto'] },
+        };
+    }
+}
+
+// ============================================================================
+// TOGGLE PRODUCT STATUS
+// ============================================================================
+export async function toggleProductStatusAction(
+    productId: string,
+    newStatus: 'active' | 'inactive'
+): Promise<ActionResponse<null>> {
+    const session = await getServerSession();
+    if (!session) {
+        return { success: false, errors: { _form: ['No autenticado'] } };
+    }
+
+    try {
+        await updateProduct(
+            productId,
+            { status: newStatus },
+            session.storeId
+        );
+
+        revalidatePath('/dashboard/products');
+        revalidatePath(`/dashboard/products/${productId}`);
+
+        return { success: true, data: null };
+    } catch (error) {
+        console.error('Error toggling product status:', error);
+        return {
+            success: false,
+            errors: { _form: ['Error al cambiar estado del producto'] },
         };
     }
 }

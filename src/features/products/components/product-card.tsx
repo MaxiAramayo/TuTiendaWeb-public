@@ -6,7 +6,6 @@ import {
     MoreVertical,
     Edit,
     Trash2,
-    Copy,
     ToggleLeft,
     ToggleRight,
     Package
@@ -17,7 +16,7 @@ import {
     getProductStatusLabel,
     getProductStatusColor,
     getProductMainImage,
-    generateProductSummary
+    getProductDescription
 } from '../utils/product.utils';
 
 interface ProductCardProps {
@@ -25,7 +24,6 @@ interface ProductCardProps {
     storeId: string;
     onEdit?: (product: Product) => void;
     onDelete?: (productId: string) => void;
-    onDuplicate?: (productId: string) => void;
     onToggleStatus?: (productId: string, status: 'active' | 'inactive') => void;
     onView?: (product: Product) => void;
     categories: Category[];
@@ -37,7 +35,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     storeId,
     onEdit,
     onDelete,
-    onDuplicate,
     onToggleStatus,
     onView,
     categories,
@@ -77,11 +74,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
         setShowActions(false);
     };
 
-    const handleDuplicate = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onDuplicate?.(product.id);
-        setShowActions(false);
-    };
 
     const handleToggleStatus = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -147,14 +139,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
                                 </button>
 
                                 <button
-                                    onClick={handleDuplicate}
-                                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs font-medium text-gray-700 hover:bg-green-50 hover:text-green-600 flex items-center space-x-1.5 sm:space-x-2 transition-colors duration-200"
-                                >
-                                    <Copy className="w-3 h-3" />
-                                    <span>Duplicar</span>
-                                </button>
-
-                                <button
                                     onClick={handleToggleStatus}
                                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs font-medium text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 flex items-center space-x-1.5 sm:space-x-2 transition-colors duration-200"
                                 >
@@ -197,10 +181,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     </p>
                 </div>
 
-                {product.shortDescription && (
+                {product.description && (
                     <div className="hidden sm:block mb-2">
                         <p className="text-xs text-gray-600 bg-blue-50 rounded-md p-1.5 border-l-2 border-blue-200 line-clamp-2">
-                            {product.shortDescription}
+                            {product.description.length > 70
+                                ? `${product.description.substring(0, 70)}...`
+                                : product.description}
                         </p>
                     </div>
                 )}

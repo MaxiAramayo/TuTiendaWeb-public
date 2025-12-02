@@ -22,14 +22,19 @@ export async function createCategoryAction(data: { name: string; description?: s
         throw new Error('Datos inválidos');
     }
 
-    const docRef = await adminDb.collection('categories').add({
-        ...validation.data,
-        storeId: session.storeId,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        isActive: true,
-        slug: validation.data.name.toLowerCase().replace(/\s+/g, '-'),
-    });
+    // Use stores/{storeId}/categories subcollection instead of root categories collection
+    const docRef = await adminDb
+        .collection('stores')
+        .doc(session.storeId)
+        .collection('categories')
+        .add({
+            ...validation.data,
+            storeId: session.storeId,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            isActive: true,
+            slug: validation.data.name.toLowerCase().replace(/\s+/g, '-'),
+        });
 
     revalidatePath('/dashboard/products');
 

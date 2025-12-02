@@ -42,6 +42,6 @@ export const getProductMainImage = (product: Product): string | null => {
     return null;
 };
 
-export const generateProductSummary = (product: Product): string => {
-    return product.shortDescription || product.description || '';
-};
+export function getProductDescription(product: Product): string {
+    return product.description || '';
+}

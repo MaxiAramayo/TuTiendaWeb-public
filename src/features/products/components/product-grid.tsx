@@ -11,7 +11,6 @@ interface ProductGridProps {
     loading?: boolean;
     onEdit?: (product: Product) => void;
     onDelete?: (productId: string) => void;
-    onDuplicate?: (productId: string) => void;
     onToggleStatus?: (productId: string, status: 'active' | 'inactive') => void;
     onView?: (product: Product) => void;
     categories: Category[];
@@ -24,7 +23,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     loading = false,
     onEdit,
     onDelete,
-    onDuplicate,
     onToggleStatus,
     onView,
     categories,
@@ -79,7 +77,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
                         storeId={storeId}
                         onEdit={onEdit}
                         onDelete={onDelete}
-                        onDuplicate={onDuplicate}
                         onToggleStatus={onToggleStatus}
                         onView={onView}
                         categories={categories}
