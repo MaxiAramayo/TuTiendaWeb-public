@@ -8,6 +8,9 @@
  */
 
 import { SellsPageClient } from "@/features/dashboard/modules/sells/components/SellsPageClient";
+import { getProducts } from "@/features/products/services/product.service";
+import { getServerSession } from "@/lib/auth/server-session";
+import { redirect } from "next/navigation";
 
 interface ViewSellPageProps {
   params: Promise<{
@@ -17,7 +20,19 @@ interface ViewSellPageProps {
 
 export default async function ViewSellPage({ params }: ViewSellPageProps) {
   const { id } = await params;
-  return <SellsPageClient sellId={id} mode="view" />;
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/sign-in");
+  }
+
+  if (!session.storeId) {
+    return <SellsPageClient sellId={id} mode="view" products={[]} />;
+  }
+
+  const products = await getProducts(session.storeId);
+
+  return <SellsPageClient sellId={id} mode="view" products={products} />;
 }
 
 export async function generateMetadata({ params }: ViewSellPageProps) {

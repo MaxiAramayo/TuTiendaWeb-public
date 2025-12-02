@@ -1,52 +1,45 @@
-/**
- * Página de productos del dashboard
- * 
- * Muestra la interfaz completa de gestión de productos
- * con funcionalidades de CRUD, filtros y búsqueda.
- */
+import { Suspense } from 'react';
+import { getServerSession } from '@/lib/auth/server-session';
+import { getProducts } from '@/features/products/services/product.service';
+import { getCategories } from '@/features/products/services/category.service';
+import { getTags } from '@/features/products/services/tag.service';
+import ProductsMain from '@/features/products/components/products-main';
+import ProductsLoading from './loading';
+import { redirect } from 'next/navigation';
 
-"use client";
+// Metadatos
+export const metadata = {
+  title: 'Productos | Dashboard',
+  description: 'Gestión de productos',
+};
 
-import { useRouter } from 'next/navigation';
-import { ProductsMain } from '@/features/dashboard/modules/products';
-import { Product } from '@/shared/types/firebase.types';
+// ============================================================================
+// SERVER COMPONENT - FETCH EN SERVIDOR
+// ============================================================================
+export default async function ProductsPage() {
+  // 1. VERIFICAR AUTH
+  const session = await getServerSession();
 
-/**
- * Página de gestión de productos
- * 
- * @returns Componente React
- */
-export default function ProductsPage() {
-  const router = useRouter();
+  if (!session) {
+    redirect('/sign-in');
+  }
 
-  /**
-   * Maneja la navegación para crear un nuevo producto
-   */
-  const handleCreateProduct = () => {
-    router.push('/dashboard/products/new');
-  };
+  // 2. FETCH INICIAL (en servidor)
+  const [products, categories, tags] = await Promise.all([
+    getProducts(session.storeId),
+    getCategories(session.storeId),
+    getTags(session.storeId),
+  ]);
 
-  /**
-   * Maneja la navegación para editar un producto
-   */
-  const handleEditProduct = (product: Product) => {
-    router.push(`/dashboard/products/edit/${product.id}`);
-  };
-
-  /**
-   * Maneja la navegación para ver detalles de un producto
-   */
-  const handleViewProduct = (product: Product) => {
-    router.push(`/dashboard/products/view/${product.id}`);
-  };
-
+  // 3. RENDERIZAR PASANDO PROPS
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <Suspense fallback={<ProductsLoading />}>
       <ProductsMain
-        onCreateProduct={handleCreateProduct}
-        onEditProduct={handleEditProduct}
-        onViewProduct={handleViewProduct}
+        initialProducts={products}
+        categories={categories}
+        tags={tags}
+        storeId={session.storeId}
       />
-    </div>
+    </Suspense>
   );
 }

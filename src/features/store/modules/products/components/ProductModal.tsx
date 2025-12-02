@@ -21,7 +21,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { formatPrice } from "@/features/dashboard/modules/products/utils/product.utils";
+import { formatPrice } from "@/features/products/utils/product.utils";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/components/ui/use-toast";
@@ -41,14 +41,14 @@ export function ProductModal() {
   const [quantity, setQuantity] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState<Topics[]>([]);
   const [mounted, setMounted] = useState(false);
-  
+
   // Hooks
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const { toast } = useToast();
-  
+
   // Acceder al estado del modal
   const { product, isOpen, closeModal } = useProductModalStore();
-  
+
   // Acceder al estado del carrito
   const { addToCart, openCart } = useCartStore();
 
@@ -57,7 +57,7 @@ export function ProductModal() {
    */
   useEffect(() => {
     setMounted(true);
-    
+
     // Reiniciar estado al cerrar el modal
     if (!isOpen) {
       setQuantity(1);
@@ -81,10 +81,10 @@ export function ProductModal() {
    */
   const handleTopicChange = (topicId: string) => {
     if (!product?.topics) return;
-    
+
     const selectedTopic = product.topics.find(topic => topic.id === topicId);
     if (!selectedTopic) return;
-    
+
     setSelectedTopics(prevTopics => {
       const index = prevTopics.findIndex(topic => topic.id === topicId);
       if (index === -1) {
@@ -101,7 +101,7 @@ export function ProductModal() {
    */
   const calculateTotalPrice = (): number => {
     if (!product) return 0;
-    
+
     const basePrice = product.price;
     const extrasPrice = selectedTopics.reduce((acc, topic) => acc + topic.price, 0);
     return (basePrice + extrasPrice) * quantity;
@@ -112,21 +112,21 @@ export function ProductModal() {
    */
   const handleAddToCart = () => {
     if (!product) return;
-    
+
     // Crear un producto modificado que incluya los extras seleccionados
     const productWithExtras: Product = {
       ...product,
       price: product.price + selectedTopics.reduce((acc, topic) => acc + topic.price, 0),
       topics: selectedTopics.length > 0 ? selectedTopics : undefined,
     };
-    
+
     addToCart(productWithExtras, quantity);
-    
+
     toast({
       title: "Producto añadido",
       description: `${product.name} ha sido añadido a tu carrito.`,
     });
-    
+
     handleClose();
   };
 
@@ -183,7 +183,7 @@ export function ProductModal() {
           <div>
             <p className="text-sm font-medium text-gray-700">Extras</p>
           </div>
-          
+
           <div className="flex flex-col gap-2">
             {product.topics.map((topic) => (
               <div
@@ -232,14 +232,14 @@ export function ProductModal() {
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <Button 
+        <Button
           onClick={handleAddToCart}
           disabled={!product.available}
           className="gap-2"
         >
           <ShoppingCart className="h-4 w-4" />
-          {selectedTopics.length > 0 
-            ? `Añadir ${formatPrice(calculateTotalPrice())}` 
+          {selectedTopics.length > 0
+            ? `Añadir ${formatPrice(calculateTotalPrice())}`
             : "Añadir al carrito"}
         </Button>
       </div>

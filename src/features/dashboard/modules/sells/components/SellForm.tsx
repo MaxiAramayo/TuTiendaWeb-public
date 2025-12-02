@@ -38,6 +38,7 @@ import { useSellStore } from "@/features/dashboard/modules/sells/api/sellStore";
 import { useAuthStore } from "@/features/auth/api/authStore";
 import { ProductSelector } from "./ProductSelector";
 import { ProductInCart } from "@/shared/types/store";
+import { Product as ProductDocument } from "@/shared/types/firebase.types";
 import { z } from "zod";
 
 // === TIPOS Y VALIDACIONES ===
@@ -96,6 +97,8 @@ interface SellFormProps {
   onCancel?: () => void;
   /** Modo de solo lectura */
   readOnly?: boolean;
+  /** Productos disponibles para seleccionar */
+  products: ProductDocument[];
 }
 
 /**
@@ -108,6 +111,7 @@ export const SellForm: React.FC<SellFormProps> = ({
   onSuccess,
   onCancel,
   readOnly = false,
+  products = [],
 }) => {
   const router = useRouter();
   const { addSell, updateSell, isLoading, getSellById } = useSellStore();
@@ -165,7 +169,7 @@ export const SellForm: React.FC<SellFormProps> = ({
             discount: fetchedSell.discount || { type: "fixed", value: 0 },
             tax: fetchedSell.tax || { amount: 0 },
           });
-          
+
           // Convertir productos a ProductInCart
           if (fetchedSell.products) {
             const convertedProducts: ProductInCart[] = fetchedSell.products.map(product => ({
@@ -242,7 +246,7 @@ export const SellForm: React.FC<SellFormProps> = ({
 
       form.setValue("subtotal", productTotal);
       form.setValue("total", Math.max(0, calculatedTotal));
-      
+
       // Actualizar los productos en el formulario
       const formProducts = selectedProducts.map(product => ({
         id: product.id,
@@ -272,9 +276,9 @@ export const SellForm: React.FC<SellFormProps> = ({
       }
 
       // Validar totales antes de enviar
-       const totalsValidation = validateSellTotals(data);
-       
-       if (!totalsValidation.success) {
+      const totalsValidation = validateSellTotals(data);
+
+      if (!totalsValidation.success) {
         form.setError("total", {
           message: "Los totales calculados no coinciden",
         });
@@ -346,9 +350,9 @@ export const SellForm: React.FC<SellFormProps> = ({
   };
 
   const handleUpdateQuantity = (productId: string, cantidad: number) => {
-    setSelectedProducts(prev => 
-      prev.map(product => 
-        product.id === productId 
+    setSelectedProducts(prev =>
+      prev.map(product =>
+        product.id === productId
           ? { ...product, cantidad }
           : product
       )
@@ -394,8 +398,8 @@ export const SellForm: React.FC<SellFormProps> = ({
         </div>
       </div>
 
-      <form 
-        onSubmit={form.handleSubmit(onSubmit)} 
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6"
       >
         {/* Información del Cliente */}
@@ -481,6 +485,7 @@ export const SellForm: React.FC<SellFormProps> = ({
 
         {/* Selector de Productos */}
         <ProductSelector
+          products={products}
           selectedProducts={selectedProducts}
           onAddProduct={handleAddProduct}
           onUpdateQuantity={handleUpdateQuantity}
@@ -762,13 +767,13 @@ export const SellForm: React.FC<SellFormProps> = ({
               </div>
             </div>
           )}
-          
+
           <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
           {!readOnly && (
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading || !form.formState.isValid}
             >
               {isLoading ? "Guardando..." : "Guardar Venta"}

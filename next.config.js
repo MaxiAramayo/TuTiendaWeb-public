@@ -9,11 +9,20 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // Optimizaciones para evitar errores ERR_ABORTED
   experimental: {
     optimizePackageImports: ['@firebase/app', '@firebase/auth', '@firebase/firestore'],
+    serverActions: {
+      bodySizeLimit: '5mb',
+    },
   },
   // Paquetes externos del servidor
   serverExternalPackages: ['firebase-admin'],

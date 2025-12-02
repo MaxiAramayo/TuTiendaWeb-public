@@ -9,34 +9,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useProducts } from "@/features/dashboard/modules/products/hooks/useProducts";
-import { Product } from "@/shared/types/firebase.types";
-import { useToast } from "../use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Props {
   open: boolean;
   title: string;
   description: string;
-  product: Product;
+  onConfirm: () => void;
   setOpen: (open: boolean) => void;
 }
 
-const AlertDialog = ({ description, open, title, product, setOpen }: Props) => {
+const AlertDialog = ({ description, open, title, onConfirm, setOpen }: Props) => {
   const { toast } = useToast();
-  const { deleteProduct } = useProducts();
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     try {
-      deleteProduct(product.id);
+      await onConfirm();
       toast({
-        title: "Producto eliminado",
-        description: "El producto ha sido eliminado correctamente",
+        title: "Éxito",
+        description: "Operación realizada correctamente",
         duration: 2000,
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se ha podido eliminar el producto",
+        description: "Ha ocurrido un error",
         duration: 2000,
         variant: "destructive",
       });

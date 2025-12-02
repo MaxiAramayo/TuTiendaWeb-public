@@ -11,15 +11,14 @@
 
 import { Timestamp } from 'firebase/firestore';
 import { PaymentMethod, DeliveryMethod, CommerceConfig } from '@/shared/types/firebase.types';
-import { 
-  StoreMetadata, 
-  StoreSettings as NewStoreSettings, 
-  ProductsConfig,
+import {
+  StoreMetadata,
+  StoreSettings as NewStoreSettings,
   PaymentMethod as NewPaymentMethod,
   DeliveryMethod as NewDeliveryMethod,
   SubscriptionConfig
 } from '@/shared/types/firebase.types';
-import { StoreType } from '@shared/validations';
+import { StoreType } from '@/shared/validations';
 
 /**
  * Información básica de la tienda
@@ -178,7 +177,7 @@ export interface StoreProfile {
   id: string;
   /** ID del propietario */
   ownerId: string;
-  
+
   /** Información básica */
   basicInfo: BasicStoreInfo;
   /** Información de contacto */
@@ -195,7 +194,7 @@ export interface StoreProfile {
   settings: CommerceConfig;
   /** Información de suscripción */
   subscription: SubscriptionInfo;
-  
+
   /** Metadatos */
   metadata: {
     /** Fecha de creación */
@@ -243,44 +242,44 @@ export interface ProfileFormData {
   siteName: string;
   storeType: StoreType;
   category?: string;
-  
+
   // Contacto
   whatsapp: string;
   website?: string;
-  
+
   // Dirección
   street?: string;
   city?: string;
   province?: string;
   country?: string;
   zipCode?: string;
-  
+
   // Horarios
   openingHours?: string;
   schedule?: WeeklySchedule;
-  
+
   // Redes sociales
   instagram?: string;
   facebook?: string;
   socialLinks?: SocialLinks;
-  
+
   // Configuración de la tienda
   currency?: string;
   language?: string;
   timezone?: string;
-  
+
   // Métodos de pago y entrega
   paymentMethods?: PaymentMethod[];
   deliveryMethods?: DeliveryMethod[];
-  
 
-  
+
+
   // Suscripción
   subscription?: SubscriptionInfo;
-  
+
   // Tema
   theme?: ThemeConfig;
-  
+
   // Colores del tema (campos requeridos por el schema)
   primaryColor?: string;
   secondaryColor?: string;
@@ -306,7 +305,7 @@ export interface FormState {
 /**
  * Secciones del perfil
  */
-export type ProfileSection = 
+export type ProfileSection =
   | 'basic'
   | 'contact'
   | 'address'
@@ -314,7 +313,6 @@ export type ProfileSection =
   | 'social'
   | 'theme'
   | 'settings'
-
   | 'subscription';
 
 /**

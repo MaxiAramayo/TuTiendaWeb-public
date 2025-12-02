@@ -1,191 +1,46 @@
-/**
- * Página para editar un producto existente
- * 
- * Muestra el formulario de edición con los datos del producto cargados
- */
+import { getServerSession } from '@/lib/auth/server-session';
+import { getProductById } from '@/features/products/services/product.service';
+import { getCategories } from '@/features/products/services/category.service';
+import { getTags } from '@/features/products/services/tag.service';
+import ProductEditView from '@/features/products/components/product-edit-view';
+import { redirect, notFound } from 'next/navigation';
 
-"use client";
+export const metadata = {
+  title: 'Editar Producto | Dashboard',
+  description: 'Editar producto existente',
+};
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { ProductForm } from '@/features/dashboard/modules/products';
-import { UpdateProductData, CreateProductData } from '@/features/dashboard/modules/products/types/product.types';
-import { Product } from '@/shared/types/firebase.types';
-import { useProducts } from '@/features/dashboard/modules/products/hooks/useProducts';
-import { useAuthStore } from '@/features/auth/api/authStore';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-
-/**
- * Props de la página de edición
- */
 interface EditProductPageProps {
   params: Promise<{
     id: string;
   }>;
 }
 
-/**
- * Página de edición de producto
- * 
- * @param props - Props del componente
- * @returns Componente React
- */
-export default function EditProductPage({ params }: EditProductPageProps) {
-  const router = useRouter();
-  const { getProduct, updateProduct, removeProductImage } = useProducts();
-  const { user } = useAuthStore();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [productId, setProductId] = useState<string | null>(null);
-  
-  // Obtener el storeId del usuario
-  const storeId = user?.storeIds?.[0];
+export default async function EditProductPage({ params }: EditProductPageProps) {
+  const session = await getServerSession();
 
-  /**
-   * Resuelve los params y obtiene el ID del producto
-   */
-  useEffect(() => {
-    const resolveParams = async (): Promise<void> => {
-      const resolvedParams = await params;
-      setProductId(resolvedParams.id);
-    };
-    
-    resolveParams();
-  }, [params]);
-
-  /**
-   * Carga los datos del producto al montar el componente
-   */
-  useEffect(() => {
-    const loadProduct = async () => {
-      if (!productId) return;
-      
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const productData = await getProduct(productId);
-        if (productData) {
-          setProduct(productData);
-        } else {
-          setError('Producto no encontrado');
-        }
-      } catch (err) {
-        setError('Error al cargar el producto');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProduct();
-  }, [productId, getProduct]);
-
-  /**
-   * Maneja el envío del formulario de edición
-   */
-  const handleSubmit = async (data: CreateProductData | UpdateProductData): Promise<boolean> => {
-    if (!productId) return false;
-    
-    try {
-      const success = await updateProduct(productId, data as UpdateProductData);
-      if (success) {
-        router.push('/dashboard/products');
-        return true;
-      }
-      return false;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  /**
-   * Maneja la cancelación del formulario
-   */
-  const handleCancel = () => {
-    router.back();
-  };
-
-  // Validar que el usuario tenga una tienda
-  if (!storeId) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <div className="text-center py-12">
-          <div className="text-red-600 text-lg font-medium mb-2">
-            No se encontró una tienda asociada
-          </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            Volver al dashboard
-          </button>
-        </div>
-      </div>
-    );
+  if (!session) {
+    redirect('/sign-in');
   }
 
-  // Estado de carga
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-gray-600">Cargando producto...</span>
-        </div>
-      </div>
-    );
-  }
+  const { id } = await params;
 
-  // Estado de error
-  if (error || !product) {
-    return (
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <div className="text-center py-12">
-          <div className="text-red-600 text-lg font-medium mb-2">
-            {error || 'Producto no encontrado'}
-          </div>
-          <button
-            onClick={() => router.push('/dashboard/products')}
-            className="text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            Volver a productos
-          </button>
-        </div>
-      </div>
-    );
+  const [product, categories, tags] = await Promise.all([
+    getProductById(id, session.storeId),
+    getCategories(session.storeId),
+    getTags(session.storeId),
+  ]);
+
+  if (!product) {
+    notFound();
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver a productos
-        </button>
-        
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Editar producto</h1>
-          <p className="text-gray-600 mt-1">
-            Modifica la información de &quot;{product.name}&quot;
-          </p>
-        </div>
-      </div>
-
-      {/* Formulario */}
-      <ProductForm
-        storeId={storeId}
-        product={product}
-        onSave={handleSubmit}
-        onCancel={handleCancel}
-        onRemoveImage={removeProductImage}
-        loading={false}
-      />
-    </div>
+    <ProductEditView
+      product={product}
+      storeId={session.storeId}
+      categories={categories}
+      tags={tags}
+    />
   );
 }

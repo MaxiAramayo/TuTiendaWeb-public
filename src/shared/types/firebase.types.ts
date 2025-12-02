@@ -35,20 +35,6 @@ export interface StoreMetadata {
 // ============================================================================
 
 /**
- * Configuraciones de productos
- */
-export interface ProductsConfig {
-  /** Impuestos habilitados */
-  taxEnabled: boolean;
-  /** Tasa de impuestos (ej: 21 para 21%) */
-  taxRate: number;
-  /** Requiere imágenes obligatorias */
-  requireImages: boolean;
-  /** Máximo de imágenes por producto */
-  maxImagesPerProduct: number;
-}
-
-/**
  * Método de pago
  */
 export interface PaymentMethod {
@@ -120,8 +106,6 @@ export interface SubscriptionConfig {
  * Documento: /stores/{storeId}/settings
  */
 export interface StoreSettings {
-  /** Configuraciones de productos */
-  products: ProductsConfig;
   /** Configuraciones de comercio */
   commerce: CommerceConfig;
   /** Configuraciones de notificaciones */
@@ -158,6 +142,29 @@ export interface ProductVariant {
 }
 
 /**
+ * Tag de producto con configuración visual
+ * Documento: /stores/{storeId}/productTags/{tagId}
+ */
+export interface ProductTag {
+  /** ID único del tag */
+  id: string;
+  /** ID de la tienda */
+  storeId: string;
+  /** Nombre del tag */
+  name: string;
+  /** Color del tag (hex) */
+  color: string;
+  /** Color del texto (hex) */
+  textColor: string;
+  /** Icono del tag (opcional) */
+  icon?: string;
+  /** Fecha de creación */
+  createdAt: Timestamp;
+  /** Fecha de actualización */
+  updatedAt: Timestamp;
+}
+
+/**
  * Producto simplificado
  * Documento: /stores/{storeId}/products/{productId}
  */
@@ -166,17 +173,15 @@ export interface Product {
   id: string;
   /** ID de la tienda (para collectionGroup queries) */
   storeId: string;
-  
+
   // Información básica
   /** Nombre del producto */
   name: string;
   /** Slug para URLs amigables */
   slug: string;
-  /** Descripción corta */
-  shortDescription?: string;
   /** Descripción completa */
   description?: string;
-  
+
   // Categorización
   /** ID de la categoría */
   categoryId: string;
@@ -186,7 +191,7 @@ export interface Product {
   tagIds?: string[];
   /** Tags populados (para consultas) */
   productTags?: ProductTag[];
-  
+
   // Precios
   /** Precio de venta */
   price: number;
@@ -194,25 +199,21 @@ export interface Product {
   costPrice?: number;
   /** Moneda (fijo: ARS) */
   currency: 'ARS';
-  /** Tiene promoción activa */
-  hasPromotion: boolean;
-  /** ID de la promoción (si aplica) */
-  promotionId?: string;
-  
+
   // Visual
   /** URLs de imágenes */
   imageUrls?: string[];
-  
+
   // Variantes
   /** Variantes del producto */
   variants?: ProductVariant[];
-  
+
   // Stock (si está habilitado)
   /** Cantidad en stock */
   stockQuantity?: number;
   /** Umbral de stock bajo */
   lowStockThreshold?: number;
-  
+
   // Estado
   /** Estado del producto */
   status: ProductStatus;
@@ -220,6 +221,9 @@ export interface Product {
   createdAt: Timestamp;
   /** Fecha de última actualización */
   updatedAt: Timestamp;
+
+  // Deprecated but kept for compatibility if needed, or removed if sure
+  hasPromotion?: boolean;
 }
 
 // ============================================================================
@@ -272,121 +276,6 @@ export interface Tag {
   updatedAt: Timestamp;
 }
 
-/**
- * Tag de producto con configuración visual
- * Documento: /stores/{storeId}/productTags/{tagId}
- */
-export interface ProductTag {
-  /** ID único del tag */
-  id: string;
-  /** ID de la tienda */
-  storeId: string;
-  /** Nombre del tag */
-  name: string;
-  /** Color del tag (hex) */
-  color: string;
-  /** Color del texto (hex) */
-  textColor: string;
-  /** Icono del tag (opcional) */
-  icon?: string;
-  /** Fecha de creación */
-  createdAt: Timestamp;
-  /** Fecha de actualización */
-  updatedAt: Timestamp;
-}
-
-// ============================================================================
-// PROMOTION
-// ============================================================================
-
-/**
- * Tipos de promoción
- */
-export type PromotionType = 'percentage' | 'fixed';
-
-/**
- * Promoción independiente
- * Documento: /stores/{storeId}/promotions/{promotionId}
- */
-export interface Promotion {
-  /** ID único de la promoción */
-  id: string;
-  /** ID de la tienda */
-  storeId: string;
-  /** Nombre de la promoción */
-  name: string;
-  /** Tipo de descuento */
-  type: PromotionType;
-  /** Valor del descuento */
-  value: number;
-  /** Fecha de inicio */
-  startDate: Timestamp;
-  /** Fecha de fin */
-  endDate: Timestamp;
-  /** IDs de productos aplicables */
-  productIds?: string[];
-  /** IDs de categorías aplicables */
-  categoryIds?: string[];
-  /** Si está activa */
-  isActive: boolean;
-  /** Fecha de creación */
-  createdAt: Timestamp;
-  /** Fecha de última actualización */
-  updatedAt: Timestamp;
-}
-
-// ============================================================================
-// COUNTERS (PARA ESTADÍSTICAS OPTIMIZADAS)
-// ============================================================================
-
-/**
- * Contadores de productos
- * Documento: /stores/{storeId}/counters/products
- */
-export interface ProductCounters {
-  /** Total de productos */
-  total: number;
-  /** Productos activos */
-  active: number;
-  /** Productos inactivos */
-  inactive: number;
-  /** Productos en borrador */
-  draft: number;
-
-  /** Última actualización */
-  updatedAt: Timestamp;
-}
-
-/**
- * Contadores de categorías
- * Documento: /stores/{storeId}/counters/categories
- */
-export interface CategoryCounters {
-  /** Total de categorías */
-  total: number;
-  /** Categorías activas */
-  active: number;
-  /** Categorías inactivas */
-  inactive: number;
-  /** Última actualización */
-  updatedAt: Timestamp;
-}
-
-/**
- * Contadores de tags
- * Documento: /stores/{storeId}/counters/tags
- */
-export interface TagCounters {
-  /** Total de tags */
-  total: number;
-  /** Tags en uso */
-  inUse: number;
-  /** Tags sin usar */
-  unused: number;
-  /** Última actualización */
-  updatedAt: Timestamp;
-}
-
 // ============================================================================
 // USERS (COLABORADORES)
 // ============================================================================
@@ -418,16 +307,6 @@ export interface StoreUser {
 // ============================================================================
 // CONFIGURACIONES POR DEFECTO
 // ============================================================================
-
-/**
- * Configuraciones por defecto para productos
- */
-export const DEFAULT_PRODUCTS_CONFIG: ProductsConfig = {
-  taxEnabled: false,
-  taxRate: 21,
-  requireImages: false,
-  maxImagesPerProduct: 5
-};
 
 /**
  * Configuraciones por defecto para notificaciones

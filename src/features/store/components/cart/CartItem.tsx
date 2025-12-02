@@ -11,7 +11,7 @@ import { ProductInCart, Topics } from "@/shared/types/store";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { formatPrice } from "@/features/dashboard/modules/products/utils/product.utils";
+import { formatPrice } from "@/features/products/utils/product.utils";
 import { useState } from "react";
 import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";
 
