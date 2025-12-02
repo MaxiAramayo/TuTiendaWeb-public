@@ -24,6 +24,10 @@ export default async function ProductsPage() {
     redirect('/sign-in');
   }
 
+  if (!session.storeId) {
+    redirect('/dashboard');
+  }
+
   // 2. FETCH INICIAL (en servidor)
   const [products, categories, tags] = await Promise.all([
     getProducts(session.storeId),

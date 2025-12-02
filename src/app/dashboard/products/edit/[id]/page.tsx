@@ -23,6 +23,10 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     redirect('/sign-in');
   }
 
+  if (!session.storeId) {
+    redirect('/dashboard');
+  }
+
   const { id } = await params;
 
   const [product, categories, tags] = await Promise.all([

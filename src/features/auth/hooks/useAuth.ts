@@ -296,17 +296,15 @@ export const useAuth = () => {
       setError(null);
 
       // 1. Crear usuario
-      const userData = {
-        email: values.email,
-        password: values.password,
+      const userCredential = await authService.signUp({
+        email: values.email as string,
+        password: values.password as string,
         userData: {
-          displayName: values.displayName,
+          displayName: values.displayName as string,
           role: 'owner' as const,
           storeIds: []
         }
-      };
-
-      const userCredential = await authService.signUp(userData);
+      });
       const userId = userCredential.user.uid;
 
       // Crear sesión en el servidor
@@ -316,13 +314,13 @@ export const useAuth = () => {
       // 2. Crear tienda usando el hook especializado
       const storeData = {
         basicInfo: {
-          name: values.name,
-          slug: values.slug,
-          type: values.storeType,
+          name: values.name as string,
+          slug: values.slug as string,
+          type: values.storeType as any,
           description: ''
         },
         contactInfo: {
-          whatsapp: values.whatsappNumber,
+          whatsapp: values.whatsappNumber as string,
           website: ''
         },
         ownerId: userId
@@ -375,7 +373,7 @@ export const useAuth = () => {
         ownerId: uid
       };
 
-      await createUserStore(storeData);
+      await createUserStore(storeData as any);
 
       // 2. Cargar datos actualizados
       await loadUserData(uid);

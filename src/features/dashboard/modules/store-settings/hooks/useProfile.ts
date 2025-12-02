@@ -104,27 +104,27 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
   // Configuración del formulario
   const form = useForm<ProfileFormData>({
-    resolver: zodResolver(profileFormSchema),
+    resolver: zodResolver(profileFormSchema) as any,
     mode: realTimeValidation ? 'onChange' : 'onSubmit',
     defaultValues: {
-        name: '',
-        description: '',
-        siteName: '',
-        storeType: 'other',
-        whatsapp: '',
-        country: 'Argentina',
-        currency: 'ARS',
-        language: 'es',
-        schedule: {
-          monday: { closed: true, periods: [] },
-          tuesday: { closed: true, periods: [] },
-          wednesday: { closed: true, periods: [] },
-          thursday: { closed: true, periods: [] },
-          friday: { closed: true, periods: [] },
-          saturday: { closed: true, periods: [] },
-          sunday: { closed: true, periods: [] }
-        },
+      name: '',
+      description: '',
+      siteName: '',
+      storeType: 'other',
+      whatsapp: '',
+      country: 'Argentina',
+      currency: 'ARS',
+      language: 'es',
+      schedule: {
+        monday: { closed: true, periods: [] },
+        tuesday: { closed: true, periods: [] },
+        wednesday: { closed: true, periods: [] },
+        thursday: { closed: true, periods: [] },
+        friday: { closed: true, periods: [] },
+        saturday: { closed: true, periods: [] },
+        sunday: { closed: true, periods: [] }
       },
+    },
   });
 
   const { watch, setValue, getValues, formState: { isDirty, errors } } = form;
@@ -171,15 +171,15 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      try {
-        let profile = await profileService.getProfile(user.id);
+    try {
+      let profile = await profileService.getProfile(user.id);
       setState(prev => ({ ...prev, profile, isLoading: false }));
-      
+
       // Actualizar estadísticas inline para evitar dependencias circulares
       if (profile) {
         const missingFields = getMissingFields(profile);
         let lastUpdated: Date;
-        
+
         if (profile.metadata.updatedAt) {
           if (typeof profile.metadata.updatedAt.toDate === 'function') {
             lastUpdated = profile.metadata.updatedAt.toDate();
@@ -191,7 +191,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
         } else {
           lastUpdated = new Date();
         }
-        
+
         setState(prev => ({
           ...prev,
           stats: {
@@ -199,11 +199,11 @@ export const useProfile = (options: UseProfileOptions = {}) => {
             lastUpdated,
           },
         }));
-        
+
         // Cargar datos en el formulario
         const formData = profileToFormData(profile);
         // Data converted for form
-        
+
         // Usar reset para cargar los datos iniciales
         form.reset({
           ...form.getValues(), // Mantener valores por defecto
@@ -213,12 +213,12 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     } catch (error) {
       console.error('Error loading profile:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al cargar el perfil';
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: errorMessage 
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: errorMessage
       }));
-      
+
       toast.error('Error al cargar el perfil', {
         description: errorMessage,
       });
@@ -234,9 +234,9 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     // Saving profile for user
     // Saving profile...
 
-    setState(prev => ({ 
-      ...prev, 
-      isSaving: true, 
+    setState(prev => ({
+      ...prev,
+      isSaving: true,
       error: null,
       formState: { ...prev.formState, isSaving: true }
     }));
@@ -245,41 +245,41 @@ export const useProfile = (options: UseProfileOptions = {}) => {
       // Validar datos usando react-hook-form en lugar de Zod directamente
       // Validating data with react-hook-form
       const isValid = await form.trigger();
-      
+
       if (!isValid) {
         // Validation failed
-        
-        setState(prev => ({ 
-          ...prev, 
+
+        setState(prev => ({
+          ...prev,
           isSaving: false,
           formState: { ...prev.formState, isSaving: false }
         }));
-        
+
         // No mostrar toast, dejar que los errores se muestren en los campos
         return false;
       }
-      
+
       // Si la validación pasa, usar los datos del formulario
       const validatedData = form.getValues();
       // Data validated successfully
-      
+
       // Guardar en el servidor
       // Sending data to updateProfile service
       const updatedProfile = await profileService.updateProfile(user.id, validatedData);
       // Profile updated successfully on server
-      
-      setState(prev => ({ 
-        ...prev, 
+
+      setState(prev => ({
+        ...prev,
         profile: updatedProfile,
         isSaving: false,
         formState: { ...prev.formState, isSaving: false, isDirty: false }
       }));
-      
+
       // Actualizar estadísticas inline para evitar dependencias circulares
       if (updatedProfile) {
         const missingFields = getMissingFields(updatedProfile);
         let lastUpdated: Date;
-        
+
         if (updatedProfile.metadata.updatedAt) {
           if (typeof updatedProfile.metadata.updatedAt.toDate === 'function') {
             lastUpdated = updatedProfile.metadata.updatedAt.toDate();
@@ -291,7 +291,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
         } else {
           lastUpdated = new Date();
         }
-        
+
         setState(prev => ({
           ...prev,
           stats: {
@@ -308,19 +308,19 @@ export const useProfile = (options: UseProfileOptions = {}) => {
       return true;
     } catch (error) {
       console.error('Error saving profile on server:', error);
-      
-      setState(prev => ({ 
-        ...prev, 
+
+      setState(prev => ({
+        ...prev,
         isSaving: false,
         formState: { ...prev.formState, isSaving: false }
       }));
 
       const errorMessage = error instanceof Error ? error.message : 'Error al guardar el perfil';
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         error: errorMessage
       }));
-      
+
       toast.error('Error del servidor', {
         description: 'Hubo un problema al guardar en el servidor. Inténtalo de nuevo.',
       });
@@ -336,12 +336,12 @@ export const useProfile = (options: UseProfileOptions = {}) => {
   const updateField = useCallback((field: keyof ProfileFormData | string, value: any) => {
     // Updating field for user
     // Updating specific field
-    
+
     // Si el campo contiene un punto, es un campo anidado
     if (typeof field === 'string' && field.includes('.')) {
       const [parentField, childField] = field.split('.') as [keyof ProfileFormData, string];
       const currentParentValue = getValues(parentField) || {};
-      
+
       setValue(parentField, {
         ...(typeof currentParentValue === 'object' && currentParentValue !== null ? currentParentValue : {}),
         [childField]: value
@@ -349,7 +349,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     } else {
       setValue(field as keyof ProfileFormData, value, { shouldDirty: true, shouldValidate: realTimeValidation });
     }
-    
+
     setState(prev => ({
       ...prev,
       formState: { ...prev.formState, isDirty: true }
@@ -361,13 +361,13 @@ export const useProfile = (options: UseProfileOptions = {}) => {
    */
   const validateSlug = useCallback(async (slug: string): Promise<boolean> => {
     // Validating slug for user
-    
+
     try {
       // Validating slug uniqueness
       const isValid = await customValidations.validateSlugAvailability(slug);
-      
+
       // Slug validation completed
-      
+
       return isValid;
     } catch (error) {
       console.error('Error validating slug:', error);
@@ -379,20 +379,20 @@ export const useProfile = (options: UseProfileOptions = {}) => {
    * Subir imagen
    */
   const uploadImage = useCallback(async (
-    file: File, 
+    file: File,
     type: 'logo' | 'banner' | 'profile'
   ): Promise<string | null> => {
     if (!user?.id) return null;
 
     // Uploading image for user
-    
+
     try {
       // Starting image upload
-      
+
       const imageUrl = await profileService.uploadImage(user.id, file, type);
-      
+
       // Image uploaded successfully
-      
+
       // Actualizar el perfil con la nueva imagen
       setState(prev => {
         if (prev.profile) {
@@ -416,7 +416,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     } catch (error) {
       console.error('Error uploading image:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al subir la imagen';
-      
+
       toast.error('Error al subir imagen', {
         description: errorMessage,
       });
@@ -431,7 +431,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
   const resetForm = useCallback(() => {
     // Resetting form for user
     // Resetting form
-    
+
     form.reset();
     setState(prev => ({
       ...prev,
@@ -450,7 +450,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
   const setActiveSection = useCallback((section: string) => {
     // Setting active section for user
     // Changing active section
-    
+
     setState(prev => ({
       ...prev,
       formState: { ...prev.formState, activeSection: section as any }
@@ -479,13 +479,13 @@ export const useProfile = (options: UseProfileOptions = {}) => {
   const prevErrorsRef = useRef<string>('');
   const prevIsDirtyRef = useRef<boolean>(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useEffect(() => {
     // Limpiar timeout anterior
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
     }
-    
+
     // Debounce la actualización para evitar bucles infinitos
     updateTimeoutRef.current = setTimeout(() => {
       const newErrors = Object.keys(errors).reduce((acc, key) => {
@@ -495,11 +495,11 @@ export const useProfile = (options: UseProfileOptions = {}) => {
         }
         return acc;
       }, {} as Record<string, string>);
-      
+
       const errorsString = JSON.stringify(newErrors);
       const hasErrorsChanged = prevErrorsRef.current !== errorsString;
       const hasDirtyChanged = prevIsDirtyRef.current !== isDirty;
-      
+
       if (hasErrorsChanged || hasDirtyChanged) {
         setState(prev => ({
           ...prev,
@@ -509,12 +509,12 @@ export const useProfile = (options: UseProfileOptions = {}) => {
             errors: newErrors,
           }
         }));
-        
+
         prevErrorsRef.current = errorsString;
         prevIsDirtyRef.current = isDirty;
       }
     }, 100); // Debounce de 100ms
-    
+
     return () => {
       if (updateTimeoutRef.current) {
         clearTimeout(updateTimeoutRef.current);
@@ -539,12 +539,12 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     // Estado
     ...state,
     ...computedValues,
-    
+
     // Formulario
     form,
     watch,
     formData: watchedValues, // Usar valores observados en lugar de getValues()
-    
+
     // Acciones
     loadProfile,
     saveProfile,

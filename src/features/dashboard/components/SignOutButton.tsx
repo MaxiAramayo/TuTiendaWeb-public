@@ -1,10 +1,7 @@
 /**
  * Componente de botón para cerrar sesión
  * 
- * Proporciona:
- * - Botón visual para el cierre de sesión
- * - Confirmación antes de cerrar sesión
- * - Manejo de errores durante el proceso
+ * Refactored to use Server Action (logoutAction) instead of authService
  * 
  * @module features/dashboard/components
  */
@@ -12,7 +9,7 @@
 "use client";
 
 import { useState } from "react";
-import { authService } from "@/features/auth/services/authService";
+import { logoutAction } from "@/features/auth/actions/auth.actions";
 import Image from "next/image";
 import { AlertCircle } from "lucide-react";
 
@@ -20,7 +17,7 @@ import { AlertCircle } from "lucide-react";
  * Interfaz de props para el componente SignOutButton
  */
 interface SignOutButtonProps {
-  /** Función opcional a ejecutar después de cerrar sesión exitosamente */
+  /** Función opcional a ejecutar antes de cerrar sesión */
   onSignOutSuccess?: () => void;
   /** Texto opcional para el botón - por defecto "Cerrar sesión" */
   buttonText?: string;
@@ -30,9 +27,7 @@ interface SignOutButtonProps {
 
 /**
  * Componente de botón para cerrar sesión de usuario
- * 
- * Presenta un botón estilizado que cierra la sesión actual del usuario
- * cuando se hace clic. Incluye un estado de carga y manejo de errores.
+ * Usa Server Action (logoutAction) siguiendo el patrón "Server Actions First"
  * 
  * @param props - Propiedades del componente
  * @returns Componente React
@@ -63,16 +58,19 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      await authService.signOut();
-      
-      // Ejecutar callback si existe
+
+      // Ejecutar callback antes del logout si existe
       if (onSignOutSuccess) {
         onSignOutSuccess();
       }
+
+      // Usar Server Action para logout
+      await logoutAction();
+
+      // logoutAction hace redirect a '/', no se ejecuta código después
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
       setError("No se pudo cerrar sesión. Intente nuevamente.");
-    } finally {
       setIsLoading(false);
       setShowConfirm(false);
     }

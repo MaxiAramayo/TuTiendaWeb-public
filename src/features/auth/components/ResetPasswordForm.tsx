@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { resetPasswordSchema, type ResetPasswordFormValues } from '@/features/auth/validation';
+import { resetPasswordSchema, type ResetPasswordData as ResetPasswordFormValues } from '@/features/auth/schemas/reset-password.schema';
 
 
 
@@ -58,7 +58,7 @@ export const ResetPasswordForm = () => {
           Ingresa tu correo electrónico para recibir un enlace de restablecimiento
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         {emailSent ? (
           <div className="text-center space-y-4">
@@ -66,9 +66,9 @@ export const ResetPasswordForm = () => {
               <p>Hemos enviado un correo electrónico con instrucciones para restablecer tu contraseña.</p>
               <p className="mt-2">Revisa tu bandeja de entrada y sigue las instrucciones.</p>
             </div>
-            <Button 
-              variant="outline" 
-              className="mt-4" 
+            <Button
+              variant="outline"
+              className="mt-4"
               onClick={() => setEmailSent(false)}
             >
               Enviar a otro correo
@@ -90,9 +90,9 @@ export const ResetPasswordForm = () => {
               )}
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? 'Enviando...' : 'Enviar instrucciones'}

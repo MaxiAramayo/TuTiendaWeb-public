@@ -21,6 +21,10 @@ export default async function ViewProductPage({ params }: ViewProductPageProps) 
     redirect('/sign-in');
   }
 
+  if (!session.storeId) {
+    redirect('/dashboard');
+  }
+
   const { id } = await params;
   const product = await getProductById(id, session.storeId);
 

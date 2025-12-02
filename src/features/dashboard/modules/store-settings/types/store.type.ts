@@ -18,7 +18,7 @@ import {
   DeliveryMethod as NewDeliveryMethod,
   SubscriptionConfig
 } from '@/shared/types/firebase.types';
-import { StoreType } from '@/shared/validations';
+import { StoreType } from '@/features/store/services/store.service';
 
 /**
  * Información básica de la tienda

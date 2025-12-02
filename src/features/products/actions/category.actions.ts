@@ -17,6 +17,10 @@ export async function createCategoryAction(data: { name: string; description?: s
         throw new Error('No autenticado');
     }
 
+    if (!session.storeId) {
+        throw new Error('No se encontró el ID de la tienda en la sesión');
+    }
+
     const validation = categorySchema.safeParse(data);
     if (!validation.success) {
         throw new Error('Datos inválidos');

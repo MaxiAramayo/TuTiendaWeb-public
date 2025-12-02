@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
 import { UserData, StoreData } from './MultiStepRegister';
-import type { StoreType } from '@shared/validations';
+import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
 
 // Schema de validación para el segundo paso
 const storeSetupSchema = z.object({
@@ -42,13 +42,13 @@ interface StoreSetupStepProps {
 /**
  * Componente del segundo paso de registro
  */
-export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({ 
-  userData, 
-  onComplete, 
-  onBack 
+export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
+  userData,
+  onComplete,
+  onBack
 }) => {
   const { signUp, completeGoogleProfile, isLoading } = useAuth();
-  
+
   const {
     slug,
     isAvailable: slugAvailable,
@@ -99,7 +99,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
     try {
       // Detectar si es usuario de Google (sin contraseña)
       const isGoogleUser = !userData.password;
-      
+
       if (isGoogleUser) {
         // Para usuarios de Google, usar completeGoogleProfile
         const profileData = {
@@ -108,17 +108,17 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
           storeType: data.storeType as StoreType,
           slug: slug
         };
-        
+
         // Obtener el UID del usuario actual de Firebase
         const { getAuth } = await import('firebase/auth');
         const auth = getAuth();
         const currentUser = auth.currentUser;
-        
+
         if (!currentUser) {
           throw new Error('No hay usuario autenticado');
         }
-        
-        await completeGoogleProfile(currentUser.uid, profileData);
+
+        await completeGoogleProfile(currentUser.uid, profileData as any);
       } else {
         // Para usuarios con email/password, usar signUp
         const completeFormData = {
@@ -126,21 +126,21 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
           password: userData.password,
           confirmPassword: userData.password,
           displayName: userData.displayName,
-          whatsappNumber: data.whatsappNumber,
-          name: data.name,
+          phone: data.whatsappNumber,
+          storeName: data.name,
           storeType: data.storeType as StoreType,
           slug: slug,
           terms: userData.terms as true
         };
-        
-        await signUp(completeFormData);
+
+        await signUp(completeFormData as any);
       }
-      
+
       onComplete();
     } catch (error: any) {
       // Manejo específico de errores
       console.error('Error en registro:', error);
-      
+
       // Mostrar mensaje específico según el tipo de error
       if (error?.code === 'auth/email-already-in-use') {
         toast.error('Este email ya está registrado. Intenta iniciar sesión o usa otro email.');
@@ -175,7 +175,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
           Completa los datos de tu tienda para comenzar a vender
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Nombre de la tienda */}
@@ -208,7 +208,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
           {/* Tipo de tienda */}
           <div className="space-y-2">
             <Label htmlFor="storeType">Tipo de tienda</Label>
-            <Select 
+            <Select
               {...register('storeType')}
               onValueChange={(value) => setValue('storeType', value)}
               disabled={isLoading}
@@ -265,7 +265,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
                 className="rounded-l-none h-11"
               />
             </div>
-            
+
             {/* Estado de validación del slug */}
             {slug && (
               <div className="flex items-center gap-2 text-sm">
@@ -287,7 +287,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
                 )}
               </div>
             )}
-            
+
             {slugError && (
               <p className="text-sm text-red-500">{slugError}</p>
             )}
@@ -298,9 +298,9 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
 
           {/* Botones */}
           <div className="flex gap-3 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onBack}
               disabled={isLoading}
               className="flex-1 h-11"
@@ -308,8 +308,8 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
               <ArrowLeft className="h-4 w-4 mr-2" />
               Atrás
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading || !slugAvailable || isCheckingSlug}
               className="flex-1 h-11 text-base font-medium"
             >

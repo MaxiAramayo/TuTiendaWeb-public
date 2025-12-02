@@ -1,28 +1,42 @@
 import { cookies } from 'next/headers';
-import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { adminAuth } from '@/lib/firebase/admin';
 
-export async function getServerSession() {
+export interface ServerSession {
+    userId: string;
+    email: string;
+    storeId?: string;
+    role: 'user' | 'owner' | 'admin';
+}
+
+/**
+ * Obtener sesión del usuario en el servidor
+ * 
+ * Verifica el cookie 'idToken' y decodifica el token usando Firebase Admin SDK.
+ * Retorna null si no hay token o es inválido.
+ * 
+ * @returns ServerSession | null
+ */
+export async function getServerSession(): Promise<ServerSession | null> {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session')?.value;
+    const idToken = cookieStore.get('idToken')?.value;
 
-    if (!sessionCookie) {
-        return null;
-    }
+    if (!idToken) return null;
 
     try {
-        const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie);
+        // Verificar token y chequear revocación
+        const decodedToken = await adminAuth.verifyIdToken(idToken, true);
 
-        // Fetch user data to get storeId (since custom claims might not be set)
-        const userDoc = await adminDb.collection('users').doc(decodedClaims.uid).get();
-        const userData = userDoc.data();
-        const storeId = userData?.storeIds?.[0] || null;
+        // Opcional: Obtener datos frescos del usuario si se necesita más info
+        // const user = await adminAuth.getUser(decodedToken.uid);
 
         return {
-            userId: decodedClaims.uid,
-            storeId: storeId,
-            role: userData?.role || 'owner',
+            userId: decodedToken.uid,
+            email: decodedToken.email || '',
+            storeId: decodedToken.storeId as string | undefined,
+            role: (decodedToken.role as 'user' | 'owner' | 'admin') || 'user',
         };
     } catch (error) {
+        // Token inválido, expirado o revocado
         return null;
     }
 }
