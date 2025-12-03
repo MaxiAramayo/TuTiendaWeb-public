@@ -12,7 +12,8 @@
 import React, { useState, useCallback, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { updateAddressAction } from '../../actions/profile.actions';
+import { updateAddressAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleSelect } from '@/components/ui/simple-select';
@@ -24,7 +25,6 @@ import {
   Navigation,
   Building,
   AlertCircle,
-  CheckCircle,
   ExternalLink,
   Copy,
   Save,
@@ -99,6 +99,7 @@ export function AddressSection({
 }: AddressSectionProps) {
   const [isPending, startTransition] = useTransition();
   const [isSectionSaving, setIsSectionSaving] = useState(false);
+  const { setProfile } = useProfileStore();
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
@@ -194,6 +195,11 @@ export function AddressSection({
       const result = await updateAddressAction(addressData);
       
       if (result.success) {
+        // Refrescar el store para actualizar todos los componentes
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
         success('Dirección guardada correctamente');
       } else {
         const errorMsg = result.errors._form?.[0] || 'Error al guardar la dirección. Inténtalo de nuevo.';
@@ -205,7 +211,7 @@ export function AddressSection({
     } finally {
       setIsSectionSaving(false);
     }
-  }, [formData.street, formData.city, formData.province, formData.country, formData.zipCode, profile?.id, success, error]);
+  }, [formData.street, formData.city, formData.province, formData.country, formData.zipCode, profile?.id, success, error, setProfile]);
 
   // Función para marcar la sección como dirty cuando cambian los campos
   const handleFieldChange = (field: keyof ProfileFormData, value: any) => {

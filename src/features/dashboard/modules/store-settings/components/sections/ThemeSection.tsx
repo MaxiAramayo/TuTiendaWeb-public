@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useProfile } from '../../hooks/useProfile';
 import { updateThemeAction, getProfileAction } from '../../actions/profile.actions';
@@ -33,7 +32,6 @@ import {
   Save,
   Loader2,
   Image as ImageIcon,
-  Eye,
   Trash2,
 } from 'lucide-react';
 

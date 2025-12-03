@@ -120,24 +120,10 @@ export const useProfileStore = create<ProfileStore>()(
 
 /**
  * Selectores para optimizar re-renders
+ * Solo se exportan los selectores que realmente se usan en otros componentes
  */
 export const useProfileName = () => 
   useProfileStore((state) => state.profile?.basicInfo?.name);
 
 export const useProfileLogo = () => 
   useProfileStore((state) => state.profile?.theme?.logoUrl);
-
-export const useProfileBasicInfo = () => 
-  useProfileStore((state) => state.profile?.basicInfo);
-
-export const useProfileTheme = () => 
-  useProfileStore((state) => state.profile?.theme);
-
-export const useProfileSubscription = () => 
-  useProfileStore((state) => state.profile?.subscription);
-
-export const useIsProfileLoading = () => 
-  useProfileStore((state) => state.isLoading);
-
-export const useIsProfileSaving = () => 
-  useProfileStore((state) => state.isSaving);

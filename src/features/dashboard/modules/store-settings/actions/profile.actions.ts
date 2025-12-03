@@ -449,3 +449,85 @@ export async function updateScheduleAction(
     return { success: false, errors: { _form: ['Error al actualizar los horarios'] } };
   }
 }
+
+/**
+ * Actualizar métodos de pago y entrega combinados
+ */
+export async function updatePaymentDeliveryAction(
+  data: {
+    paymentMethods: Array<{
+      id: string;
+      name: string;
+      enabled: boolean;
+      instructions?: string;
+    }>;
+    deliveryMethods: Array<{
+      id: string;
+      name: string;
+      enabled: boolean;
+      price?: number;
+      instructions?: string;
+    }>;
+  }
+): Promise<ActionResponse<{ updated: boolean }>> {
+  // 1. AUTH
+  const session = await getServerSession();
+  if (!session) {
+    return { success: false, errors: { _form: ['No autenticado'] } };
+  }
+  if (!session.storeId) {
+    return { success: false, errors: { _form: ['Tienda no encontrada'] } };
+  }
+
+  try {
+    // 2. MUTATE - actualizar ambos
+    await profileServerService.updateSettings(session.storeId, {
+      paymentMethods: data.paymentMethods,
+      deliveryMethods: data.deliveryMethods,
+    });
+    
+    // 3. REVALIDATE
+    revalidatePath('/dashboard/profile');
+    
+    return { success: true, data: { updated: true } };
+  } catch (error) {
+    console.error('Error updating payment/delivery methods:', error);
+    return { success: false, errors: { _form: ['Error al actualizar los métodos de pago y entrega'] } };
+  }
+}
+
+/**
+ * Actualizar configuración de suscripción
+ */
+export async function updateSubscriptionAction(
+  subscription: {
+    active: boolean;
+    plan?: 'free' | 'basic' | 'premium' | 'enterprise';
+    billing?: {
+      provider?: 'mercadopago' | 'stripe';
+      autoRenew?: boolean;
+    };
+  }
+): Promise<ActionResponse<{ updated: boolean }>> {
+  // 1. AUTH
+  const session = await getServerSession();
+  if (!session) {
+    return { success: false, errors: { _form: ['No autenticado'] } };
+  }
+  if (!session.storeId) {
+    return { success: false, errors: { _form: ['Tienda no encontrada'] } };
+  }
+
+  try {
+    // 2. MUTATE
+    await profileServerService.updateSettings(session.storeId, { subscription });
+    
+    // 3. REVALIDATE
+    revalidatePath('/dashboard/profile');
+    
+    return { success: true, data: { updated: true } };
+  } catch (error) {
+    console.error('Error updating subscription:', error);
+    return { success: false, errors: { _form: ['Error al actualizar la suscripción'] } };
+  }
+}

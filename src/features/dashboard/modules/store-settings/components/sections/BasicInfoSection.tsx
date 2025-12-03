@@ -12,7 +12,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { updateBasicInfoAction, validateSlugAction } from '../../actions/profile.actions';
+import { updateBasicInfoAction, validateSlugAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,7 +43,6 @@ interface BasicInfoSectionProps {
   formData: ProfileFormData;
   formState: FormState;
   updateField: (field: keyof ProfileFormData, value: any) => void;
-  validateSlug: (slug: string) => Promise<boolean>;
   profile: StoreProfile | null;
   onSave?: () => Promise<void>;
   isSaving?: boolean;
@@ -74,13 +74,13 @@ export function BasicInfoSection({
   formData,
   formState,
   updateField,
-  validateSlug,
   profile,
   onSave,
   isSaving = false,
 }: BasicInfoSectionProps) {
   const [isPending, startTransition] = useTransition();
   const [isBasicSaving, setIsBasicSaving] = useState(false);
+  const { setProfile } = useProfileStore();
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
@@ -122,7 +122,11 @@ export function BasicInfoSection({
           });
           return;
         }
-        const isUnique = true; // TODO: Implementar verificación de unicidad
+        
+        // Verificar unicidad con el servidor
+        const result = await validateSlugAction(slug);
+        const isUnique = result.success && result.data?.available;
+        
         setSlugValidation({
           isValidating: false,
           isValid: isUnique,
@@ -136,7 +140,7 @@ export function BasicInfoSection({
         });
       }
     }, 500),
-    [validateSlug, profile?.basicInfo.slug]
+    [profile?.basicInfo.slug]
   );
 
   // Efecto para validar slug cuando cambia
@@ -201,6 +205,11 @@ export function BasicInfoSection({
       const result = await updateBasicInfoAction(basicData);
 
       if (result.success) {
+        // Refrescar el store para actualizar todos los componentes
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
         success('Información básica guardada correctamente');
       } else {
         const errorMsg = result.errors._form?.[0] || 'Error al guardar la información. Inténtalo de nuevo.';
@@ -211,7 +220,7 @@ export function BasicInfoSection({
     } finally {
       setIsBasicSaving(false);
     }
-  }, [formData.name, formData.description, formData.siteName, formData.storeType, profile?.id, success, error]);
+  }, [formData.name, formData.description, formData.siteName, formData.storeType, profile?.id, success, error, setProfile]);
 
 
   return (

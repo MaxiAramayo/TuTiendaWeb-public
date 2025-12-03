@@ -16,6 +16,10 @@ import type {
   SocialLinksFormData,
   ThemeConfigFormData 
 } from '../../schemas/profile.schema';
+import type { StoreProfile } from '../../types/store.type';
+
+// Re-exportar el tipo para mantener compatibilidad
+export type { StoreProfile };
 
 const STORES_COLLECTION = 'stores';
 
@@ -94,80 +98,6 @@ interface StoreProfileRaw {
 }
 
 /**
- * Tipos serializables para Client Components
- */
-export interface StoreProfile {
-  id: string;
-  ownerId: string;
-  basicInfo: {
-    name: string;
-    description: string;
-    slug: string;
-    type: string;
-    category?: string;
-  };
-  contactInfo: {
-    whatsapp: string;
-    email?: string;
-    phone?: string;
-    website?: string;
-  };
-  address?: {
-    street?: string;
-    city?: string;
-    province?: string;
-    country?: string;
-    zipCode?: string;
-  };
-  schedule?: Record<string, {
-    closed?: boolean;
-    periods?: Array<{ open: string; close: string; nextDay?: boolean }>;
-  }>;
-  socialLinks?: {
-    instagram?: string;
-    facebook?: string;
-  };
-  theme?: {
-    logoUrl?: string;
-    bannerUrl?: string;
-    primaryColor?: string;
-    secondaryColor?: string;
-    accentColor?: string;
-    fontFamily?: string;
-    style?: string;
-    buttonStyle?: string;
-  };
-  settings?: {
-    paymentMethods?: Array<{
-      id: string;
-      name: string;
-      enabled: boolean;
-      instructions?: string;
-    }>;
-    deliveryMethods?: Array<{
-      id: string;
-      name: string;
-      enabled: boolean;
-      price?: number;
-      instructions?: string;
-    }>;
-  };
-  subscription?: {
-    active: boolean;
-    plan: string;
-    startDate: string; // ISO string serializado
-    endDate: string;   // ISO string serializado
-    trialUsed: boolean;
-  };
-  metadata: {
-    createdAt: string; // ISO string serializado
-    updatedAt: string; // ISO string serializado
-    version: number;
-    status: string;
-  };
-}
-
-/**
  * Convierte un Timestamp de Firebase a ISO string
  */
 function serializeTimestamp(
@@ -192,10 +122,22 @@ function serializeTimestamp(
 
 /**
  * Serializa un perfil completo para pasarlo a Client Components
+ * Hace las conversiones necesarias de Timestamps a ISO strings
+ * 
+ * Nota: Usamos aserción de tipo porque los datos de Firestore son dinámicos
+ * pero la estructura general es conocida y consistente
  */
 function serializeProfile(raw: StoreProfileRaw): StoreProfile {
-  return {
-    ...raw,
+  const serialized = {
+    id: raw.id,
+    ownerId: raw.ownerId,
+    basicInfo: raw.basicInfo,
+    contactInfo: raw.contactInfo,
+    address: raw.address,
+    schedule: raw.schedule,
+    socialLinks: raw.socialLinks,
+    theme: raw.theme,
+    settings: raw.settings,
     subscription: raw.subscription ? {
       ...raw.subscription,
       startDate: serializeTimestamp(raw.subscription.startDate),
@@ -207,6 +149,9 @@ function serializeProfile(raw: StoreProfileRaw): StoreProfile {
       updatedAt: serializeTimestamp(raw.metadata.updatedAt),
     },
   };
+  
+  // Aserción segura: la estructura de datos es consistente
+  return serialized as StoreProfile;
 }
 
 /**
@@ -415,7 +360,7 @@ class ProfileServerService {
   }
 
   /**
-   * Actualizar configuración (métodos de pago/entrega)
+   * Actualizar configuración (métodos de pago/entrega/suscripción)
    */
   async updateSettings(storeId: string, data: {
     paymentMethods?: Array<{
@@ -431,6 +376,14 @@ class ProfileServerService {
       price?: number;
       instructions?: string;
     }>;
+    subscription?: {
+      active: boolean;
+      plan?: 'free' | 'basic' | 'premium' | 'enterprise';
+      billing?: {
+        provider?: 'mercadopago' | 'stripe';
+        autoRenew?: boolean;
+      };
+    };
   }): Promise<void> {
     try {
       const docRef = adminDb.collection(STORES_COLLECTION).doc(storeId);
@@ -444,6 +397,23 @@ class ProfileServerService {
       }
       if (data.deliveryMethods !== undefined) {
         updateData['settings.deliveryMethods'] = data.deliveryMethods;
+      }
+      if (data.subscription !== undefined) {
+        // Actualizar campos de suscripción de forma granular
+        if (data.subscription.active !== undefined) {
+          updateData['subscription.active'] = data.subscription.active;
+        }
+        if (data.subscription.plan !== undefined) {
+          updateData['subscription.plan'] = data.subscription.plan;
+        }
+        if (data.subscription.billing !== undefined) {
+          if (data.subscription.billing.provider !== undefined) {
+            updateData['subscription.billing.provider'] = data.subscription.billing.provider;
+          }
+          if (data.subscription.billing.autoRenew !== undefined) {
+            updateData['subscription.billing.autoRenew'] = data.subscription.billing.autoRenew;
+          }
+        }
       }
 
       await docRef.update(updateData);

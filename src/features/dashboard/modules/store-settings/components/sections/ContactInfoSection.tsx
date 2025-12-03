@@ -12,7 +12,8 @@
 import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { updateContactInfoAction } from '../../actions/profile.actions';
+import { updateContactInfoAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ export function ContactInfoSection({
 }: ContactInfoSectionProps) {
   const [isPending, startTransition] = useTransition();
   const [isSectionSaving, setIsSectionSaving] = useState(false);
+  const { setProfile } = useProfileStore();
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
@@ -120,6 +122,11 @@ export function ContactInfoSection({
       const result = await updateContactInfoAction(contactData);
       
       if (result.success) {
+        // Refrescar el store para actualizar todos los componentes
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
         success('Información de contacto guardada correctamente');
       } else {
         const errorMsg = result.errors._form?.[0] || 'Error al guardar la información de contacto. Inténtalo de nuevo.';
@@ -131,7 +138,7 @@ export function ContactInfoSection({
     } finally {
       setIsSectionSaving(false);
     }
-  }, [formData.whatsapp, formData.instagram, profile?.id, success, error]);
+  }, [formData.whatsapp, formData.instagram, profile?.id, success, error, setProfile]);
 
 
 

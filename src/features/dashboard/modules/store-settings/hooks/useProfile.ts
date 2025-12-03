@@ -296,17 +296,6 @@ export const useProfile = (options: UseProfileOptions = {}) => {
   }, []);
 
   /**
-   * Subir imagen (mantiene el client SDK por ahora - Storage)
-   */
-  const uploadImage = useCallback(async (
-    file: File,
-    type: 'logo' | 'banner' | 'profile'
-  ): Promise<string | null> => {
-    toast.info('Subida de imágenes en mantenimiento');
-    return null;
-  }, []);
-
-  /**
    * Resetear formulario a los valores del store
    */
   const resetForm = useCallback(() => {
@@ -473,7 +462,6 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     saveProfile,
     updateField,
     validateSlug,
-    uploadImage,
     resetForm,
     setActiveSection,
     refresh,
@@ -508,21 +496,3 @@ function getMissingFields(profile: StoreProfile): string[] {
 function getNestedValue(obj: any, path: string): any {
   return path.split('.').reduce((current, key) => current?.[key], obj);
 }
-
-/**
- * Hook simplificado para casos básicos (solo lectura del store)
- */
-export const useBasicProfile = () => {
-  return useProfile({
-    realTimeValidation: true,
-  });
-};
-
-/**
- * Hook para formularios con validación en tiempo real
- */
-export const useRealtimeProfile = () => {
-  return useProfile({
-    realTimeValidation: true,
-  });
-};

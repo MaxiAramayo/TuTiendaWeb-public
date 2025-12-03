@@ -28,7 +28,9 @@ import {
 
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useProfile } from '../../hooks/useProfile';
-import { updateScheduleAction } from '../../actions/profile.actions';
+import { updateScheduleAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
+import type { StoreProfile } from '../../types/store.type';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -153,6 +155,7 @@ export function ScheduleSection({
 }: ScheduleSectionProps) {
   const { user } = useAuthClient();
   const { profile } = useProfile();
+  const { setProfile } = useProfileStore();
   const [isSectionSaving, setIsSectionSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [showPresets, setShowPresets] = useState(false);
@@ -224,6 +227,11 @@ export function ScheduleSection({
       const result = await updateScheduleAction(scheduleData);
 
       if (result.success) {
+        // Refrescar el store para actualizar todos los componentes
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
         toast.success('Horarios guardados correctamente');
       } else {
         const errorMsg = result.errors._form?.[0] || 'Error al guardar los horarios. Inténtalo de nuevo.';
@@ -235,7 +243,7 @@ export function ScheduleSection({
     } finally {
       setIsSectionSaving(false);
     }
-  }, [user?.uid, profile?.id, schedule, updateField]);
+  }, [user?.uid, profile?.id, schedule, updateField, setProfile]);
 
   // Aplicar horario predefinido
   const applyPreset = useCallback((presetKey: string) => {

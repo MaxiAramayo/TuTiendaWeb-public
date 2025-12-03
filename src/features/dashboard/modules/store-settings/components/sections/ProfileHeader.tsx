@@ -17,14 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { 
-  Save, 
-  RotateCcw, 
   ExternalLink, 
   Share2, 
-  Settings,
   CheckCircle,
-  AlertCircle,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { formatDate, calculateProfileCompleteness } from '../../utils/profile.utils';
 

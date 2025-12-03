@@ -9,14 +9,17 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ProfileFormData, FormState, SocialLinks } from '../../types/store.type';
+import { ProfileFormData, FormState, SocialLinks, StoreProfile } from '../../types/store.type';
+import { updateSocialLinksAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { 
   Instagram, 
   Facebook, 
@@ -25,7 +28,6 @@ import {
   CheckCircle,
   Copy,
   Eye,
-  Plus,
   Trash2,
   Save,
   Loader2
@@ -42,6 +44,7 @@ interface SocialLinksSectionProps {
   formData: ProfileFormData;
   formState: FormState;
   updateField: (field: keyof ProfileFormData, value: any) => void;
+  profile?: StoreProfile | null;
   onSave?: () => Promise<void>;
   isSaving?: boolean;
 }
@@ -79,11 +82,50 @@ export function SocialLinksSection({
   formData,
   formState,
   updateField,
+  profile,
   onSave,
-  isSaving = false,
+  isSaving: externalIsSaving = false,
 }: SocialLinksSectionProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, boolean>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const { setProfile } = useProfileStore();
+
+  // Handler propio para guardar y actualizar el store
+  const handleSectionSave = useCallback(async () => {
+    if (!profile?.id) {
+      toast.error('No se encontró el perfil');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const socialData = {
+        instagram: formData.instagram || '',
+        facebook: formData.facebook || ''
+      };
+
+      const result = await updateSocialLinksAction(socialData);
+
+      if (result.success) {
+        // Refrescar el store con los datos actualizados
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
+        toast.success('Redes sociales guardadas correctamente');
+      } else {
+        toast.error(result.errors?._form?.[0] || 'Error al guardar las redes sociales');
+      }
+    } catch (error) {
+      console.error('Error saving social links:', error);
+      toast.error('Error al guardar las redes sociales');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [profile?.id, formData.instagram, formData.facebook, setProfile]);
+
+  const isCurrentlySaving = isSaving || externalIsSaving;
 
   // Obtener enlaces sociales actuales
   const currentSocialLinks = {
@@ -143,34 +185,25 @@ export function SocialLinksSection({
     <div className="space-y-6">
       {/* Header con título y botón de guardar */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Redes sociales</h2>
-          <p className="text-sm text-gray-500">Conecta tus redes sociales para mayor alcance</p>
-        </div>
-        {onSave && (
-          <Button
-            onClick={onSave}
-            disabled={isSaving}
-            className="flex items-center space-x-2"
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
-          </Button>
-        )}
-      </div>
-      {/* Header */}
-      <div>
-        <h3 className="text-lg font-medium flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <Instagram className="w-5 h-5" />
-          <span>Redes sociales</span>
-        </h3>
-        <p className="text-sm text-gray-500 mt-1">
-          Conecta tus redes sociales para que los clientes te encuentren
-        </p>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Redes sociales</h2>
+            <p className="text-sm text-gray-500">Conecta tus redes sociales para mayor alcance</p>
+          </div>
+        </div>
+        <Button
+          onClick={handleSectionSave}
+          disabled={isCurrentlySaving}
+          className="flex items-center space-x-2"
+        >
+          {isCurrentlySaving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{isCurrentlySaving ? 'Guardando...' : 'Guardar'}</span>
+        </Button>
       </div>
 
       {/* Resumen de enlaces configurados */}

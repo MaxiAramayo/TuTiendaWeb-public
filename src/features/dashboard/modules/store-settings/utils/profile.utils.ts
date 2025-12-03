@@ -153,12 +153,25 @@ function calculateAddressScore(profile: StoreProfile): number {
 
 /**
  * Calcula el score de horarios
+ * Verifica si hay al menos un día con horarios configurados (no cerrado y con períodos)
  */
 function calculateScheduleScore(profile: StoreProfile): number {
   if (!profile.schedule) return 0;
 
   const days = Object.values(profile.schedule);
-  const configuredDays = days.filter(day => day.isOpen && day.openTime && day.closeTime).length;
+  // Verifica si hay días con períodos configurados (formato moderno)
+  // o días abiertos con horarios (formato legacy)
+  const configuredDays = days.filter(day => {
+    // Formato moderno: tiene períodos y no está cerrado
+    if (day.periods && Array.isArray(day.periods) && day.periods.length > 0 && !day.closed) {
+      return true;
+    }
+    // Formato legacy: isOpen es true y tiene horarios
+    if (day.isOpen && day.openTime && day.closeTime) {
+      return true;
+    }
+    return false;
+  }).length;
   
   return configuredDays > 0 ? 1 : 0;
 }
@@ -472,61 +485,9 @@ export function getDayName(day: string): string {
   return dayNames[day] || day;
 }
 
-
-
-/**
- * Genera un color aleatorio
- */
-export function generateRandomColor(): string {
-  const colors = [
-    '#6366f1', // Indigo
-    '#8b5cf6', // Violet
-    '#06b6d4', // Cyan
-    '#10b981', // Emerald
-    '#f59e0b', // Amber
-    '#ef4444', // Red
-    '#ec4899', // Pink
-    '#84cc16', // Lime
-  ];
-  
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-/**
- * Debounce function para optimizar búsquedas
- */
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
-
-/**
- * Throttle function para limitar llamadas
- */
-export function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-}
-
 /**
  * Comprime una imagen antes de subirla
+ * Nota: Usar profile-client.service.ts optimizeImage() para WebP es preferible
  */
 export function compressImage(file: File, quality: number = 0.8): Promise<File> {
   return new Promise((resolve) => {
@@ -579,14 +540,4 @@ export function compressImage(file: File, quality: number = 0.8): Promise<File> 
     
     img.src = URL.createObjectURL(file);
   });
-}
-
-/**
- * Verifica si un nombre de sitio es único
- * Esta función debería conectarse con la base de datos para verificar unicidad
- */
-export async function isSiteNameUnique(siteName: string, currentUserId?: string): Promise<boolean> {
-  // Verificación real con Firebase no implementada
-  // Por ahora retorna true para evitar errores de compilación
-  return true;
 }

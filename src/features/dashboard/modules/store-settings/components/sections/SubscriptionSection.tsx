@@ -9,17 +9,18 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useCallback, useTransition } from 'react';
 import { ProfileFormData, FormState, SubscriptionInfo } from '../../types/store.type';
+import { updateSubscriptionAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { 
   Crown, 
   CreditCard, 
@@ -27,13 +28,10 @@ import {
   CheckCircle2, 
   AlertTriangle,
   Clock,
-  Zap,
   Star,
   Gift,
   RefreshCw,
   DollarSign,
-  TrendingUp,
-  Shield,
   Sparkles,
   Save,
   Loader2
@@ -178,6 +176,10 @@ export function SubscriptionSection({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  
+  // Store global
+  const setProfile = useProfileStore((state) => state.setProfile);
 
   // Obtener configuración actual o inicializar
   const subscription = formData.subscription || {
@@ -197,6 +199,23 @@ export function SubscriptionSection({
           : new Date(subscription.endDate as any).getTime()) - new Date().getTime()
       ) / (1000 * 60 * 60 * 24)))
     : 0;
+
+  /**
+   * Guardar y refrescar store global
+   */
+  const handleSectionSave = useCallback(async () => {
+    if (onSave) {
+      await onSave();
+    }
+    
+    // Refrescar store global
+    startTransition(async () => {
+      const result = await getProfileAction();
+      if (result.success && result.data) {
+        setProfile(result.data);
+      }
+    });
+  }, [onSave, setProfile]);
 
   /**
    * Actualizar configuración de suscripción
@@ -395,16 +414,16 @@ export function SubscriptionSection({
         </div>
         {onSave && (
           <Button
-            onClick={onSave}
-            disabled={isSaving}
+            onClick={handleSectionSave}
+            disabled={isSaving || isPending}
             className="flex items-center space-x-2"
           >
-            {isSaving ? (
+            {isSaving || isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Save className="w-4 h-4" />
             )}
-            <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
+            <span>{isSaving || isPending ? 'Guardando...' : 'Guardar'}</span>
           </Button>
         )}
       </div>
