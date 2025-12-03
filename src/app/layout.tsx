@@ -9,7 +9,8 @@
 import type { ReactNode } from "react";
 import "./globals.css";
 import { mulish } from "@/components/ui/fonts";
-import { AuthProvider } from "@/features/auth/providers/auth-provider";
+import { AuthStoreProvider } from "@/features/auth/providers/auth-store-provider";
+import { AuthSyncProvider } from "@/features/auth/providers/auth-provider";
 import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { Toaster } from "sonner";
 
@@ -44,9 +45,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
 
         {/* Contenido principal */}
         <ErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthStoreProvider>
+            <AuthSyncProvider>
+              {children}
+            </AuthSyncProvider>
+          </AuthStoreProvider>
           <Toaster
             position="top-right"
             richColors

@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
-import { profileService } from '@/features/dashboard/modules/store-settings/services/profile.service';
+import { getProfileAction } from '@/features/dashboard/modules/store-settings/actions/profile.actions';
 import { StoreProfile } from '@/features/dashboard/modules/store-settings/types/store.type';
 
 /**
  * Hook to get the current store for the authenticated user.
  * 
- * It uses the profileService to fetch the store profile associated with the user's UID.
+ * Uses Server Actions to fetch the store profile.
  * This replaces the legacy useAuthStore which had storeIds in the user object.
  */
 export function useCurrentStore() {
@@ -40,10 +40,12 @@ export function useCurrentStore() {
                     setIsLoading(true);
                 }
 
-                const profile = await profileService.getProfile(user.uid);
+                // Usar Server Action para obtener el perfil
+                const result = await getProfileAction();
 
                 if (isMounted) {
-                    if (profile) {
+                    if (result.success && result.data) {
+                        const profile = result.data as StoreProfile;
                         setStoreProfile(profile);
                         setStoreId(profile.id);
                     } else {

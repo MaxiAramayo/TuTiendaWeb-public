@@ -145,9 +145,9 @@ export interface ThemeConfig {
 
 
 /**
- * Información de suscripción
+ * Información de suscripción (versión con Timestamps - solo uso interno)
  */
-export interface SubscriptionInfo {
+export interface SubscriptionInfoRaw {
   /** Estado activo */
   active: boolean;
   /** Plan actual */
@@ -170,7 +170,32 @@ export interface SubscriptionInfo {
 }
 
 /**
- * Perfil completo de la tienda
+ * Información de suscripción (versión serializable para Client Components)
+ */
+export interface SubscriptionInfo {
+  /** Estado activo */
+  active: boolean;
+  /** Plan actual */
+  plan: 'free' | 'basic' | 'premium' | 'enterprise';
+  /** Fecha de inicio (ISO string) */
+  startDate: string;
+  /** Fecha de fin (ISO string) */
+  endDate: string;
+  /** Período de gracia (ISO string) */
+  graceUntil?: string;
+  /** Trial usado */
+  trialUsed: boolean;
+  /** Información de facturación */
+  billing?: {
+    provider: 'mercadopago' | 'stripe';
+    customerId?: string;
+    subscriptionId?: string;
+    autoRenew: boolean;
+  };
+}
+
+/**
+ * Perfil completo de la tienda (serializable para Client Components)
  */
 export interface StoreProfile {
   /** ID único */
@@ -191,16 +216,16 @@ export interface StoreProfile {
   /** Configuración de tema */
   theme?: ThemeConfig;
   /** Configuración de la tienda */
-  settings: CommerceConfig;
+  settings?: CommerceConfig;
   /** Información de suscripción */
-  subscription: SubscriptionInfo;
+  subscription?: SubscriptionInfo;
 
-  /** Metadatos */
+  /** Metadatos (serializables - fechas como ISO strings) */
   metadata: {
-    /** Fecha de creación */
-    createdAt: Timestamp;
-    /** Última actualización */
-    updatedAt: Timestamp;
+    /** Fecha de creación (ISO string) */
+    createdAt: string;
+    /** Última actualización (ISO string) */
+    updatedAt: string;
     /** Versión del perfil */
     version: number;
     /** Estado del perfil */

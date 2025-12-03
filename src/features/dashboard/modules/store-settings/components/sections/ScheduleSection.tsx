@@ -28,7 +28,7 @@ import {
 
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useProfile } from '../../hooks/useProfile';
-import { useProfileStore } from '../../api/profileStore';
+import { updateScheduleAction } from '../../actions/profile.actions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -153,7 +153,7 @@ export function ScheduleSection({
 }: ScheduleSectionProps) {
   const { user } = useAuthClient();
   const { profile } = useProfile();
-  const { updateSchedule, getSectionState } = useProfileStore();
+  const [isSectionSaving, setIsSectionSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [showPresets, setShowPresets] = useState(false);
 
@@ -177,9 +177,6 @@ export function ScheduleSection({
     return defaultSchedule;
   });
 
-  // Obtener estado de la sección
-  const sectionState = getSectionState('schedule');
-
   // Convertir schedule con períodos a formato simple para el backend
   const convertPeriodsScheduleToSimple = useCallback((periodsSchedule: WeeklySchedule) => {
     const simpleSchedule: Record<string, string> = {};
@@ -200,7 +197,7 @@ export function ScheduleSection({
     return simpleSchedule;
   }, []);
 
-  // Guardar cambios de la sección
+  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
     if (!user?.uid) {
       toast.error('No se pudo identificar al usuario');
@@ -212,26 +209,33 @@ export function ScheduleSection({
       return;
     }
 
+    setIsSectionSaving(true);
     try {
-      // Convertir el schedule con períodos al formato simple que espera el backend
-      const scheduleToSave = convertPeriodsScheduleToSimple(schedule);
-
       // Actualizar el campo schedule en el formulario
       updateField('schedule', schedule);
 
-      // Guardar usando el store de perfil específico para horarios con el ID de la tienda
-      const success = await updateSchedule(profile.id, scheduleToSave);
+      // Convertir a Record<string, ...> para Server Action
+      const scheduleData: Record<string, { closed?: boolean; periods?: Array<{ open: string; close: string; nextDay?: boolean }> }> = {};
+      Object.entries(schedule).forEach(([day, data]) => {
+        scheduleData[day] = data;
+      });
 
-      if (success) {
+      // Guardar usando Server Action
+      const result = await updateScheduleAction(scheduleData);
+
+      if (result.success) {
         toast.success('Horarios guardados correctamente');
       } else {
-        toast.error('Error al guardar los horarios. Inténtalo de nuevo.');
+        const errorMsg = result.errors._form?.[0] || 'Error al guardar los horarios. Inténtalo de nuevo.';
+        toast.error(errorMsg);
       }
     } catch (err) {
       console.error('Error al guardar horarios:', err);
       toast.error('Error al guardar los horarios. Inténtalo de nuevo.');
+    } finally {
+      setIsSectionSaving(false);
     }
-  }, [user?.uid, profile?.id, schedule, updateField, updateSchedule, convertPeriodsScheduleToSimple]);
+  }, [user?.uid, profile?.id, schedule, updateField]);
 
   // Aplicar horario predefinido
   const applyPreset = useCallback((presetKey: string) => {
@@ -360,15 +364,15 @@ export function ScheduleSection({
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={sectionState.isSaving}
+          disabled={isSectionSaving}
           className="flex items-center space-x-2"
         >
-          {sectionState.isSaving ? (
+          {isSectionSaving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Save className="w-4 h-4" />
           )}
-          <span>{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 

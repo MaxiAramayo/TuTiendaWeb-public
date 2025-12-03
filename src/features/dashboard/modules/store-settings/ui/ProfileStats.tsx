@@ -22,6 +22,8 @@ interface ProfileStatsProps {
 
 /**
  * Componente que muestra estadísticas del perfil
+ * Los datos se actualizan automáticamente cuando se guarda el perfil
+ * porque el store de Zustand se actualiza
  */
 const ProfileStats = ({ user: profile, onEditClick }: ProfileStatsProps) => {
   // Calcular completitud dinámicamente

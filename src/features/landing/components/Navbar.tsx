@@ -112,36 +112,40 @@ const Navbar = () => {
 
           {/* Botones de acción - Escritorio */}
           <div className="hidden md:flex items-center space-x-4">
-            {!isLoading && (
-              user ? (
+            {isLoading ? (
+              // Skeleton mientras carga
+              <div className="flex items-center space-x-4">
+                <div className="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-28 h-9 bg-purple-200 rounded-lg animate-pulse"></div>
+              </div>
+            ) : user ? (
+              <CtaButton
+                href="/dashboard"
+                variant="primary"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <User size={16} />
+                Panel de control
+              </CtaButton>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className={`text-sm font-medium ${scrolled ? 'text-gray-700 hover:text-purple-600' : 'text-gray-800 hover:text-purple-700'
+                    }`}
+                >
+                  Iniciar sesión
+                </Link>
+
                 <CtaButton
-                  href="/dashboard"
+                  href="/sign-up"
                   variant="primary"
                   size="sm"
-                  className="flex items-center gap-2"
                 >
-                  <User size={16} />
-                  Panel de control
+                  Crear cuenta
                 </CtaButton>
-              ) : (
-                <>
-                  <Link
-                    href="/sign-in"
-                    className={`text-sm font-medium ${scrolled ? 'text-gray-700 hover:text-purple-600' : 'text-gray-800 hover:text-purple-700'
-                      }`}
-                  >
-                    Iniciar sesión
-                  </Link>
-
-                  <CtaButton
-                    href="/sign-up"
-                    variant="primary"
-                    size="sm"
-                  >
-                    Crear cuenta
-                  </CtaButton>
-                </>
-              )
+              </>
             )}
           </div>
 
@@ -186,35 +190,39 @@ const Navbar = () => {
               </nav>
 
               <div className="mt-auto mb-8 flex flex-col space-y-4">
-                {!isLoading && (
-                  user ? (
+                {isLoading ? (
+                  // Skeleton mientras carga
+                  <div className="flex flex-col space-y-4">
+                    <div className="w-full h-12 bg-gray-100 border border-gray-200 rounded-md animate-pulse"></div>
+                    <div className="w-full h-12 bg-purple-200 rounded-md animate-pulse"></div>
+                  </div>
+                ) : user ? (
+                  <Link
+                    href="/dashboard"
+                    className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center justify-center gap-2"
+                    onClick={closeMenu}
+                  >
+                    <User size={16} />
+                    Panel de control
+                  </Link>
+                ) : (
+                  <>
                     <Link
-                      href="/dashboard"
-                      className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center justify-center gap-2"
+                      href="/sign-in"
+                      className="w-full py-3 text-center text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                       onClick={closeMenu}
                     >
-                      <User size={16} />
-                      Panel de control
+                      Iniciar sesión
                     </Link>
-                  ) : (
-                    <>
-                      <Link
-                        href="/sign-in"
-                        className="w-full py-3 text-center text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                        onClick={closeMenu}
-                      >
-                        Iniciar sesión
-                      </Link>
 
-                      <Link
-                        href="/sign-up"
-                        className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700"
-                        onClick={closeMenu}
-                      >
-                        Crear cuenta
-                      </Link>
-                    </>
-                  )
+                    <Link
+                      href="/sign-up"
+                      className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700"
+                      onClick={closeMenu}
+                    >
+                      Crear cuenta
+                    </Link>
+                  </>
                 )}
               </div>
             </div>

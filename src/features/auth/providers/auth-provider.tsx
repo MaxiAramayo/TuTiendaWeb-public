@@ -1,169 +1,123 @@
+/**
+ * Auth Sync Provider - Sincronización de tokens con servidor
+ * 
+ * Este provider se encarga SOLO de:
+ * 1. Escuchar cambios en Firebase Auth (onIdTokenChanged)
+ * 2. Sincronizar el token con el servidor (cookie httpOnly)
+ * 3. Actualizar el store de Zustand
+ * 
+ * NO expone contexto propio, usa el AuthStoreProvider.
+ * 
+ * @module features/auth/providers/auth-provider
+ */
+
 'use client';
 
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { onIdTokenChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { syncTokenAction, logoutAction } from '../actions/auth.actions';
 import { useRouter } from 'next/navigation';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-/**
- * Usuario mínimo para UI cliente
- * (solo datos de Firebase Auth, sin custom claims)
- */
-interface AuthUser {
-    uid: string;
-    displayName: string;
-    email: string;
-    photoURL: string | null;
-    emailVerified: boolean;
-}
-
-interface AuthContextValue {
-    /** Estado de carga inicial */
-    isLoading: boolean;
-    /** Usuario autenticado (Firebase Auth) */
-    isAuthenticated: boolean;
-    /** Datos del usuario para UI */
-    user: AuthUser | null;
-}
-
-// ============================================================================
-// CONTEXT
-// ============================================================================
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { useAuthStore } from './auth-store-provider';
 
 // ============================================================================
 // PROVIDER
 // ============================================================================
 
 /**
- * Auth Provider Unificado
- * 
- * Combina:
- * 1. Estado de autenticación para UI (isLoading, user, isAuthenticated)
- * 2. Sincronización de tokens con servidor (cookies httpOnly)
+ * Provider que sincroniza Firebase Auth con:
+ * 1. Cookies del servidor (via Server Actions)
+ * 2. Store de Zustand (para UI)
  * 
  * Flujo:
- * - Cuando el token cambia (login, logout, refresh) → sincroniza cookie
- * - Expone estado de auth para componentes cliente
- * - Evita loops usando refs para tracking
+ * - Firebase Auth emite cambio de token
+ * - Sincroniza cookie con syncTokenAction
+ * - Actualiza Zustand store para UI
  * 
- * NOTA: 
- * - El login inicial se maneja en hybridLogin/createSessionAction
- * - Para acceder a custom claims (storeId, role) usar getServerSession() en servidor
+ * @example
+ * ```tsx
+ * // En layout.tsx (debe estar dentro de AuthStoreProvider)
+ * <AuthStoreProvider>
+ *   <AuthSyncProvider>
+ *     {children}
+ *   </AuthSyncProvider>
+ * </AuthStoreProvider>
+ * ```
  */
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthSyncProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const isLoggingOut = useRef(false);
-    
-    const [state, setState] = useState<AuthContextValue>({
-        isLoading: true,
-        isAuthenticated: false,
-        user: null,
-    });
+
+    // Zustand actions (no causan re-render porque son estables)
+    const setUser = useAuthStore((state) => state.setUser);
+    const reset = useAuthStore((state) => state.reset);
 
     useEffect(() => {
-        // Escuchar cambios en el token ID (login, logout, refresh)
-        const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-            // Evitar loops: si estamos en proceso de logout, no hacer nada
-            if (isLoggingOut.current) return;
+        const unsubscribe = onIdTokenChanged(
+            auth,
+            async (firebaseUser: FirebaseUser | null) => {
+                // Evitar loops: si estamos en proceso de logout, no hacer nada
+                if (isLoggingOut.current) return;
 
-            if (firebaseUser) {
-                // Usuario autenticado
-                
-                // 1. Actualizar estado para UI
-                setState({
-                    isLoading: false,
-                    isAuthenticated: true,
-                    user: {
+                if (firebaseUser) {
+                    // =====================================================
+                    // USUARIO AUTENTICADO
+                    // =====================================================
+
+                    // 1. Actualizar Zustand store para UI
+                    setUser({
                         uid: firebaseUser.uid,
                         displayName: firebaseUser.displayName || '',
                         email: firebaseUser.email || '',
                         photoURL: firebaseUser.photoURL || null,
                         emailVerified: firebaseUser.emailVerified,
-                    },
-                });
+                    });
 
-                // 2. Sincronizar token con servidor
-                try {
-                    const idToken = await firebaseUser.getIdToken();
-                    await syncTokenAction(idToken);
-                    console.log('[AuthProvider] Token synced');
-                } catch (error) {
-                    console.error('[AuthProvider] Error syncing token:', error);
-                }
-            } else {
-                // Usuario deslogueado
-                
-                // 1. Actualizar estado para UI
-                setState({
-                    isLoading: false,
-                    isAuthenticated: false,
-                    user: null,
-                });
+                    // 2. Sincronizar token con servidor (cookie httpOnly)
+                    try {
+                        const idToken = await firebaseUser.getIdToken();
+                        await syncTokenAction(idToken);
+                        console.log('[AuthSyncProvider] Token synced');
+                    } catch (error) {
+                        console.error('[AuthSyncProvider] Error syncing token:', error);
+                    }
+                } else {
+                    // =====================================================
+                    // USUARIO DESLOGUEADO
+                    // =====================================================
 
-                // 2. Limpiar sesión del servidor
-                try {
-                    isLoggingOut.current = true;
-                    await logoutAction();
-                    console.log('[AuthProvider] Logged out');
-                } catch (error) {
-                    console.error('[AuthProvider] Error logging out:', error);
-                } finally {
-                    isLoggingOut.current = false;
+                    // 1. Resetear Zustand store
+                    reset();
+
+                    // 2. Limpiar sesión del servidor
+                    try {
+                        isLoggingOut.current = true;
+                        await logoutAction();
+                        console.log('[AuthSyncProvider] Logged out');
+                    } catch (error) {
+                        console.error('[AuthSyncProvider] Error logging out:', error);
+                    } finally {
+                        isLoggingOut.current = false;
+                    }
+
+                    // 3. Refrescar router para actualizar Server Components
+                    router.refresh();
                 }
-                
-                // 3. Refrescar router para actualizar Server Components
-                router.refresh();
             }
-        });
+        );
 
         return () => unsubscribe();
-    }, [router]);
+    }, [router, setUser, reset]);
 
-    return (
-        <AuthContext.Provider value={state}>
-            {children}
-        </AuthContext.Provider>
-    );
+    return <>{children}</>;
 }
 
 // ============================================================================
-// HOOKS
+// LEGACY EXPORTS (Compatibilidad)
 // ============================================================================
 
 /**
- * Hook para acceder al estado de auth en cliente
- * 
- * ⚠️ Solo para UI state (mostrar/ocultar elementos, datos del usuario)
- * 
- * Para auth en servidor usar:
- * - getServerSession() → acceso a custom claims (storeId, role)
- * - Server Actions → validación y mutaciones
- * 
- * @example
- * ```tsx
- * function Navbar() {
- *   const { isLoading, isAuthenticated, user } = useAuth();
- *   
- *   if (isLoading) return <Skeleton />;
- *   if (!isAuthenticated) return <LoginButton />;
- *   
- *   return <Avatar src={user.photoURL} />;
- * }
- * ```
+ * @deprecated Usar AuthSyncProvider en su lugar
+ * Mantenido para compatibilidad durante la migración
  */
-export function useAuth() {
-    const context = useContext(AuthContext);
-
-    if (context === undefined) {
-        throw new Error('useAuth must be used within AuthProvider');
-    }
-
-    return context;
-}
+export const AuthProvider = AuthSyncProvider;

@@ -1,7 +1,7 @@
 /**
  * Componente de botón para cerrar sesión
  * 
- * Refactored to use Server Action (logoutAction) instead of authService
+ * Refactored to use Firebase signOut + Server Action (logoutAction)
  * 
  * @module features/dashboard/components
  */
@@ -9,7 +9,8 @@
 "use client";
 
 import { useState } from "react";
-import { logoutAction } from "@/features/auth/actions/auth.actions";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
 import Image from "next/image";
 import { AlertCircle } from "lucide-react";
 
@@ -64,10 +65,13 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
         onSignOutSuccess();
       }
 
-      // Usar Server Action para logout
-      await logoutAction();
+      // 1. Sign out de Firebase Client SDK
+      // Esto dispara onIdTokenChanged en AuthSyncProvider
+      // que se encarga de limpiar Zustand y la cookie del servidor
+      await signOut(auth);
 
-      // logoutAction hace redirect a '/', no se ejecuta código después
+      // 2. Redirigir manualmente ya que logoutAction se ejecuta en AuthSyncProvider
+      window.location.href = '/';
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
       setError("No se pudo cerrar sesión. Intente nuevamente.");

@@ -9,11 +9,10 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { useProfileStore, type BasicInfoData } from '../../api/profileStore';
-import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
+import { updateBasicInfoAction, validateSlugAction } from '../../actions/profile.actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -80,15 +79,11 @@ export function BasicInfoSection({
   onSave,
   isSaving = false,
 }: BasicInfoSectionProps) {
-  const { updateBasicInfo, sections } = useProfileStore();
-  const { user } = useAuthClient();
+  const [isPending, startTransition] = useTransition();
+  const [isBasicSaving, setIsBasicSaving] = useState(false);
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
-
-  // Obtener el estado de guardado de la sección básica
-  const basicSectionState = sections.basic || { isSaving: false, isDirty: false, lastSaved: null, error: null };
-  const isBasicSaving = basicSectionState.isSaving;
 
   const [slugValidation, setSlugValidation] = useState<{
     isValidating: boolean;
@@ -181,37 +176,42 @@ export function BasicInfoSection({
     }
   }, [formData.name, updateField]);
 
-  // Manejar guardado de la sección
+  // Manejar guardado de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
-    if (!user?.uid) {
-      error('No se pudo identificar al usuario');
-      return;
-    }
-
     if (!profile?.id) {
       error('No se encontró el perfil de la tienda');
       return;
     }
 
+    setIsBasicSaving(true);
     try {
-      const basicData: BasicInfoData = {
+      // Mapear 'services' a 'service' para compatibilidad con el schema
+      const storeTypeMap: Record<string, string> = {
+        'services': 'service',
+      };
+      const mappedType = storeTypeMap[formData.storeType] || formData.storeType;
+
+      const basicData = {
         name: formData.name,
         description: formData.description,
         slug: formData.siteName,
-        type: formData.storeType,
+        type: mappedType as 'retail' | 'restaurant' | 'service' | 'digital' | 'fashion' | 'beauty' | 'health' | 'sports' | 'electronics' | 'home' | 'automotive' | 'other',
       };
 
-      const result = await updateBasicInfo(profile.id, basicData);
+      const result = await updateBasicInfoAction(basicData);
 
-      if (result) {
+      if (result.success) {
         success('Información básica guardada correctamente');
       } else {
-        error('Error al guardar la información. Inténtalo de nuevo.');
+        const errorMsg = result.errors._form?.[0] || 'Error al guardar la información. Inténtalo de nuevo.';
+        error(errorMsg);
       }
     } catch (err) {
       error('Error al guardar la información. Inténtalo de nuevo.');
+    } finally {
+      setIsBasicSaving(false);
     }
-  }, [user?.uid, formData.name, formData.description, formData.siteName, formData.storeType, updateBasicInfo, profile?.id, success, error]);
+  }, [formData.name, formData.description, formData.siteName, formData.storeType, profile?.id, success, error]);
 
 
   return (

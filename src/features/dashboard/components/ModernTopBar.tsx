@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User as UserType } from "@/features/user/user.types";
-import { useProfile } from "@/features/dashboard/modules/store-settings/hooks/useProfile";
+import { useProfileName, useProfileLogo } from "@/features/dashboard/modules/store-settings/stores/profile.store";
 import SignOutButton from "./SignOutButton";
 
 /**
@@ -67,14 +67,14 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   toggleMobileSidebar
 }) => {
   const pathname = usePathname();
-  const { profile } = useProfile();
+  
+  // Usar selectores del store para evitar re-renders innecesarios
+  const storeName = useProfileName();
+  const logoUrl = useProfileLogo();
 
-  // Obtener el nombre de la tienda del perfil, fallback al nombre del usuario
-  const name = profile?.basicInfo?.name || user?.displayName || 'Mi Tienda';
+  // Obtener el nombre de la tienda del store, fallback al nombre del usuario
+  const name = storeName || user?.displayName || 'Mi Tienda';
   const storeInitial = name.charAt(0).toUpperCase();
-
-  // URL del logo de la tienda desde el perfil
-  const logoUrl = profile?.theme?.logoUrl;
 
   /**
    * Obtiene el título de la página actual

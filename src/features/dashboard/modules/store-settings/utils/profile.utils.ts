@@ -7,7 +7,8 @@
  * @module features/dashboard/modules/profile/utils
  */
 
-import { StoreProfile, ProfileFormData, ProfileSection } from '../types/store.type';
+import { StoreProfile, ProfileSection } from '../types/store.type';
+import type { ProfileFormData } from '../schemas/profile.schema';
 import { 
   formatPrice, 
   formatDate, 
@@ -196,11 +197,11 @@ function calculateSettingsScore(profile: StoreProfile): number {
   let score = 0;
   
   // Métodos de pago configurados
-  const enabledPayments = profile.settings.paymentMethods.filter(method => method.enabled).length;
+  const enabledPayments = profile.settings?.paymentMethods?.filter(method => method.enabled).length || 0;
   if (enabledPayments >= 2) score += 0.5;
   
   // Métodos de entrega configurados
-  const enabledDelivery = profile.settings.deliveryMethods.filter(method => method.enabled).length;
+  const enabledDelivery = profile.settings?.deliveryMethods?.filter(method => method.enabled).length || 0;
   if (enabledDelivery >= 1) score += 0.5;
   
   return Math.min(score, 1);
@@ -266,7 +267,7 @@ export function getProfileRecommendations(profile: StoreProfile): string[] {
     recommendations.push('Conecta tus redes sociales para aumentar tu alcance');
   }
 
-  const enabledPayments = profile.settings.paymentMethods.filter(method => method.enabled).length;
+  const enabledPayments = profile.settings?.paymentMethods?.filter(method => method.enabled).length || 0;
   if (enabledPayments < 2) {
     recommendations.push('Configura múltiples métodos de pago para facilitar las compras');
   }
@@ -379,6 +380,28 @@ export function convertPeriodsScheduleToSimple(schedule: any): any {
 }
 
 /**
+ * Mapea tipos de tienda legacy a los nuevos tipos del schema
+ */
+function mapStoreType(type: string): 'retail' | 'restaurant' | 'service' | 'digital' | 'fashion' | 'beauty' | 'health' | 'sports' | 'electronics' | 'home' | 'automotive' | 'other' {
+  const typeMap: Record<string, 'retail' | 'restaurant' | 'service' | 'digital' | 'fashion' | 'beauty' | 'health' | 'sports' | 'electronics' | 'home' | 'automotive' | 'other'> = {
+    'services': 'service', // Mapeo legacy: 'services' -> 'service'
+    'restaurant': 'restaurant',
+    'retail': 'retail',
+    'other': 'other',
+    'digital': 'digital',
+    'fashion': 'fashion',
+    'beauty': 'beauty',
+    'health': 'health',
+    'sports': 'sports',
+    'electronics': 'electronics',
+    'home': 'home',
+    'automotive': 'automotive',
+    'service': 'service',
+  };
+  return typeMap[type] || 'other';
+}
+
+/**
  * Convierte datos del perfil a datos del formulario
  */
 export function profileToFormData(profile: StoreProfile): ProfileFormData {
@@ -387,7 +410,7 @@ export function profileToFormData(profile: StoreProfile): ProfileFormData {
     name: profile.basicInfo.name,
     description: profile.basicInfo.description || '',
     siteName: profile.basicInfo.slug,
-    storeType: profile.basicInfo.type,
+    storeType: mapStoreType(profile.basicInfo.type),
     category: profile.basicInfo.category || '',
     
     // Contacto
@@ -408,11 +431,13 @@ export function profileToFormData(profile: StoreProfile): ProfileFormData {
     instagram: profile.socialLinks?.instagram || '',
     facebook: profile.socialLinks?.facebook || '',
     
-    // Configuración - currency, language y timezone no están en CommerceConfig
+    // Configuración
+    currency: 'ARS',
+    language: 'es',
     
     // Métodos de pago y entrega
-    paymentMethods: profile.settings.paymentMethods || [],
-    deliveryMethods: profile.settings.deliveryMethods || [],
+    paymentMethods: profile.settings?.paymentMethods || [],
+    deliveryMethods: profile.settings?.deliveryMethods || [],
     
 
     

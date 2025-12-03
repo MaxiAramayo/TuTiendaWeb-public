@@ -136,10 +136,12 @@ export function ProfileHeader({
           <div className="flex items-center space-x-3 sm:space-x-4">
             {/* Avatar */}
             <Avatar className="w-12 h-12 sm:w-16 sm:h-16">
-              <AvatarImage 
-                src={profile.theme?.logoUrl} 
-                alt={profile.basicInfo.name}
-              />
+              {profile.theme?.logoUrl && (
+                <AvatarImage 
+                  src={profile.theme.logoUrl} 
+                  alt={profile.basicInfo.name}
+                />
+              )}
               <AvatarFallback className="text-sm sm:text-lg font-semibold bg-blue-100 text-blue-600">
                 {profile.basicInfo.name.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -240,7 +242,7 @@ export function ProfileHeader({
           
           <div className="bg-gray-50 rounded-lg p-2 sm:p-3">
             <div className="text-sm sm:text-lg font-semibold text-gray-900 truncate">
-              {profile.subscription.plan.toUpperCase()}
+              {profile.subscription?.plan?.toUpperCase() || 'FREE'}
             </div>
             <div className="text-xs text-gray-500">Plan actual</div>
           </div>

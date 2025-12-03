@@ -21,7 +21,7 @@ import { adminAuth } from '@/lib/firebase/admin';
 
 export interface CustomClaims {
     storeId?: string;
-    role?: 'user' | 'owner' | 'admin';
+    role?: 'owner' | 'admin' | 'employee';
 }
 
 // ============================================================================

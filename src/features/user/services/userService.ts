@@ -22,7 +22,6 @@ import {
 import { db, withRetry } from '@/lib/firebase/client';
 import { User } from '@/features/user/user.types';
 import { StoreProfile, CreateStoreProfileData } from '@/features/dashboard/modules/store-settings/types/store.type';
-import { profileService } from '@/features/dashboard/modules/store-settings/services/profile.service';
 import { userLogger } from '@/shared/services/logger.service';
 import { errorService, ErrorType, ErrorSeverity } from '@/shared/services/error.service';
 
@@ -252,8 +251,12 @@ class UserService {
 
         userLogger.debug('Usuario verificado, preparando datos del perfil', context);
 
-        // Preparar datos para el profileService
-        const profileData: CreateStoreProfileData = {
+        // Crear documento de tienda directamente en la transacción
+        const storeRef = doc(collection(db, 'stores'));
+        const now = serverTimestamp();
+        
+        const storeProfile = {
+          id: storeRef.id,
           ownerId: storeData.ownerId,
           basicInfo: {
             name: storeData.basicInfo.name,
@@ -265,32 +268,46 @@ class UserService {
             whatsapp: storeData.contactInfo.whatsapp,
             website: storeData.contactInfo.website || '',
           },
+          address: {},
+          socialLinks: {},
+          theme: {
+            primaryColor: '#6366f1',
+            secondaryColor: '#8b5cf6',
+            accentColor: '#8B5CF6',
+            fontFamily: 'Inter, sans-serif',
+            style: 'modern',
+            buttonStyle: 'rounded',
+          },
+          settings: {
+            paymentMethods: [],
+            deliveryMethods: [],
+          },
+          metadata: {
+            createdAt: now,
+            updatedAt: now,
+            version: 1,
+            status: 'active',
+          },
         };
 
-        userLogger.debug('Datos preparados para profileService', context, {
-          hasBasicInfo: !!profileData.basicInfo,
-          hasContactInfo: !!profileData.contactInfo
-        });
-
-        // Crear perfil usando profileService
-        const profile = await profileService.createProfile(profileData);
-        userLogger.info('Perfil creado exitosamente', context, { profileId: profile.id });
+        transaction.set(storeRef, storeProfile);
+        userLogger.info('Perfil creado exitosamente', context, { profileId: storeRef.id });
 
         // Actualizar el usuario con el ID de la tienda
         const userData = userDoc.data() as User;
-        const storeIds = [...(userData.storeIds || []), profile.id];
+        const storeIds = [...(userData.storeIds || []), storeRef.id];
 
         transaction.update(userRef, {
           storeIds,
-          updatedAt: serverTimestamp()
+          updatedAt: now
         });
 
         userLogger.debug('Usuario actualizado con nuevo storeId', context, {
           newStoreIds: storeIds,
-          addedStoreId: profile.id
+          addedStoreId: storeRef.id
         });
 
-        return profile.id;
+        return storeRef.id;
       });
 
       userLogger.info('Transacción completada exitosamente', context, {

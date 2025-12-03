@@ -9,11 +9,10 @@
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { useProfileStore, type AddressData } from '../../api/profileStore';
-import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
+import { updateAddressAction } from '../../actions/profile.actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleSelect } from '@/components/ui/simple-select';
@@ -98,12 +97,11 @@ export function AddressSection({
   onSave,
   isSaving = false,
 }: AddressSectionProps) {
-  const { updateAddress, getSectionState, markSectionDirty } = useProfileStore();
-  const { user } = useAuthClient();
+  const [isPending, startTransition] = useTransition();
+  const [isSectionSaving, setIsSectionSaving] = useState(false);
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
-  const sectionState = getSectionState('address');
 
   const [addressValidation, setAddressValidation] = useState<{
     isComplete: boolean;
@@ -176,15 +174,16 @@ export function AddressSection({
     }
   }, [getFullAddress]);
 
-  // Guardar cambios de la sección
+  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
-    if (!user?.uid) {
-      error('No se pudo identificar al usuario');
+    if (!profile?.id) {
+      error('No se encontró el perfil de la tienda');
       return;
     }
 
+    setIsSectionSaving(true);
     try {
-      const addressData: AddressData = {
+      const addressData = {
         street: formData.street || '',
         city: formData.city || '',
         province: formData.province || '',
@@ -192,13 +191,21 @@ export function AddressSection({
         zipCode: formData.zipCode || ''
       };
 
-      await updateAddress(profile?.id || '', addressData);
-      success('Dirección guardada correctamente');
+      const result = await updateAddressAction(addressData);
+      
+      if (result.success) {
+        success('Dirección guardada correctamente');
+      } else {
+        const errorMsg = result.errors._form?.[0] || 'Error al guardar la dirección. Inténtalo de nuevo.';
+        error(errorMsg);
+      }
     } catch (err) {
       console.error('Error al guardar dirección:', err);
       error('Error al guardar la dirección. Inténtalo de nuevo.');
+    } finally {
+      setIsSectionSaving(false);
     }
-  }, [user?.uid, formData.street, formData.city, formData.province, formData.country, formData.zipCode, updateAddress, profile?.id, success, error]);
+  }, [formData.street, formData.city, formData.province, formData.country, formData.zipCode, profile?.id, success, error]);
 
   // Función para marcar la sección como dirty cuando cambian los campos
   const handleFieldChange = (field: keyof ProfileFormData, value: any) => {
@@ -216,16 +223,16 @@ export function AddressSection({
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={sectionState.isSaving || !formState.isDirty}
+          disabled={isSectionSaving || !formState.isDirty}
           className="flex items-center justify-center space-x-2 w-full sm:w-auto"
           size="sm"
         >
-          {sectionState.isSaving ? (
+          {isSectionSaving ? (
             <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
           ) : (
             <Save className="w-3 h-3 sm:w-4 sm:h-4" />
           )}
-          <span className="text-xs sm:text-sm">{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span className="text-xs sm:text-sm">{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 

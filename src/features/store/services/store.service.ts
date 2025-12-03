@@ -29,7 +29,20 @@ const STORES_COLLECTION = 'stores';
 // TYPES
 // ============================================================================
 
-export type StoreType = 'restaurant' | 'retail' | 'services' | 'other';
+export type StoreType = 
+  | 'retail' 
+  | 'restaurant' 
+  | 'service' 
+  | 'services'  // Legacy alias for 'service'
+  | 'digital' 
+  | 'fashion'
+  | 'beauty' 
+  | 'health' 
+  | 'sports' 
+  | 'electronics' 
+  | 'home'
+  | 'automotive' 
+  | 'other';
 
 export interface CreateStoreData {
     storeName: string;

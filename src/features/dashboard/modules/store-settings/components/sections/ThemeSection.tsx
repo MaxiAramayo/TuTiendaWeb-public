@@ -17,8 +17,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useProfile } from '../../hooks/useProfile';
-import { useProfileStore } from '../../api/profileStore';
-import { profileService } from '../../services/profile.service';
+import { updateThemeAction, getProfileAction } from '../../actions/profile.actions';
+import { profileClientService } from '../../services/profile-client.service';
+import { useProfileStore } from '../../stores/profile.store';
 import {
   ProfileFormData,
   FormState,
@@ -133,15 +134,14 @@ export function ThemeSection({
   onSave,
   isSaving = false,
 }: ThemeSectionProps) {
-  const { updateTheme, getSectionState, markSectionDirty } = useProfileStore();
   const { user } = useAuthClient();
   const { profile } = useProfile();
-  const { uploadImage, deleteImage } = profileService;
+  const { setProfile } = useProfileStore();
+  const [isSectionSaving, setIsSectionSaving] = useState(false);
 
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
-  const sectionState = getSectionState('theme');
 
   // Estados locales para las imágenes
   const [logoUpload, setLogoUpload] = useState<ImageUpload | null>(null);
@@ -153,48 +153,83 @@ export function ThemeSection({
 
   // Obtener valores actuales del tema con fallbacks seguros
   const currentTheme = formData.theme || {};
+  
+  // Validar que style sea un valor permitido
+  const validStyles = ['modern', 'classic', 'minimal', 'colorful'] as const;
+  const validButtonStyles = ['rounded', 'square', 'pill'] as const;
+  
   const themeConfig: ThemeConfig = {
     primaryColor: currentTheme.primaryColor || '#6366f1',
     secondaryColor: currentTheme.secondaryColor || '#8b5cf6',
     accentColor: currentTheme.accentColor || '#8B5CF6',
     fontFamily: currentTheme.fontFamily || 'Inter, sans-serif',
-    style: currentTheme.style || 'modern',
-    buttonStyle: currentTheme.buttonStyle || 'rounded',
+    style: validStyles.includes(currentTheme.style as typeof validStyles[number]) 
+      ? currentTheme.style 
+      : 'modern',
+    buttonStyle: validButtonStyles.includes(currentTheme.buttonStyle as typeof validButtonStyles[number])
+      ? currentTheme.buttonStyle
+      : 'rounded',
     logoUrl: currentTheme.logoUrl,
     bannerUrl: currentTheme.bannerUrl,
   };
 
-  // Guardar cambios de la sección
+  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
     if (!user?.uid) {
       error('No se pudo identificar al usuario');
       return;
     }
 
+    setIsSectionSaving(true);
     try {
-      const themeData: ThemeConfig = {
-        logoUrl: themeConfig.logoUrl,
-        bannerUrl: themeConfig.bannerUrl,
-        primaryColor: themeConfig.primaryColor,
-        secondaryColor: themeConfig.secondaryColor,
-        accentColor: themeConfig.accentColor,
-        fontFamily: themeConfig.fontFamily,
-        style: themeConfig.style,
-        buttonStyle: themeConfig.buttonStyle
+      // Asegurar que style y buttonStyle tengan valores válidos
+      const validStyles = ['modern', 'classic', 'minimal', 'colorful'] as const;
+      const validButtonStyles = ['rounded', 'square', 'pill'] as const;
+      
+      const themeData = {
+        logoUrl: themeConfig.logoUrl || '',
+        bannerUrl: themeConfig.bannerUrl || '',
+        primaryColor: themeConfig.primaryColor || '#6366f1',
+        secondaryColor: themeConfig.secondaryColor || '#8b5cf6',
+        accentColor: themeConfig.accentColor || '#8B5CF6',
+        fontFamily: themeConfig.fontFamily || 'Inter, sans-serif',
+        style: (validStyles.includes(themeConfig.style as typeof validStyles[number]) 
+          ? themeConfig.style 
+          : 'modern') as 'modern' | 'classic' | 'minimal' | 'colorful',
+        buttonStyle: (validButtonStyles.includes(themeConfig.buttonStyle as typeof validButtonStyles[number])
+          ? themeConfig.buttonStyle
+          : 'rounded') as 'rounded' | 'square' | 'pill',
       };
 
-      await updateTheme(profile?.id || '', themeData);
-      success('Tema guardado correctamente');
+      console.log('Saving theme data:', themeData);
+      const result = await updateThemeAction(themeData);
+      
+      if (result.success) {
+        // Refrescar el perfil desde el servidor para actualizar el store
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          // Cast al tipo del store (son compatibles pero definidos separadamente)
+          setProfile(refreshResult.data as unknown as import('../../types/store.type').StoreProfile);
+        }
+        success('Tema guardado correctamente');
+      } else {
+        const errorMsg = result.errors._form?.[0] || 
+          Object.values(result.errors).flat()[0] || 
+          'Error al guardar el tema. Inténtalo de nuevo.';
+        error(errorMsg);
+        console.error('Validation errors:', result.errors);
+      }
     } catch (err) {
       console.error('Error al guardar tema:', err);
       error('Error al guardar el tema. Inténtalo de nuevo.');
+    } finally {
+      setIsSectionSaving(false);
     }
-  }, [user?.uid, themeConfig, updateTheme, profile?.id, success, error]);
+  }, [user?.uid, themeConfig, setProfile, success, error]);
 
-  // Función para marcar la sección como dirty cuando cambian los campos
+  // Función para actualizar campos
   const handleFieldChange = (field: keyof ProfileFormData, value: any) => {
     updateField(field, value);
-    markSectionDirty('theme');
   };
 
   /**
@@ -224,8 +259,12 @@ export function ThemeSection({
           setIsLoadingBanner(true);
         }
 
-        // Subir imagen
-        const imageUrl = await uploadImage(user.uid, file, type === 'logo' ? 'logo' : 'banner');
+        // Subir imagen usando el servicio cliente
+        const imageUrl = await profileClientService.uploadImage(
+          profile?.id || user.uid, 
+          file, 
+          type === 'logo' ? 'logo' : 'banner'
+        );
 
         // Actualizar el tema con la nueva URL
         const updatedTheme = {
@@ -234,7 +273,31 @@ export function ThemeSection({
         };
 
         handleFieldChange('theme', updatedTheme);
-        success(`${type === 'logo' ? 'Logo' : 'Banner'} subido correctamente`);
+
+        // Guardar automáticamente en la base de datos
+        const themeDataToSave = {
+          logoUrl: type === 'logo' ? imageUrl : (currentTheme.logoUrl || ''),
+          bannerUrl: type === 'banner' ? imageUrl : (currentTheme.bannerUrl || ''),
+          primaryColor: currentTheme.primaryColor || '#6366f1',
+          secondaryColor: currentTheme.secondaryColor || '#8b5cf6',
+          accentColor: currentTheme.accentColor || '#8B5CF6',
+          fontFamily: currentTheme.fontFamily || 'Inter, sans-serif',
+          style: (currentTheme.style || 'modern') as 'modern' | 'classic' | 'minimal' | 'colorful',
+          buttonStyle: (currentTheme.buttonStyle || 'rounded') as 'rounded' | 'square' | 'pill',
+        };
+
+        const saveResult = await updateThemeAction(themeDataToSave);
+        
+        if (saveResult.success) {
+          // Refrescar el store
+          const refreshResult = await getProfileAction();
+          if (refreshResult.success && refreshResult.data) {
+            setProfile(refreshResult.data as any);
+          }
+          success(`${type === 'logo' ? 'Logo' : 'Banner'} subido y guardado correctamente`);
+        } else {
+          error(`Error al guardar ${type === 'logo' ? 'logo' : 'banner'} en la base de datos`);
+        }
 
         // Limpiar el input
         event.target.value = '';
@@ -249,7 +312,7 @@ export function ThemeSection({
         }
       }
     },
-    [currentTheme, handleFieldChange, uploadImage, user?.uid, success, error]
+    [currentTheme, handleFieldChange, profile?.id, user?.uid, success, error, setProfile]
   );
 
   /**
@@ -269,17 +332,41 @@ export function ThemeSection({
           setIsDeletingBanner(true);
         }
 
-        // Eliminar imagen del storage
-        await deleteImage(user.uid, imageUrl, type);
+        // Eliminar imagen del storage usando el servicio cliente
+        await profileClientService.deleteImage(profile?.id || user.uid, imageUrl, type);
 
         // Actualizar el tema removiendo la URL
         const updatedTheme = {
           ...currentTheme,
-          [type === 'logo' ? 'logoUrl' : 'bannerUrl']: undefined,
+          [type === 'logo' ? 'logoUrl' : 'bannerUrl']: '',
         };
 
         handleFieldChange('theme', updatedTheme);
-        success(`${type === 'logo' ? 'Logo' : 'Banner'} eliminado correctamente`);
+
+        // Guardar automáticamente en la base de datos
+        const themeDataToSave = {
+          logoUrl: type === 'logo' ? '' : (currentTheme.logoUrl || ''),
+          bannerUrl: type === 'banner' ? '' : (currentTheme.bannerUrl || ''),
+          primaryColor: currentTheme.primaryColor || '#6366f1',
+          secondaryColor: currentTheme.secondaryColor || '#8b5cf6',
+          accentColor: currentTheme.accentColor || '#8B5CF6',
+          fontFamily: currentTheme.fontFamily || 'Inter, sans-serif',
+          style: (currentTheme.style || 'modern') as 'modern' | 'classic' | 'minimal' | 'colorful',
+          buttonStyle: (currentTheme.buttonStyle || 'rounded') as 'rounded' | 'square' | 'pill',
+        };
+
+        const saveResult = await updateThemeAction(themeDataToSave);
+        
+        if (saveResult.success) {
+          // Refrescar el store
+          const refreshResult = await getProfileAction();
+          if (refreshResult.success && refreshResult.data) {
+            setProfile(refreshResult.data as any);
+          }
+          success(`${type === 'logo' ? 'Logo' : 'Banner'} eliminado correctamente`);
+        } else {
+          error(`Error al eliminar ${type === 'logo' ? 'logo' : 'banner'} de la base de datos`);
+        }
       } catch (err) {
         console.error(`Error al eliminar ${type}:`, err);
         error(`Error al eliminar ${type === 'logo' ? 'logo' : 'banner'}. Inténtalo de nuevo.`);
@@ -291,7 +378,7 @@ export function ThemeSection({
         }
       }
     },
-    [themeConfig.logoUrl, themeConfig.bannerUrl, currentTheme, handleFieldChange, deleteImage, user?.uid, success, error]
+    [themeConfig.logoUrl, themeConfig.bannerUrl, currentTheme, handleFieldChange, profile?.id, user?.uid, success, error, setProfile]
   );
 
   return (
@@ -308,16 +395,16 @@ export function ThemeSection({
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={sectionState.isSaving || !formState?.isDirty}
+          disabled={isSectionSaving || !formState?.isDirty}
           className='flex items-center justify-center space-x-2 w-full sm:w-auto'
           size='sm'
         >
-          {sectionState.isSaving ? (
+          {isSectionSaving ? (
             <Loader2 className='w-3 h-3 sm:w-4 sm:h-4 animate-spin' />
           ) : (
             <Save className='w-3 h-3 sm:w-4 sm:h-4' />
           )}
-          <span className='text-xs sm:text-sm'>{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span className='text-xs sm:text-sm'>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 

@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'react';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
 import { useUserStore } from '@/features/user/api/userStore';
+import { useProfileStore } from '@/features/dashboard/modules/store-settings/stores/profile.store';
 
 /**
  * Hook que detecta cambios de usuario y limpia los stores correspondientes
@@ -19,6 +20,7 @@ export const useUserChange = () => {
   const { user } = useAuthClient();
   const { clearDataForUser: clearSellData } = useSellStore();
   const { clearDataForUser: clearUserData } = useUserStore();
+  const clearProfileData = useProfileStore((state) => state.clear);
   const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -31,10 +33,11 @@ export const useUserChange = () => {
       if (previousUserId !== null) {
         clearSellData();
         clearUserData();
+        clearProfileData();
       }
 
       // Actualizar referencia
       previousUserIdRef.current = currentUserId;
     }
-  }, [user?.uid, clearSellData, clearUserData]);
+  }, [user?.uid, clearSellData, clearUserData, clearProfileData]);
 };

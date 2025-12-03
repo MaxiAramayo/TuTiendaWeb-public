@@ -9,11 +9,10 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { useProfileStore, type ContactData } from '../../api/profileStore';
-import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
+import { updateContactInfoAction } from '../../actions/profile.actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -71,12 +70,11 @@ export function ContactInfoSection({
   onSave,
   isSaving = false,
 }: ContactInfoSectionProps) {
-  const { updateContactInfo, markSectionDirty, getSectionState } = useProfileStore();
-  const { user } = useAuthClient();
+  const [isPending, startTransition] = useTransition();
+  const [isSectionSaving, setIsSectionSaving] = useState(false);
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
-  const sectionState = getSectionState('contact');
 
   // Usar useRef para evitar re-renders innecesarios
   const selectedCountryCodeRef = useRef('+54');
@@ -105,26 +103,35 @@ export function ContactInfoSection({
     }
   }, [updateField]);
 
-  // Manejar guardado de la sección
+  // Manejar guardado de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
-    if (!user?.uid) {
-      error('No se pudo identificar al usuario');
+    if (!profile?.id) {
+      error('No se encontró el perfil de la tienda');
       return;
     }
 
+    setIsSectionSaving(true);
     try {
-      const contactData: ContactData = {
+      const contactData = {
         whatsapp: formData.whatsapp,
         website: formData.instagram, // Mapear instagram a website por ahora
       };
 
-      await updateContactInfo(profile?.id || '', contactData);
-      success('Información de contacto guardada correctamente');
+      const result = await updateContactInfoAction(contactData);
+      
+      if (result.success) {
+        success('Información de contacto guardada correctamente');
+      } else {
+        const errorMsg = result.errors._form?.[0] || 'Error al guardar la información de contacto. Inténtalo de nuevo.';
+        error(errorMsg);
+      }
     } catch (err) {
       console.error('Error al guardar contacto:', err);
       error('Error al guardar la información de contacto. Inténtalo de nuevo.');
+    } finally {
+      setIsSectionSaving(false);
     }
-  }, [user?.uid, formData.whatsapp, formData.instagram, updateContactInfo, profile?.id, success, error]);
+  }, [formData.whatsapp, formData.instagram, profile?.id, success, error]);
 
 
 
@@ -161,16 +168,16 @@ export function ContactInfoSection({
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={sectionState.isSaving || !formState.isDirty}
+          disabled={isSectionSaving || !formState.isDirty}
           className="flex items-center justify-center space-x-2 w-full sm:w-auto"
           size="sm"
         >
-          {sectionState.isSaving ? (
+          {isSectionSaving ? (
             <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
           ) : (
             <Save className="w-3 h-3 sm:w-4 sm:h-4" />
           )}
-          <span className="text-xs sm:text-sm">{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span className="text-xs sm:text-sm">{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
