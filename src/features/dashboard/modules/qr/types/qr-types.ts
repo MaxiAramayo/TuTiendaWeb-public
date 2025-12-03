@@ -4,8 +4,17 @@
  * @module features/dashboard/modules/qr/types
  */
 
-import { User } from "@/features/user/user.types";
 import { StoreProfile } from "@/features/dashboard/modules/store-settings/types/store.type";
+
+/**
+ * Usuario compatible con AuthContext
+ */
+export interface QRUser {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+}
 
 /**
  * Configuración del código QR
@@ -29,8 +38,8 @@ export interface QRConfig {
 export interface QRData {
   /** URL de la tienda */
   storeURL: string;
-  /** Información del usuario (LEGACY) */
-  user?: User;
+  /** Información del usuario */
+  user?: QRUser | null;
   /** Perfil de la tienda */
   storeProfile?: StoreProfile;
   /** Configuración del QR */
@@ -43,8 +52,8 @@ export interface QRData {
 export interface QRPDFDocumentProps {
   /** Data URL del QR generado */
   qrDataURL: string;
-  /** Información del usuario (LEGACY) */
-  user?: User;
+  /** Información del usuario */
+  user?: QRUser | null;
   /** Perfil de la tienda */
   storeProfile?: StoreProfile;
 }
@@ -68,7 +77,7 @@ export interface QRGeneratorState {
  */
 export interface QRGeneratorProps {
   /** Usuario actual */
-  user: User;
+  user: QRUser;
   /** Callback cuando se genera un QR */
   onQRGenerated?: (dataURL: string) => void;
   /** Callback cuando hay error */
@@ -80,7 +89,7 @@ export interface QRGeneratorProps {
  */
 export interface QRPreviewProps {
   /** Usuario actual */
-  user: User;
+  user: QRUser | null;
   /** Perfil de la tienda */
   storeProfile?: StoreProfile;
   /** URL de la tienda */
@@ -100,7 +109,7 @@ export interface QRActionsProps {
   /** Data URL del QR */
   qrDataURL: string;
   /** Usuario actual */
-  user: User;
+  user: QRUser | null;
   /** Perfil de la tienda */
   storeProfile?: StoreProfile;
   /** Callback para actualizar QR */

@@ -15,7 +15,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { useUserChange } from "@/shared/hooks/useUserChange";
 // Store eliminado - se usa useProducts hook en componentes específicos
 import ModernSidebar from "../components/ModernSidebar";
@@ -42,13 +42,14 @@ interface ModernDashboardWrapperProps {
  * - Layout moderno sin superposiciones
  */
 const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
-  const { user, isReady, isLoading } = useAuthHydrated();
+  const { user, isLoading } = useAuthClient();
+  const isReady = !isLoading;
   // Los productos se cargan desde los componentes específicos que los necesitan
   const router = useRouter();
-  
+
   // Hook para detectar cambios de usuario y limpiar datos
   useUserChange();
-  
+
   // Estado para controlar la visibilidad del sidebar en móvil
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   // Estado para controlar si el sidebar está colapsado
@@ -77,7 +78,7 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
       const timer = setTimeout(() => {
         router.replace("/sign-in"); // usar replace en lugar de push
       }, 150);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isReady, user, router]);
@@ -99,31 +100,31 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
-        {/* Sidebar Moderno */}
-        <ModernSidebar
+      {/* Sidebar Moderno */}
+      <ModernSidebar
+        user={user}
+        isMobileOpen={isMobileSidebarOpen}
+        toggleMobile={toggleMobileSidebar}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={setIsSidebarCollapsed}
+      />
+
+      {/* Área de contenido principal */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+        {/* Barra superior moderna */}
+        <ModernTopBar
           user={user}
-          isMobileOpen={isMobileSidebarOpen}
-          toggleMobile={toggleMobileSidebar}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={setIsSidebarCollapsed}
+          toggleMobileSidebar={toggleMobileSidebar}
         />
-        
-        {/* Área de contenido principal */}
-        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-          {/* Barra superior moderna */}
-          <ModernTopBar
-            user={user}
-            toggleMobileSidebar={toggleMobileSidebar}
-          />
-          
-          {/* Contenido de la página */}
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-auto">
-            <div className="mx-auto max-w-7xl">
-              {children}
-            </div>
-          </main>
-        </div>
+
+        {/* Contenido de la página */}
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-auto">
+          <div className="mx-auto max-w-7xl">
+            {children}
+          </div>
+        </main>
       </div>
+    </div>
   );
 };
 

@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -19,15 +19,11 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GoogleButton } from '@/features/auth/components/GoogleButton';
 import { hybridRegister } from '@/features/auth/lib/hybrid-login';
 import { registerAction } from '@/features/auth/actions/auth.actions';
-import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
 import { registerSchema, type RegisterFormData } from '@/features/auth/schemas/register.schema';
-import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
 
 
 
@@ -41,21 +37,9 @@ export const RegisterForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const {
-    slug,
-    isAvailable: slugAvailable,
-    isChecking: isCheckingSlug,
-    error: slugError,
-    setSlug,
-    generateFromText
-  } = useSlugValidation();
-
-  const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
-    setValue,
-    trigger,
     setError
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),

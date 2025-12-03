@@ -24,7 +24,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
-import { useAuthStore } from "@/features/auth/api/authStore";
 import { Product, ProductInCart, Topics } from "@/shared/types/store";
 import { Product as ProductDocument } from "@/shared/types/firebase.types";
 import Image from "next/image";
@@ -72,7 +71,6 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   onUpdateQuantity,
   onRemoveProduct
 }) => {
-  const { user } = useAuthStore();
 
   // Mapear ProductDocument[] a Product[]
   const products = useMemo(() => {

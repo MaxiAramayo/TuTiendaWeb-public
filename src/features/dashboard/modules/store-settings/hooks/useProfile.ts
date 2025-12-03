@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/features/auth/api/authStore';
+import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { profileFormSchema, customValidations } from '../validations/profile.validations';
 import { ProfileFormData, StoreProfile, FormState } from '../types/store.type';
 import { profileService } from '../services/profile.service';
@@ -81,7 +81,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     optimisticUpdates = true,
   } = options;
 
-  const { user } = useAuthStore();
+  const { user } = useAuthClient();
 
   // Estado local
   const [state, setState] = useState<UseProfileState>({
@@ -167,12 +167,12 @@ export const useProfile = (options: UseProfileOptions = {}) => {
    * Cargar perfil del usuario
    */
   const loadProfile = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.uid) return;
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      let profile = await profileService.getProfile(user.id);
+      let profile = await profileService.getProfile(user.uid);
       setState(prev => ({ ...prev, profile, isLoading: false }));
 
       // Actualizar estadísticas inline para evitar dependencias circulares
@@ -223,13 +223,13 @@ export const useProfile = (options: UseProfileOptions = {}) => {
         description: errorMessage,
       });
     }
-  }, [user?.id, form]);
+  }, [user?.uid, form]);
 
   /**
    * Guardar perfil con patrón de rollback mejorado
    */
   const saveProfile = useCallback(async (data: Partial<ProfileFormData>): Promise<boolean> => {
-    if (!user?.id) return false;
+    if (!user?.uid) return false;
 
     // Saving profile for user
     // Saving profile...
@@ -265,7 +265,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
       // Guardar en el servidor
       // Sending data to updateProfile service
-      const updatedProfile = await profileService.updateProfile(user.id, validatedData);
+      const updatedProfile = await profileService.updateProfile(user.uid, validatedData);
       // Profile updated successfully on server
 
       setState(prev => ({
@@ -327,7 +327,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
       return false;
     }
-  }, [user?.id, form]);
+  }, [user?.uid, form]);
 
   /**
    * Actualizar campo específico
@@ -382,14 +382,14 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     file: File,
     type: 'logo' | 'banner' | 'profile'
   ): Promise<string | null> => {
-    if (!user?.id) return null;
+    if (!user?.uid) return null;
 
     // Uploading image for user
 
     try {
       // Starting image upload
 
-      const imageUrl = await profileService.uploadImage(user.id, file, type);
+      const imageUrl = await profileService.uploadImage(user.uid, file, type);
 
       // Image uploaded successfully
 
@@ -423,7 +423,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
       return null;
     }
-  }, [user?.id]);
+  }, [user?.uid]);
 
   /**
    * Resetear formulario
@@ -470,10 +470,10 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
   // Cargar perfil al montar
   useEffect(() => {
-    if (user?.id) {
+    if (user?.uid) {
       loadProfile();
     }
-  }, [user?.id, loadProfile]);
+  }, [user?.uid, loadProfile]);
 
   // Actualizar estado del formulario de forma estable con debounce
   const prevErrorsRef = useRef<string>('');

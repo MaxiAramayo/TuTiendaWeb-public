@@ -7,7 +7,7 @@
 "use client";
 
 import React from "react";
-import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { useQRGenerator } from "../hooks/useQRGenerator";
 import { QRPDFService } from "../services/QRPDFService";
 import QRPreview from "./QRPreview";
@@ -22,7 +22,7 @@ import "../qr-styles.css";
  * Componente principal que gestiona toda la funcionalidad del módulo QR
  */
 const QRModule: React.FC = () => {
-  const { user, isReady, isLoading } = useAuthHydrated();
+  const { user, isLoading } = useAuthClient();
   const {
     qrDataURL,
     storeURL,
@@ -34,7 +34,7 @@ const QRModule: React.FC = () => {
     setGenerating,
     clearError,
     isReady: qrReady
-  } = useQRGenerator(user || undefined);
+  } = useQRGenerator();
 
   /**
    * Maneja la descarga del PDF usando el método optimizado
@@ -46,7 +46,7 @@ const QRModule: React.FC = () => {
     }
 
     setGenerating(true);
-    
+
     try {
       await QRPDFService.generatePDFFromStore(storeProfile);
       toast.success('PDF generado exitosamente');
@@ -64,7 +64,7 @@ const QRModule: React.FC = () => {
   }
 
   // Error state - Usuario no encontrado
-  if (!isReady || !user) {
+  if (!isLoading && !user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Alert className="max-w-md">

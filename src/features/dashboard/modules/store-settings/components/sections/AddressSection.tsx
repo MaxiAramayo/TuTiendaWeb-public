@@ -13,18 +13,18 @@ import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
 import { useProfileStore, type AddressData } from '../../api/profileStore';
-import { useAuthStore } from '@/features/auth/api/authStore';
+import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleSelect } from '@/components/ui/simple-select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { 
-  MapPin, 
-  Navigation, 
-  Building, 
-  AlertCircle, 
+import {
+  MapPin,
+  Navigation,
+  Building,
+  AlertCircle,
   CheckCircle,
   ExternalLink,
   Copy,
@@ -99,12 +99,12 @@ export function AddressSection({
   isSaving = false,
 }: AddressSectionProps) {
   const { updateAddress, getSectionState, markSectionDirty } = useProfileStore();
-  const { user } = useAuthStore();
+  const { user } = useAuthClient();
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
   const sectionState = getSectionState('address');
-  
+
   const [addressValidation, setAddressValidation] = useState<{
     isComplete: boolean;
     missingFields: string[];
@@ -119,7 +119,7 @@ export function AddressSection({
     ];
 
     const missingFields = requiredFields
-      .filter(({ field }) => !formData[field as keyof ProfileFormData] || 
+      .filter(({ field }) => !formData[field as keyof ProfileFormData] ||
         (formData[field as keyof ProfileFormData] as string).trim() === '')
       .map(({ label }) => label);
 
@@ -135,7 +135,7 @@ export function AddressSection({
   }, [validateAddress]);
 
   // Obtener ciudades disponibles para la provincia seleccionada
-  const availableCities = formData.province 
+  const availableCities = formData.province
     ? CITIES_BY_PROVINCE[formData.province] || []
     : [];
 
@@ -148,7 +148,7 @@ export function AddressSection({
       formData.country,
       formData.zipCode
     ].filter(Boolean);
-    
+
     return parts.join(', ');
   }, [formData.street, formData.city, formData.province, formData.country, formData.zipCode]);
 
@@ -178,11 +178,11 @@ export function AddressSection({
 
   // Guardar cambios de la sección
   const handleSectionSave = useCallback(async () => {
-    if (!user?.id) {
+    if (!user?.uid) {
       error('No se pudo identificar al usuario');
       return;
     }
-    
+
     try {
       const addressData: AddressData = {
         street: formData.street || '',
@@ -191,14 +191,14 @@ export function AddressSection({
         country: formData.country || '',
         zipCode: formData.zipCode || ''
       };
-      
+
       await updateAddress(profile?.id || '', addressData);
       success('Dirección guardada correctamente');
     } catch (err) {
       console.error('Error al guardar dirección:', err);
       error('Error al guardar la dirección. Inténtalo de nuevo.');
     }
-  }, [user?.id, formData.street, formData.city, formData.province, formData.country, formData.zipCode, updateAddress, profile?.id, success, error]);
+  }, [user?.uid, formData.street, formData.city, formData.province, formData.country, formData.zipCode, updateAddress, profile?.id, success, error]);
 
   // Función para marcar la sección como dirty cuando cambian los campos
   const handleFieldChange = (field: keyof ProfileFormData, value: any) => {
@@ -313,7 +313,7 @@ export function AddressSection({
             <Building className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="text-sm sm:text-base">Ciudad *</span>
           </Label>
-          
+
           {availableCities.length > 0 ? (
             <SimpleSelect
               value={formData.city || ''}
@@ -346,7 +346,7 @@ export function AddressSection({
               )}
             />
           )}
-          
+
           {formState.errors.city && (
             <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
               <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -420,8 +420,8 @@ export function AddressSection({
           transition={{ delay: 0.6 }}
           className={cn(
             'border rounded-lg p-2 sm:p-3',
-            addressValidation.isComplete 
-              ? 'bg-green-50/50 border-green-100' 
+            addressValidation.isComplete
+              ? 'bg-green-50/50 border-green-100'
               : 'bg-yellow-50/50 border-yellow-100'
           )}
         >
@@ -441,21 +441,21 @@ export function AddressSection({
                   </h4>
                 </div>
               </div>
-              
+
               <p className={cn(
                 'text-xs mb-2 break-all',
                 addressValidation.isComplete ? 'text-green-700' : 'text-yellow-700'
               )}>
                 {getFullAddress() || 'Dirección incompleta'}
               </p>
-              
+
               {!addressValidation.isComplete && (
                 <p className="text-xs text-yellow-600">
                   Faltan: {addressValidation.missingFields.join(', ')}
                 </p>
               )}
             </div>
-            
+
             {addressValidation.isComplete && (
               <div className="flex space-x-1 w-full sm:w-auto justify-center sm:justify-start">
                 <Button
@@ -468,7 +468,7 @@ export function AddressSection({
                   <Copy className="w-3 h-3" />
                   <span className="text-xs sm:hidden">Copiar</span>
                 </Button>
-                
+
                 <Button
                   type="button"
                   variant="outline"
@@ -538,7 +538,7 @@ export function AddressSection({
           </div>
         </motion.div>
       )}
-      
+
 
     </div>
   );

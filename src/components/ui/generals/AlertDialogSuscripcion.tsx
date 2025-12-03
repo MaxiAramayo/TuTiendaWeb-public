@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
-import { authService } from "@/features/auth/services/authService";
+import { logoutAction } from "@/features/auth/actions/auth.actions";
 
 interface Props {
   suscripcion?: boolean;
@@ -31,7 +31,7 @@ const AlertDialogSuscripcion = ({ suscripcion }: Props) => {
 
   const handleSignOut = async () => {
     try {
-      await authService.signOut();
+      await logoutAction();
     } catch (error) {
       console.log(error);
     }

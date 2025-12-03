@@ -10,19 +10,20 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { 
-  Package, 
-  ShoppingCart, 
-  Users, 
-  BarChart3, 
-  Plus, 
+import {
+  Package,
+  ShoppingCart,
+  Users,
+  BarChart3,
+  Plus,
   Eye,
   Settings,
   QrCode,
   BookOpen,
   CreditCard
 } from 'lucide-react';
-import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import { useProfile } from "@/features/dashboard/modules/store-settings/hooks/useProfile";
 
 /**
@@ -32,7 +33,8 @@ import { useProfile } from "@/features/dashboard/modules/store-settings/hooks/us
  */
 const DashboardOverview: React.FC = () => {
   const router = useRouter();
-  const { user } = useAuthHydrated();
+  const { user } = useAuthClient();
+  const { storeId } = useCurrentStore();
   const { profile } = useProfile();
 
   /**
@@ -66,9 +68,8 @@ const DashboardOverview: React.FC = () => {
       icon: Eye,
       color: 'bg-orange-500 hover:bg-orange-600',
       action: () => {
-        const storeUrl = user?.id;
-        if (storeUrl) {
-          window.open(`/store/${storeUrl}`, '_blank');
+        if (storeId) {
+          window.open(`/store/${storeId}`, '_blank');
         }
       }
     }
@@ -162,7 +163,7 @@ const DashboardOverview: React.FC = () => {
               <Package className="w-8 h-8 text-blue-500" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -172,7 +173,7 @@ const DashboardOverview: React.FC = () => {
               <ShoppingCart className="w-8 h-8 text-green-500" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -182,7 +183,7 @@ const DashboardOverview: React.FC = () => {
               <Users className="w-8 h-8 text-purple-500" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>

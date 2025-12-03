@@ -8,7 +8,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/features/auth/api/authStore";
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import { SellForm } from "./SellForm";
 import { SellsModule } from "./SellsModule";
 import { Product as ProductDocument } from "@/shared/types/firebase.types";
@@ -31,15 +31,16 @@ export const SellsPageClient: React.FC<SellsPageClientProps> = ({
   products = [],
 }) => {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { storeId, isLoading } = useCurrentStore();
 
   // Si no hay usuario o no tiene tiendas, no renderizar nada
-  if (!user?.id || !user.storeIds || user.storeIds.length === 0) {
+  if (isLoading) {
     return <div>Cargando...</div>;
   }
 
-  // Usar el primer storeId del usuario (tienda principal)
-  const storeId = user.storeIds[0];
+  if (!storeId) {
+    return <div>No se encontró la tienda.</div>;
+  }
 
   // Si el modo es lista, mostrar el módulo completo
   if (mode === "list") {

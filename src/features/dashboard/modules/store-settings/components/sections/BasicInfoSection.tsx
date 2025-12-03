@@ -13,7 +13,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
 import { useProfileStore, type BasicInfoData } from '../../api/profileStore';
-import { useAuthStore } from '@/features/auth/api/authStore';
+import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,10 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
+import {
+  CheckCircle,
+  AlertCircle,
+  Loader2,
   RefreshCw,
   Store,
   Tag,
@@ -32,8 +32,8 @@ import {
   Save
 } from 'lucide-react';
 import { validateSlug as validateSlugZod } from '@shared/validations';
-  import { generateSlug } from '../../utils/profile.utils';
-  import { debounce } from 'lodash';
+import { generateSlug } from '../../utils/profile.utils';
+import { debounce } from 'lodash';
 import { toast } from 'sonner';
 
 /**
@@ -81,21 +81,21 @@ export function BasicInfoSection({
   isSaving = false,
 }: BasicInfoSectionProps) {
   const { updateBasicInfo, sections } = useProfileStore();
-  const { user } = useAuthStore();
+  const { user } = useAuthClient();
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
-  
+
   // Obtener el estado de guardado de la sección básica
   const basicSectionState = sections.basic || { isSaving: false, isDirty: false, lastSaved: null, error: null };
   const isBasicSaving = basicSectionState.isSaving;
-  
+
   const [slugValidation, setSlugValidation] = useState<{
     isValidating: boolean;
     isValid: boolean | null;
     message: string;
   }>({ isValidating: false, isValid: null, message: '' });
-  
+
   const [autoSlug, setAutoSlug] = useState(true);
 
   // Validación de slug con debounce
@@ -116,18 +116,18 @@ export function BasicInfoSection({
       }
 
       setSlugValidation({ isValidating: true, isValid: null, message: 'Verificando disponibilidad...' });
-      
+
       try {
         const slugValidationResult = validateSlugZod(slug);
-         if (!slugValidationResult.success) {
-           setSlugValidation({
-             isValidating: false,
-             isValid: false,
-             message: slugValidationResult.error?.issues[0]?.message || 'Slug inválido'
-           });
-           return;
-         }
-         const isUnique = true; // TODO: Implementar verificación de unicidad
+        if (!slugValidationResult.success) {
+          setSlugValidation({
+            isValidating: false,
+            isValid: false,
+            message: slugValidationResult.error?.issues[0]?.message || 'Slug inválido'
+          });
+          return;
+        }
+        const isUnique = true; // TODO: Implementar verificación de unicidad
         setSlugValidation({
           isValidating: false,
           isValid: isUnique,
@@ -149,7 +149,7 @@ export function BasicInfoSection({
     if (formData.siteName) {
       debouncedSlugValidation(formData.siteName);
     }
-    
+
     return () => {
       debouncedSlugValidation.cancel();
     };
@@ -158,7 +158,7 @@ export function BasicInfoSection({
   // Manejar cambio de nombre de tienda
   const handleStoreNameChange = useCallback((value: string) => {
     updateField('name', value);
-    
+
     // Auto-generar slug si está habilitado
     if (autoSlug && value) {
       const newSlug = generateSlug(value);
@@ -180,19 +180,19 @@ export function BasicInfoSection({
       setAutoSlug(true);
     }
   }, [formData.name, updateField]);
-  
+
   // Manejar guardado de la sección
   const handleSectionSave = useCallback(async () => {
-    if (!user?.id) {
+    if (!user?.uid) {
       error('No se pudo identificar al usuario');
       return;
     }
-    
+
     if (!profile?.id) {
       error('No se encontró el perfil de la tienda');
       return;
     }
-    
+
     try {
       const basicData: BasicInfoData = {
         name: formData.name,
@@ -200,9 +200,9 @@ export function BasicInfoSection({
         slug: formData.siteName,
         type: formData.storeType,
       };
-      
+
       const result = await updateBasicInfo(profile.id, basicData);
-      
+
       if (result) {
         success('Información básica guardada correctamente');
       } else {
@@ -211,7 +211,7 @@ export function BasicInfoSection({
     } catch (err) {
       error('Error al guardar la información. Inténtalo de nuevo.');
     }
-  }, [user?.id, formData.name, formData.description, formData.siteName, formData.storeType, updateBasicInfo, profile?.id, success, error]);
+  }, [user?.uid, formData.name, formData.description, formData.siteName, formData.storeType, updateBasicInfo, profile?.id, success, error]);
 
 
   return (
@@ -320,7 +320,7 @@ export function BasicInfoSection({
           <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
           <span className="text-sm sm:text-base">Nombre del sitio *</span>
         </Label>
-        
+
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <div className="flex-1">
             <div className="flex">
@@ -341,7 +341,7 @@ export function BasicInfoSection({
               />
             </div>
           </div>
-          
+
           <Button
             type="button"
             variant="outline"
@@ -354,7 +354,7 @@ export function BasicInfoSection({
             <span className="text-xs sm:text-sm">Regenerar</span>
           </Button>
         </div>
-        
+
         {/* Estado de validación del slug */}
         <div className="flex items-center space-x-2">
           {slugValidation.isValidating && (
@@ -363,14 +363,14 @@ export function BasicInfoSection({
               <span className="text-xs sm:text-sm">{slugValidation.message}</span>
             </div>
           )}
-          
+
           {slugValidation.isValid === true && (
             <div className="flex items-center space-x-1 text-green-600">
               <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="text-xs sm:text-sm">{slugValidation.message}</span>
             </div>
           )}
-          
+
           {slugValidation.isValid === false && (
             <div className="flex items-center space-x-1 text-red-600">
               <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -378,14 +378,14 @@ export function BasicInfoSection({
             </div>
           )}
         </div>
-        
+
         {formState.errors.siteName && (
           <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
             <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
             <span>{formState.errors.siteName}</span>
           </p>
         )}
-        
+
         <p className="text-xs sm:text-sm text-gray-500">
           Esta será la URL de tu tienda. Solo letras, números y guiones.
         </p>
@@ -402,7 +402,7 @@ export function BasicInfoSection({
           <Tag className="w-3 h-3 sm:w-4 sm:h-4" />
           <span className="text-sm sm:text-base">Tipo de tienda *</span>
         </Label>
-        
+
         <Select
           value={formData.storeType}
           onValueChange={(value) => {
@@ -426,7 +426,7 @@ export function BasicInfoSection({
             ))}
           </SelectContent>
         </Select>
-        
+
         {formState.errors.storeType && (
           <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
             <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -460,7 +460,7 @@ export function BasicInfoSection({
           </div>
         </motion.div>
       )}
-      
+
 
     </div>
   );

@@ -7,7 +7,7 @@
  */
 
 "use client";
-import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { useProfile } from "@/features/dashboard/modules/store-settings/hooks/useProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * @returns Componente React
  */
 const HeaderWelcome: React.FC = () => {
-  const { user, isReady, isLoading: authLoading } = useAuthHydrated();
+  const { user, isLoading: authLoading } = useAuthClient();
   const { profile, isLoading: profileLoading } = useProfile();
 
   const isLoading = authLoading || profileLoading;
@@ -35,7 +35,7 @@ const HeaderWelcome: React.FC = () => {
   }
 
   // Usuario no disponible después de carga
-  if (!isReady || !user) {
+  if (!authLoading && !user) {
     return (
       <header className="flex flex-col gap-3 items-center justify-center text-center w-full">
         <div className="w-80 h-8 bg-gray-200 animate-pulse rounded-md"></div>
@@ -45,7 +45,7 @@ const HeaderWelcome: React.FC = () => {
   }
 
   // Obtener el nombre de la tienda del perfil, fallback al nombre del usuario
-  const name = profile?.basicInfo?.name || user.displayName || 'Tu tienda';
+  const name = profile?.basicInfo?.name || user?.displayName || 'Tu tienda';
 
   return (
     <header className="flex flex-col gap-3 items-center justify-center text-center w-full">

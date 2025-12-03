@@ -119,7 +119,10 @@ export async function loginAction(
 
         console.log(`[LoginAction] Session created for user: ${decodedToken.uid}`);
 
-        // 5. RETURN SUCCESS
+        // 5. REVALIDATE
+        revalidatePath('/dashboard');
+
+        // 6. RETURN SUCCESS
         return {
             success: true,
             data: { userId: decodedToken.uid },
@@ -463,6 +466,56 @@ export async function resetPasswordAction(
         return {
             success: false,
             errors: { _form: ['Error al enviar email. Intenta nuevamente.'] },
+        };
+    }
+}
+
+// ============================================================================
+// SYNC TOKEN ACTION
+// ============================================================================
+
+/**
+ * Sync Token Action - Sincronizar token de Firebase con cookie de sesión
+ * 
+ * Usado por AuthProvider cuando detecta cambios en el estado de auth
+ * (ej: después de actualizar custom claims)
+ * 
+ * NOTA: Reemplaza el endpoint /api/auth/sync-token
+ * Seguimos el patrón de Server Actions en lugar de API Routes
+ * 
+ * @param idToken - ID token de Firebase Auth
+ * @returns ActionResponse vacío
+ */
+export async function syncTokenAction(
+    idToken: string
+): Promise<ActionResponse<null>> {
+    try {
+        if (!idToken) {
+            return {
+                success: false,
+                errors: { _form: ['Token requerido'] },
+            };
+        }
+
+        // 1. VERIFY TOKEN
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+
+        // 2. UPDATE COOKIE
+        await setSessionCookie(idToken);
+
+        console.log(`[SyncTokenAction] Token synced for user: ${decodedToken.uid}`);
+
+        // 3. RETURN SUCCESS
+        return {
+            success: true,
+            data: null,
+        };
+    } catch (error: any) {
+        console.error('[SyncTokenAction] Error:', error);
+
+        return {
+            success: false,
+            errors: { _form: ['Error al sincronizar token'] },
         };
     }
 }

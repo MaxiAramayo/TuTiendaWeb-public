@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useAuthStore } from "@/features/auth/api/authStore";
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 
 // Utilidades locales
 const formatCurrency = (amount: number): string => {
@@ -30,15 +30,15 @@ const formatCurrency = (amount: number): string => {
 
 const calculateProductTotal = (product: ProductInSell): number => {
   let basePrice = product.price;
-  
+
   if (product.appliedTopics && product.appliedTopics.length > 0) {
     const extrasTotal = product.appliedTopics.reduce(
-      (sum: number, topic: any) => sum + topic.price, 
+      (sum: number, topic: any) => sum + topic.price,
       0
     );
     basePrice += extrasTotal;
   }
-  
+
   return basePrice * product.cantidad;
 };
 
@@ -47,10 +47,10 @@ const calculateOrderTotal = (sell: OptimizedSell): number => {
   if (sell.total) {
     return sell.total;
   }
-  
+
   // Calcular el total si no está disponible
   return sell.products.reduce(
-    (acc: number, product: ProductInSell) => acc + calculateProductTotal(product), 
+    (acc: number, product: ProductInSell) => acc + calculateProductTotal(product),
     0
   );
 };
@@ -59,14 +59,14 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
   const totalRevenue = sells.reduce((acc, sell) => acc + calculateOrderTotal(sell), 0);
   const totalOrders = sells.length;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  
+
   // Ventas por método de pago
   const paymentStats = sells.reduce((acc, sell) => {
     const method = sell.paymentMethod || 'Sin especificar';
     acc[method] = (acc[method] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-  
+
   // Ventas por método de entrega
   const deliveryStats = sells.reduce((acc, sell) => {
     const method = sell.deliveryMethod || 'Sin especificar';
@@ -81,12 +81,12 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
     quantity: number;
     revenue: number;
   }> = {};
-  
+
   sells.forEach(sell => {
     sell.products.forEach((product: ProductInSell) => {
       const key = product.idProduct;
       const productTotal = calculateProductTotal(product);
-      
+
       if (productStats[key]) {
         productStats[key].quantity += product.cantidad;
         productStats[key].revenue += productTotal;
@@ -111,11 +111,11 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
     orders: number;
     totalSpent: number;
   }> = {};
-  
+
   sells.forEach(sell => {
     const customerName = sell.customerName;
     const orderTotal = calculateOrderTotal(sell);
-    
+
     if (customerStats[customerName]) {
       customerStats[customerName].orders += 1;
       customerStats[customerName].totalSpent += orderTotal;
@@ -131,7 +131,7 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
   const topCustomers = Object.values(customerStats)
     .sort((a, b) => b.orders - a.orders)
     .slice(0, 5);
-  
+
   return {
     totalRevenue,
     totalOrders,
@@ -144,15 +144,15 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
 };
 
 const groupSellsByPeriod = (
-  sells: OptimizedSell[], 
+  sells: OptimizedSell[],
   period: 'day' | 'week' | 'month' | 'year'
 ): Record<string, OptimizedSell[]> => {
   const groups: Record<string, OptimizedSell[]> = {};
-  
+
   sells.forEach(sell => {
     const date = new Date(sell.date);
     let key: string;
-    
+
     switch (period) {
       case 'day':
         key = date.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -171,13 +171,13 @@ const groupSellsByPeriod = (
       default:
         key = date.toISOString().split('T')[0];
     }
-    
+
     if (!groups[key]) {
       groups[key] = [];
     }
     groups[key].push(sell);
   });
-  
+
   return groups;
 };
 
@@ -188,28 +188,28 @@ interface SellsStatsProps {
   onStatClick?: (stat: string, value: any) => void;
 }
 
-export const SellsStats = ({ 
+export const SellsStats = ({
   period = 'month',
   onStatClick
 }: SellsStatsProps) => {
   const { sells, isLoading, getSells, calculateStatsFromLoadedData } = useSellStore();
-  const { user } = useAuthStore();
+  const { storeId } = useCurrentStore();
   const [selectedTab, setSelectedTab] = useState<'overview' | 'products' | 'customers'>('overview');
-  
+
   // Cargar datos cuando cambia el período
   useEffect(() => {
-    if (user?.id && user.storeIds && user.storeIds.length > 0) {
+    if (storeId) {
       // Cargar ventas si no hay datos
       if (sells.length === 0) {
-        getSells(user.storeIds[0], {
+        getSells(storeId, {
           limit: 100 // Cargar más ventas para tener mejores estadísticas
         });
       }
-      
+
       // Calcular estadísticas
       calculateStatsFromLoadedData();
     }
-  }, [user, period, getSells, calculateStatsFromLoadedData, sells.length]);
+  }, [storeId, period, getSells, calculateStatsFromLoadedData, sells.length]);
 
   // Filtrar ventas por período
   const filteredSells = useMemo(() => {
@@ -237,8 +237,8 @@ export const SellsStats = ({
   }, [sells, period]);
 
   // Calcular estadísticas
-  const stats = useMemo(() => 
-    calculateSellsStatistics(filteredSells), 
+  const stats = useMemo(() =>
+    calculateSellsStatistics(filteredSells),
     [filteredSells]
   );
 
@@ -292,7 +292,7 @@ export const SellsStats = ({
 
       {/* Métricas principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card 
+        <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onStatClick?.('revenue', stats.totalRevenue)}
         >
@@ -312,7 +312,7 @@ export const SellsStats = ({
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onStatClick?.('orders', stats.totalOrders)}
         >
@@ -332,7 +332,7 @@ export const SellsStats = ({
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onStatClick?.('products', stats.topProducts)}
         >
@@ -352,7 +352,7 @@ export const SellsStats = ({
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onStatClick?.('customers', stats.topCustomers)}
         >

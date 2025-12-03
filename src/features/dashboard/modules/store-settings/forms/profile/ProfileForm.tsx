@@ -7,7 +7,7 @@
  */
 
 "use client";
-import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { ProfileForm as ProfileFormComponent } from "../../components/ProfileForm";
 // Removed LoadingSpinner import
 
@@ -17,7 +17,8 @@ import { ProfileForm as ProfileFormComponent } from "../../components/ProfileFor
  * @returns Componente React
  */
 const ProfileForm = () => {
-  const { user, isReady } = useAuthHydrated();
+  const { user, isLoading } = useAuthClient();
+  const isReady = !isLoading;
 
   // Estado de carga mientras se hidrata
   if (!isReady) {
@@ -31,7 +32,7 @@ const ProfileForm = () => {
 
   // Renderizar formulario con usuario autenticado
   return (
-    <ProfileFormComponent 
+    <ProfileFormComponent
       showStats={true}
       showTips={true}
     />

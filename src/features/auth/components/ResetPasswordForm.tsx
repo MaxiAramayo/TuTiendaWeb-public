@@ -16,16 +16,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { auth } from '@/lib/firebase/client';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { resetPasswordSchema, type ResetPasswordData as ResetPasswordFormValues } from '@/features/auth/schemas/reset-password.schema';
 
+// ...
 
-
-/**
- * Componente de formulario para restablecer contraseña
- */
 export const ResetPasswordForm = () => {
-  const { resetPassword, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
   const {
@@ -41,12 +39,15 @@ export const ResetPasswordForm = () => {
 
   const onSubmit = async (data: ResetPasswordFormValues) => {
     try {
-      await resetPassword(data.email);
+      setIsLoading(true);
+      await sendPasswordResetEmail(auth, data.email);
       setEmailSent(true);
       toast.success('Se ha enviado un correo para restablecer tu contraseña');
-    } catch (error) {
-      // El error ya se maneja en useAuth con toast
+    } catch (error: any) {
       console.error('Error al restablecer contraseña:', error);
+      toast.error(error.message || 'Error al enviar el correo');
+    } finally {
+      setIsLoading(false);
     }
   };
 
