@@ -257,7 +257,18 @@ export function ThemeSection({
           setIsLoadingBanner(true);
         }
 
-        // Subir imagen usando el servicio cliente
+        // Eliminar imagen anterior si existe
+        const currentImageUrl = type === 'logo' ? currentTheme.logoUrl : currentTheme.bannerUrl;
+        if (currentImageUrl) {
+          try {
+            await profileClientService.deleteImage(profile?.id || user.uid, currentImageUrl, type);
+          } catch (deleteErr) {
+            // Si falla la eliminación, continuamos con la subida de la nueva imagen
+            console.warn(`No se pudo eliminar la imagen anterior de ${type}:`, deleteErr);
+          }
+        }
+
+        // Subir nueva imagen usando el servicio cliente
         const imageUrl = await profileClientService.uploadImage(
           profile?.id || user.uid, 
           file, 

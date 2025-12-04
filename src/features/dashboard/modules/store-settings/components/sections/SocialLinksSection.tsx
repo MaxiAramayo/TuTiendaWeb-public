@@ -35,7 +35,7 @@ import {
 import { 
   validateInstagramUrl, 
   validateFacebookUrl
-} from '@shared/validations';
+} from '../../schemas/profile.schema';
 
 /**
  * Props del componente

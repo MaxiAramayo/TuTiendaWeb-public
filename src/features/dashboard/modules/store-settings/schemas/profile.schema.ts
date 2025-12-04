@@ -27,16 +27,23 @@ export const errorMessages = {
 };
 
 /**
- * Schema para WhatsApp con formato argentino
+ * Schema para WhatsApp - Acepta formatos flexibles
+ * Ejemplos válidos:
+ * - +54 9 11 1234-5678
+ * - +5491112345678
+ * - 1112345678
+ * - 011-1234-5678
  */
 export const whatsappSchema = z
   .string({ required_error: errorMessages.required })
   .min(8, { message: errorMessages.minLength(8) })
-  .max(20, { message: errorMessages.maxLength(20) })
+  .max(25, { message: errorMessages.maxLength(25) })
   .refine(
     (val) => {
-      const cleaned = val.replace(/[\s\-\(\)]/g, '');
-      return /^\+?\d{8,15}$/.test(cleaned);
+      // Eliminar espacios, guiones y paréntesis para validar
+      const cleaned = val.replace(/[\s\-\(\)\.]/g, '');
+      // Debe tener al menos 8 dígitos y opcionalmente empezar con +
+      return /^\+?\d{8,18}$/.test(cleaned);
     },
     { message: errorMessages.whatsapp }
   );
@@ -364,3 +371,35 @@ export type WeeklySchedule = z.infer<typeof weeklyScheduleSchema>;
 export type DailySchedule = z.infer<typeof dailyScheduleSchema>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export type DeliveryMethod = z.infer<typeof deliveryMethodSchema>;
+
+/**
+ * Funciones de validación rápida para uso en componentes
+ */
+
+/**
+ * Valida un número de WhatsApp
+ */
+export const validateWhatsApp = (phone: string) => {
+  return whatsappSchema.safeParse(phone);
+};
+
+/**
+ * Valida una URL de Instagram
+ */
+export const validateInstagramUrl = (url: string) => {
+  return instagramUrlSchema.safeParse(url);
+};
+
+/**
+ * Valida una URL de Facebook
+ */
+export const validateFacebookUrl = (url: string) => {
+  return facebookUrlSchema.safeParse(url);
+};
+
+/**
+ * Valida un slug
+ */
+export const validateSlug = (slug: string) => {
+  return slugSchema.safeParse(slug);
+};

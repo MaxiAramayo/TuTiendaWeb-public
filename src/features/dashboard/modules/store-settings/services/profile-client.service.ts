@@ -162,21 +162,49 @@ class ProfileClientService {
       throw new Error('Storage no inicializado');
     }
 
+    if (!imageUrl || imageUrl.trim() === '') {
+      console.warn('URL de imagen vacía, nada que eliminar');
+      return;
+    }
+
     try {
-      // Extraer la ruta del archivo desde la URL
-      const url = new URL(imageUrl);
-      const pathMatch = url.pathname.match(/\/o\/(.+)\?/);
-      if (!pathMatch) {
-        console.warn('No se pudo extraer la ruta de la imagen');
+      // Extraer la ruta del archivo desde la URL de Firebase Storage
+      // Las URLs tienen formato: https://firebasestorage.googleapis.com/v0/b/BUCKET/o/PATH?token=...
+      // O formato: https://storage.googleapis.com/BUCKET/PATH
+      
+      let path: string | null = null;
+      
+      // Intentar extraer del formato firebasestorage.googleapis.com
+      const firebaseMatch = imageUrl.match(/\/o\/([^?]+)/);
+      if (firebaseMatch) {
+        path = decodeURIComponent(firebaseMatch[1]);
+      }
+      
+      // Si no funcionó, intentar formato storage.googleapis.com
+      if (!path) {
+        const storageMatch = imageUrl.match(/storage\.googleapis\.com\/[^/]+\/(.+?)(?:\?|$)/);
+        if (storageMatch) {
+          path = decodeURIComponent(storageMatch[1]);
+        }
+      }
+      
+      if (!path) {
+        console.warn('No se pudo extraer la ruta de la imagen desde URL:', imageUrl);
         return;
       }
       
-      const path = decodeURIComponent(pathMatch[1]);
+      console.log('🗑️ Eliminando imagen del storage:', path);
       const storageRef = ref(storage, path);
       await deleteObject(storageRef);
-    } catch (error) {
-      // Si el archivo no existe, no es un error crítico
-      console.warn('Error al eliminar imagen:', error);
+      console.log('✅ Imagen eliminada correctamente');
+    } catch (error: any) {
+      // Si el archivo no existe (404), no es un error crítico
+      if (error?.code === 'storage/object-not-found') {
+        console.warn('La imagen ya no existe en el storage');
+        return;
+      }
+      console.error('Error al eliminar imagen:', error);
+      throw error; // Re-lanzar otros errores
     }
   }
 }

@@ -31,7 +31,7 @@ import {
   Globe,
   Save
 } from 'lucide-react';
-import { validateSlug as validateSlugZod } from '@shared/validations';
+import { validateSlug as validateSlugZod } from '../../schemas/profile.schema';
 import { generateSlug } from '../../utils/profile.utils';
 import { debounce } from 'lodash';
 import { toast } from 'sonner';
@@ -334,7 +334,7 @@ export function BasicInfoSection({
           <div className="flex-1">
             <div className="flex">
               <span className="inline-flex items-center px-2 sm:px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs sm:text-sm">
-                tutienda.com/
+                tutiendaweb.com.ar/
               </span>
               <Input
                 id="siteName"

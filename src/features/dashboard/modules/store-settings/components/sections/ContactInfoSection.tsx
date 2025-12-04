@@ -33,7 +33,7 @@ import {
 import {
   formatWhatsAppNumber
 } from '../../utils/profile.utils';
-import { validateWhatsApp } from '@shared/validations';
+import { validateWhatsApp } from '../../schemas/profile.schema';
 import { toast } from 'sonner';
 
 /**

@@ -535,9 +535,11 @@ export function SubscriptionSection({
       <div>
         <h3 className="text-xl font-semibold mb-6">Planes disponibles</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Object.values(SUBSCRIPTION_PLANS).map((plan) => 
-            renderPlanCard(plan, plan.id === subscription.plan)
-          )}
+          {Object.values(SUBSCRIPTION_PLANS).map((plan) => (
+            <React.Fragment key={plan.id}>
+              {renderPlanCard(plan, plan.id === subscription.plan)}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
