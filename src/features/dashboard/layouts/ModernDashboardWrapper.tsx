@@ -13,11 +13,11 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { useUserChange } from "@/shared/hooks/useUserChange";
-// Store eliminado - se usa useProducts hook en componentes específicos
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import ModernSidebar from "../components/ModernSidebar";
 import ModernTopBar from "../components/ModernTopBar";
 import Spinner from "@/components/ui/spinners/Spinner";
@@ -44,8 +44,11 @@ interface ModernDashboardWrapperProps {
 const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
   const { user, isLoading } = useAuthClient();
   const isReady = !isLoading;
-  // Los productos se cargan desde los componentes específicos que los necesitan
   const router = useRouter();
+
+  // Cargar perfil de la tienda al iniciar - esto sincroniza con el store global
+  // para que TopBar tenga acceso al logo y nombre desde el inicio
+  useCurrentStore();
 
   // Hook para detectar cambios de usuario y limpiar datos
   useUserChange();

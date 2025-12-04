@@ -1,6 +1,10 @@
 /**
  * Componente para mostrar el preview del código QR
  * 
+ * Refactorizado para seguir arquitectura Server-First:
+ * - Eliminada dependencia de User (usa storeProfile.basicInfo.name)
+ * - Datos vienen del Server Component via props
+ * 
  * @module features/dashboard/modules/qr/components
  */
 
@@ -9,21 +13,21 @@
 import React from "react";
 import QRCode from "qrcode.react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Store, MapPin, Clock } from "lucide-react";
+import { Store, MapPin } from "lucide-react";
 import { QRPreviewProps } from "../types/qr-types";
 import { DEFAULT_QR_CONFIG } from "../utils/qr-utils";
 
 /**
  * Componente para mostrar el preview del código QR con información de la tienda
  */
-const QRPreview: React.FC<QRPreviewProps> = ({
-  user,
+export function QRPreview({
   storeProfile,
   storeURL,
   qrDataURL,
   onQRUpdate
-}) => {
+}: QRPreviewProps) {
+  const storeName = storeProfile.basicInfo?.name || 'Mi Tienda';
+
   return (
     <div className="flex flex-col items-center space-y-6">
       {/* Header */}
@@ -54,7 +58,7 @@ const QRPreview: React.FC<QRPreviewProps> = ({
           {/* Store Name */}
           <div className="text-center space-y-3">
             <h2 className="text-3xl font-bold text-white leading-tight">
-              {storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda'}
+              {storeName}
             </h2>
             <div className="inline-flex items-center px-4 py-2 bg-white/20 rounded-full border border-white/30">
               <span className="text-white font-medium text-sm">Menú Digital</span>
@@ -77,7 +81,7 @@ const QRPreview: React.FC<QRPreviewProps> = ({
 
           {/* Store Info */}
           <div className="space-y-4 text-center max-w-sm">
-            {storeProfile?.contactInfo?.whatsapp && (
+            {storeProfile.contactInfo?.whatsapp && (
               <div className="flex items-center justify-center space-x-3 bg-white/10 rounded-lg p-3">
                 <Store className="w-5 h-5 text-white/80 flex-shrink-0" />
                 <p className="text-white/90 text-sm leading-relaxed font-medium">
@@ -85,7 +89,7 @@ const QRPreview: React.FC<QRPreviewProps> = ({
                 </p>
               </div>
             )}
-            {storeProfile?.basicInfo?.description && (
+            {storeProfile.basicInfo?.description && (
               <div className="flex items-center justify-center space-x-3 bg-white/10 rounded-lg p-3">
                 <MapPin className="w-5 h-5 text-white/80 flex-shrink-0" />
                 <p className="text-white/90 text-sm leading-relaxed font-medium">
@@ -121,6 +125,6 @@ const QRPreview: React.FC<QRPreviewProps> = ({
       </Card>
     </div>
   );
-};
+}
 
 export default QRPreview;

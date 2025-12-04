@@ -4,13 +4,14 @@
  * Este hook previene que los datos de un usuario se muestren a otro usuario
  * cuando hay cambios de sesión.
  * 
+ * Refactorizado para eliminar dependencia de userStore (seguir arquitectura Server-First)
+ * 
  * @module shared/hooks/useUserChange
  */
 
 import { useEffect, useRef } from 'react';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
-import { useUserStore } from '@/features/user/api/userStore';
 import { useProfileStore } from '@/features/dashboard/modules/store-settings/stores/profile.store';
 
 /**
@@ -19,7 +20,6 @@ import { useProfileStore } from '@/features/dashboard/modules/store-settings/sto
 export const useUserChange = () => {
   const { user } = useAuthClient();
   const { clearDataForUser: clearSellData } = useSellStore();
-  const { clearDataForUser: clearUserData } = useUserStore();
   const clearProfileData = useProfileStore((state) => state.clear);
   const previousUserIdRef = useRef<string | null>(null);
 
@@ -32,12 +32,11 @@ export const useUserChange = () => {
       // Limpiar datos del usuario anterior si existía
       if (previousUserId !== null) {
         clearSellData();
-        clearUserData();
         clearProfileData();
       }
 
       // Actualizar referencia
       previousUserIdRef.current = currentUserId;
     }
-  }, [user?.uid, clearSellData, clearUserData, clearProfileData]);
+  }, [user?.uid, clearSellData, clearProfileData]);
 };

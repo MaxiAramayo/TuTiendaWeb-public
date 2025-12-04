@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { registerAction, completeRegistrationAction } from '@/features/auth/actions/auth.actions';
 import { hybridRegister } from '@/features/auth/lib/hybrid-login';
-import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
+import { useSlugValidation } from '@/features/auth/hooks/use-slug-validation';
 import { UserData, StoreData } from './MultiStepRegister';
 import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
 
