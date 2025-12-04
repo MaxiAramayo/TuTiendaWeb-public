@@ -9,12 +9,12 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuthStore } from '@/features/auth/api/authStore';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  where, 
+import { useCurrentStore } from '@/features/dashboard/hooks/useCurrentStore';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
   orderBy,
   limit
 } from 'firebase/firestore';
@@ -47,9 +47,7 @@ interface UseSellsState {
  * Hook principal para gestión de ventas
  */
 export function useSells() {
-  const { user } = useAuthStore();
-  // Usar el primer storeId del usuario (para restaurantes solo tienen una tienda)
-  const storeId = user?.storeIds?.[0];
+  const { storeId } = useCurrentStore();
 
   // Estado principal
   const [state, setState] = useState<UseSellsState>({
@@ -119,7 +117,7 @@ export function useSells() {
         id: doc.id,
         ...doc.data()
       })) as Sell[];
-      
+
       setState(prev => ({
         ...prev,
         sells,
@@ -146,7 +144,7 @@ export function useSells() {
    */
   const calculateStats = useCallback((sellsData?: Sell[]) => {
     const sells = sellsData || state.sells;
-    
+
     if (sells.length === 0) {
       updateState({ stats: null });
       return;
@@ -166,10 +164,10 @@ export function useSells() {
 
       sells.forEach(sell => {
         const sellTotal = sell.total || 0;
-        const sellDate = sell.date instanceof Date 
-          ? sell.date 
+        const sellDate = sell.date instanceof Date
+          ? sell.date
           : new Date(sell.date as any);
-        
+
         totalSales += sellTotal;
         totalOrders += 1;
 
@@ -288,8 +286,7 @@ export function useSells() {
  * Hook para obtener una venta específica por ID
  */
 export function useSell(sellId: string) {
-  const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
+  const { storeId } = useCurrentStore();
   const [sell, setSell] = useState<Sell | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -303,7 +300,7 @@ export function useSell(sellId: string) {
 
       // Aquí implementarías la carga de una venta específica
       // Por ahora dejamos un placeholder
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Error cargando venta:', error);

@@ -70,6 +70,10 @@ export async function createProductAction(
         return { success: false, errors: { _form: ['No autenticado'] } };
     }
 
+    if (!session.storeId) {
+        return { success: false, errors: { _form: ['No se encontró el ID de la tienda en la sesión'] } };
+    }
+
     // 2. PARSE FORM DATA
     const rawData = {
         name: formData.get('name'),
@@ -167,6 +171,10 @@ export async function updateProductAction(
     const session = await getServerSession();
     if (!session) {
         return { success: false, errors: { _form: ['No autenticado'] } };
+    }
+
+    if (!session.storeId) {
+        return { success: false, errors: { _form: ['No se encontró el ID de la tienda en la sesión'] } };
     }
 
     const id = formData.get('id') as string;
@@ -292,6 +300,10 @@ export async function deleteProductAction(
         return { success: false, errors: { _form: ['No autenticado'] } };
     }
 
+    if (!session.storeId) {
+        return { success: false, errors: { _form: ['No se encontró el ID de la tienda en la sesión'] } };
+    }
+
     try {
         // 1. Get product to access image URLs
         const product = await getProductById(productId, session.storeId);
@@ -335,6 +347,10 @@ export async function toggleProductStatusAction(
     const session = await getServerSession();
     if (!session) {
         return { success: false, errors: { _form: ['No autenticado'] } };
+    }
+
+    if (!session.storeId) {
+        return { success: false, errors: { _form: ['No se encontró el ID de la tienda en la sesión'] } };
     }
 
     try {

@@ -9,31 +9,31 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
-import { useProfileStore, type ContactData } from '../../api/profileStore';
-import { useAuthStore } from '@/features/auth/api/authStore';
+import { updateContactInfoAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SimpleSelect } from '@/components/ui/simple-select';
 import { cn } from '@/lib/utils';
-import { 
-  Phone, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  Phone,
+  CheckCircle,
+  AlertCircle,
   Copy,
   MessageCircle,
   Save,
   Loader2,
   ChevronDown
 } from 'lucide-react';
-import { 
+import {
   formatWhatsAppNumber
 } from '../../utils/profile.utils';
-import { validateWhatsApp } from '@shared/validations';
+import { validateWhatsApp } from '../../schemas/profile.schema';
 import { toast } from 'sonner';
 
 /**
@@ -71,21 +71,21 @@ export function ContactInfoSection({
   onSave,
   isSaving = false,
 }: ContactInfoSectionProps) {
-  const { updateContactInfo, markSectionDirty, getSectionState } = useProfileStore();
-  const { user } = useAuthStore();
+  const [isPending, startTransition] = useTransition();
+  const [isSectionSaving, setIsSectionSaving] = useState(false);
+  const { setProfile } = useProfileStore();
   // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
-  const sectionState = getSectionState('contact');
-  
+
   // Usar useRef para evitar re-renders innecesarios
   const selectedCountryCodeRef = useRef('+54');
-  
+
   // Calcular formato de WhatsApp sin estado local para evitar loops
   const whatsappFormatted = React.useMemo(() => {
     return formData.whatsapp ? formatWhatsAppNumber(formData.whatsapp) : '';
   }, [formData.whatsapp]);
-  
+
   // Detectar código de país del número actual
   const currentCountryCode = React.useMemo(() => {
     if (!formData.whatsapp) return '+54';
@@ -97,7 +97,7 @@ export function ContactInfoSection({
   const handleWhatsAppChange = useCallback((value: string) => {
     // Permitir solo números, espacios, guiones y el símbolo +
     const cleaned = value.replace(/[^\d\s\-+]/g, '');
-    
+
     // Solo actualizar si el valor realmente cambió
     if (cleaned !== formData.whatsapp) {
       updateField('whatsapp', cleaned);
@@ -105,26 +105,40 @@ export function ContactInfoSection({
     }
   }, [updateField]);
 
-  // Manejar guardado de la sección
+  // Manejar guardado de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
-    if (!user?.id) {
-      error('No se pudo identificar al usuario');
+    if (!profile?.id) {
+      error('No se encontró el perfil de la tienda');
       return;
     }
-    
+
+    setIsSectionSaving(true);
     try {
-      const contactData: ContactData = {
+      const contactData = {
         whatsapp: formData.whatsapp,
         website: formData.instagram, // Mapear instagram a website por ahora
       };
+
+      const result = await updateContactInfoAction(contactData);
       
-      await updateContactInfo(profile?.id || '', contactData);
-      success('Información de contacto guardada correctamente');
+      if (result.success) {
+        // Refrescar el store para actualizar todos los componentes
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
+        success('Información de contacto guardada correctamente');
+      } else {
+        const errorMsg = result.errors._form?.[0] || 'Error al guardar la información de contacto. Inténtalo de nuevo.';
+        error(errorMsg);
+      }
     } catch (err) {
       console.error('Error al guardar contacto:', err);
       error('Error al guardar la información de contacto. Inténtalo de nuevo.');
+    } finally {
+      setIsSectionSaving(false);
     }
-  }, [user?.id, formData.whatsapp, formData.instagram, updateContactInfo, profile?.id, success, error]);
+  }, [formData.whatsapp, formData.instagram, profile?.id, success, error, setProfile]);
 
 
 
@@ -161,16 +175,16 @@ export function ContactInfoSection({
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={sectionState.isSaving || !formState.isDirty}
+          disabled={isSectionSaving || !formState.isDirty}
           className="flex items-center justify-center space-x-2 w-full sm:w-auto"
           size="sm"
         >
-          {sectionState.isSaving ? (
+          {isSectionSaving ? (
             <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
           ) : (
             <Save className="w-3 h-3 sm:w-4 sm:h-4" />
           )}
-          <span className="text-xs sm:text-sm">{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span className="text-xs sm:text-sm">{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
@@ -187,7 +201,7 @@ export function ContactInfoSection({
           </div>
           <span>WhatsApp de contacto *</span>
         </Label>
-        
+
         <div className="space-y-4">
           {/* Container principal con diseño moderno */}
           <div className="relative group">
@@ -218,11 +232,11 @@ export function ContactInfoSection({
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform group-focus-within:rotate-180" />
-                
+
                 {/* Separador visual */}
                 <div className="absolute right-0 top-3 bottom-3 w-px bg-gray-200"></div>
               </div>
-              
+
               {/* Input principal mejorado */}
               <Input
                 id="whatsapp"
@@ -239,7 +253,7 @@ export function ContactInfoSection({
                   isWhatsAppValid && 'text-green-600'
                 )}
               />
-              
+
               {/* Indicador de estado */}
               {formData.whatsapp && (
                 <div className="flex-shrink-0 pr-4">
@@ -255,7 +269,7 @@ export function ContactInfoSection({
                 </div>
               )}
             </div>
-            
+
             {/* Botones de acción modernos */}
             {whatsappFormatted && (
               <div className="flex gap-3 mt-4">
@@ -269,7 +283,7 @@ export function ContactInfoSection({
                   <Copy className="w-4 h-4 mr-2 text-gray-600 group-hover:text-blue-600 transition-colors" />
                   <span className="font-medium text-gray-700 group-hover:text-blue-700">Copiar número</span>
                 </Button>
-                
+
                 <Button
                   type="button"
                   size="lg"
@@ -282,7 +296,7 @@ export function ContactInfoSection({
               </div>
             )}
           </div>
-          
+
           {/* Formato automático - Diseño mejorado */}
           {whatsappFormatted && whatsappFormatted !== formData.whatsapp && (
             <motion.div
@@ -312,7 +326,7 @@ export function ContactInfoSection({
             </motion.div>
           )}
         </div>
-        
+
         {formState.errors.whatsapp && (
           <motion.div
             initial={{ opacity: 0, x: -10 }}
@@ -323,14 +337,14 @@ export function ContactInfoSection({
             <span className="text-sm text-red-700 font-medium">{formState.errors.whatsapp}</span>
           </motion.div>
         )}
-        
+
         <div className="flex items-center space-x-2 text-gray-600">
           <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
           <p className="text-sm">
             Número principal para que los clientes se comuniquen contigo
           </p>
         </div>
-        
+
 
       </motion.div>
 
@@ -352,7 +366,7 @@ export function ContactInfoSection({
               WhatsApp configurado correctamente
             </h4>
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
               <div className="flex items-center space-x-2">
@@ -366,7 +380,7 @@ export function ContactInfoSection({
                   </p>
                 </div>
               </div>
-              
+
               <Button
                 type="button"
                 size="sm"
@@ -396,7 +410,7 @@ export function ContactInfoSection({
             Consejos para optimizar tu WhatsApp
           </h4>
         </div>
-        
+
         <div className="grid gap-2">
           {[
             { icon: '🎯', text: 'El WhatsApp es esencial para recibir pedidos de tus clientes' },

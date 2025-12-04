@@ -18,12 +18,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { 
-  TrendingUp, 
-  Package, 
-  Settings, 
-  Store, 
-  QrCode, 
+import {
+  TrendingUp,
+  Package,
+  Settings,
+  Store,
+  QrCode,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -39,7 +39,7 @@ import { User } from "@/features/user/user.types";
  */
 interface ModernSidebarProps {
   /** Usuario actual */
-  user: User | undefined;
+  user: { displayName?: string | null; email?: string | null } | undefined | null;
   /** Estado del sidebar en móvil */
   isMobileOpen: boolean;
   /** Función para alternar sidebar móvil */
@@ -145,7 +145,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
             </div>
           </div>
         )}
-        
+
         {/* Toggle collapse button - Solo en desktop */}
         <Button
           variant="ghost"
@@ -175,7 +175,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       <nav className="flex-1 p-3 sm:p-4 space-y-1 sm:space-y-2">
         {navigationItems.map((item) => {
           const isItemActive = isActive(item.href);
-          
+
           return (
             <Link
               key={item.href}
@@ -196,12 +196,12 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
             >
               <item.icon className={cn(
                 "flex-shrink-0 transition-colors",
-                isItemActive 
-                  ? "text-blue-600 dark:text-blue-400" 
+                isItemActive
+                  ? "text-blue-600 dark:text-blue-400"
                   : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300",
                 isCollapsed ? "w-5 h-5 sm:w-6 sm:h-6" : "w-4 h-4 sm:w-5 sm:h-5"
               )} />
-              
+
               {!isCollapsed && (
                 <>
                   <div className="flex-1 min-w-0">
@@ -260,7 +260,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
               </span>
             </div>
           )}
-          
+
           {/* Tooltip para modo collapsed */}
           {isCollapsed && (
             <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
@@ -277,7 +277,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
     <>
       {/* Overlay para móvil */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={toggleMobile}
         />

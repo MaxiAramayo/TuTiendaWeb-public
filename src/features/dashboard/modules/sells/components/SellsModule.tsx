@@ -21,17 +21,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSellStore } from "@/features/dashboard/modules/sells/api/sellStore";
-import { useAuthStore } from "@/features/auth/api/authStore";
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import { SellsFilters } from "./SellsFilters";
 import { Sells } from "@/shared/types/store";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { 
-  SellsModuleProps, 
-  SellsFilterValues, 
+import {
+  SellsModuleProps,
+  SellsFilterValues,
 } from "../types/components";
-import { 
-  SellsFilter 
+import {
+  SellsFilter
 } from "../types/base";
 
 /**
@@ -42,12 +42,12 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
   readOnly = false
 }) => {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const { 
-    sells, 
-    isLoading, 
-    isLoadingStats, 
-    error, 
+  const { storeId } = useCurrentStore();
+  const {
+    sells,
+    isLoading,
+    isLoadingStats,
+    error,
     stats,
     hasMore,
     getSells,
@@ -55,7 +55,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     calculateStatsFromLoadedData,
     deleteSell,
     refreshWithFilters,
-    clearError 
+    clearError
   } = useSellStore();
 
   // Estados locales
@@ -68,7 +68,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     deliveryMethod: 'all',
     sortBy: 'date-desc'
   });
-  
+
   // Estados para control de carga ÚNICA
   const [dataLoadedForStore, setDataLoadedForStore] = useState<string | null>(null);
   const loadingRef = useRef(false);
@@ -88,7 +88,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     }
 
     loadingRef.current = true;
-    
+
     try {
       const searchFilter: SellsFilter = { limit: 20 };
       await getSells(storeId, searchFilter);
@@ -100,13 +100,12 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
 
   // Función optimizada para recargar con filtros - SOLO cuando es necesario
   const reloadWithFilters = useCallback(async () => {
-    const storeId = user?.storeIds?.[0];
     if (!storeId) return;
 
     // Reset del estado de carga para permitir recarga con filtros
     setDataLoadedForStore(null);
     loadingRef.current = false;
-    
+
     const searchFilter: SellsFilter = {
       ...filters,
       limit: 20
@@ -118,26 +117,25 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
 
     await refreshWithFilters(storeId, searchFilter);
     setDataLoadedForStore(storeId);
-  }, [user?.storeIds, filters, activeFilters.customerSearch, refreshWithFilters]);
+  }, [storeId, filters, activeFilters.customerSearch, refreshWithFilters]);
 
   // Efecto para carga inicial de ventas - Optimizado siguiendo el patrón de productos
   useEffect(() => {
-    const storeId = user?.storeIds?.[0];
     if (!storeId) return;
-    
+
     // Verificar si ya cargamos datos para esta tienda
     if (dataLoadedForStore === storeId) {
       console.log('Datos ya cargados para esta tienda:', storeId);
       return;
     }
-    
+
     // Limpiar el estado de carga para asegurar que se carguen los datos
     setDataLoadedForStore(null);
     loadingRef.current = false;
-    
+
     console.log('Iniciando carga de ventas en SellsModule');
     const searchFilter: SellsFilter = { limit: 20 };
-    
+
     // Cargar ventas y calcular estadísticas
     getSells(storeId, searchFilter)
       .then(() => {
@@ -148,7 +146,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
       .catch(error => {
         console.error('Error al cargar ventas:', error);
       });
-  }, [user?.storeIds, dataLoadedForStore, getSells, calculateStatsFromLoadedData]); // Dependencias correctas
+  }, [storeId, dataLoadedForStore, getSells, calculateStatsFromLoadedData]); // Dependencias correctas
 
   // Efecto separado para calcular estadísticas cuando cambian las ventas
   useEffect(() => {
@@ -159,8 +157,8 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
 
   // Cargar más ventas (paginación)
   const handleLoadMore = useCallback(async () => {
-    if (!user?.storeIds || user.storeIds.length === 0 || !hasMore || isLoading) return;
-    
+    if (!storeId || !hasMore || isLoading) return;
+
     const searchFilter: SellsFilter = {
       ...filters,
       limit: 20
@@ -170,9 +168,8 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
       searchFilter.customerName = activeFilters.customerSearch.trim();
     }
 
-    const currentStoreId = user.storeIds[0];
-    await loadMoreSells(currentStoreId, searchFilter);
-  }, [user?.storeIds, hasMore, isLoading, filters, activeFilters.customerSearch, loadMoreSells]);
+    await loadMoreSells(storeId, searchFilter);
+  }, [storeId, hasMore, isLoading, filters, activeFilters.customerSearch, loadMoreSells]);
 
   /**
    * Maneja la creación de nueva venta - Navegación real
@@ -199,18 +196,17 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
    * Maneja la eliminación de venta
    */
   const handleDeleteSell = useCallback(async (sellId: string) => {
-    if (!user?.storeIds || user.storeIds.length === 0) return;
+    if (!storeId) return;
 
     const confirmed = confirm('¿Estás seguro de que quieres eliminar esta venta? Esta acción no se puede deshacer.');
     if (!confirmed) return;
 
-    const currentStoreId = user.storeIds[0];
-    const success = await deleteSell(currentStoreId, sellId);
+    const success = await deleteSell(storeId, sellId);
     if (success) {
       // Recalcular estadísticas inmediatamente
       calculateStatsFromLoadedData();
     }
-  }, [user?.storeIds?.[0], deleteSell, calculateStatsFromLoadedData]);
+  }, [storeId, deleteSell, calculateStatsFromLoadedData]);
 
   /**
    * Maneja el éxito en operaciones del formulario
@@ -225,28 +221,28 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
    */
   const handleFiltersChange = useCallback((newFilters: SellsFilterValues) => {
     setActiveFilters(newFilters);
-    
+
     // Convertir filtros del componente al formato del store
     const storeFilters: SellsFilter = {};
-    
+
     if (newFilters.startDate) {
       storeFilters.startDate = newFilters.startDate;
     }
-    
+
     if (newFilters.endDate) {
       storeFilters.endDate = newFilters.endDate;
     }
-    
+
     if (newFilters.paymentMethod && newFilters.paymentMethod !== 'all') {
       storeFilters.paymentMethod = newFilters.paymentMethod;
     }
-    
+
     if (newFilters.customerSearch.trim()) {
       storeFilters.customerName = newFilters.customerSearch.trim();
     }
-    
+
     setFilters(storeFilters);
-    
+
     // Recargar con debounce para evitar llamadas excesivas
     setTimeout(() => {
       reloadWithFilters();
@@ -264,7 +260,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
       deliveryMethod: 'all',
       sortBy: 'date-desc'
     });
-    
+
     // Recargar datos sin filtros
     setTimeout(() => {
       reloadWithFilters();
@@ -275,13 +271,12 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
    * Exporta datos de ventas
    */
   const handleExport = useCallback(async () => {
-    if (!user?.storeIds || user.storeIds.length === 0) return;
-    
+    if (!storeId) return;
+
     try {
-      const currentStoreId = user.storeIds[0];
       // Obtener todas las ventas sin límite
-      await getSells(currentStoreId, { ...filters, limit: undefined });
-      
+      await getSells(storeId, { ...filters, limit: undefined });
+
       // Crear CSV con los datos
       const headers = ['Fecha', 'Cliente', 'Total', 'Método de Pago', 'Método de Entrega', 'Estado'];
       const csvData = sells.map(sell => [
@@ -310,7 +305,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
     } catch (error) {
       console.error('Error al exportar ventas:', error);
     }
-  }, [user?.storeIds, filters, sells, getSells]);
+  }, [storeId, filters, sells, getSells]);
 
   return (
     <div className="space-y-6">{/* Header con estadísticas */}
@@ -378,7 +373,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
           <DownloadIcon className="w-4 h-4 mr-2" />
           Exportar
         </Button>
-        
+
         {!readOnly && (
           <Button onClick={handleNewSell}>
             <PlusIcon className="w-4 h-4 mr-2" />
@@ -392,8 +387,8 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
         <Alert variant="destructive">
           <AlertDescription>
             {error}
-            <Button 
-              variant="link" 
+            <Button
+              variant="link"
               onClick={clearError}
               className="ml-2 p-0 h-auto text-destructive"
             >
@@ -439,7 +434,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
                           <Badge variant="outline">{sell.paymentMethod}</Badge>
                           <Badge variant="secondary">{sell.deliveryMethod}</Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
                           <div>
                             <strong>Fecha:</strong> {format(new Date(sell.date), 'dd/MM/yyyy HH:mm', { locale: es })}
@@ -448,7 +443,7 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
                             <strong>Productos:</strong> {sell.products.length} item(s)
                           </div>
                           <div>
-                            <strong>Total:</strong> 
+                            <strong>Total:</strong>
                             <span className="font-bold text-green-600 ml-1">
                               ${(sell.total || sell.products.reduce((sum, p) => sum + (p.price * p.cantidad), 0)).toFixed(2)}
                             </span>
@@ -494,12 +489,12 @@ export const SellsModule: React.FC<SellsModuleProps> = ({
                   </div>
                 ))}
               </div>
-              
+
               {/* Botón de cargar más */}
               {hasMore && (
                 <div className="flex justify-center mt-6">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleLoadMore}
                     disabled={isLoading}
                   >

@@ -1,104 +1,101 @@
 /**
  * Formulario de registro de usuarios
  * 
+ * Refactored to use Server Actions and hybrid authentication pattern
+ * 
  * @module features/auth/components/RegisterForm
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GoogleButton } from '@/features/auth/components/GoogleButton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
-import { registerSchema, type RegisterFormData as RegisterFormValues } from '@/features/auth/schemas/auth.schema';
-import type { StoreType } from '@/features/store/schemas/store.schema';
+import { hybridRegister } from '@/features/auth/lib/hybrid-login';
+import { registerAction } from '@/features/auth/actions/auth.actions';
+import { registerSchema, type RegisterFormData } from '@/features/auth/schemas/register.schema';
 
 
 
 /**
  * Componente de formulario de registro
+ * Usa patrón híbrido: registerAction + hybridRegister para auto-login
  */
 export const RegisterForm = () => {
-  const { signUp, isLoading } = useAuth();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-
-  const {
-    slug,
-    isAvailable: slugAvailable,
-    isChecking: isCheckingSlug,
-    error: slugError,
-    setSlug,
-    generateFromText
-  } = useSlugValidation();
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
-    setValue,
-    trigger
-  } = useForm<RegisterFormValues>({
+    setError
+  } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
       password: '',
       confirmPassword: '',
-      displayName: '',
-      whatsappNumber: '',
-      name: '',
-      storeType: 'other',
-      slug: '',
-      terms: true
+      displayName: ''
     }
   });
 
-  // Sincronizar slug del hook con el formulario
-  useEffect(() => {
-    setValue('slug', slug);
-  }, [slug, setValue]);
-
-  // Manejar cambio de slug manual
-  const handleSlugChange = (value: string) => {
-    setSlug(value);
-  };
-
-  // Generar slug a partir del nombre de la tienda
-  const handleStoreNameChange = (name: string) => {
-    generateFromText(name);
-    setValue('name', name);
-  };
-
-  const onSubmit = async (data: RegisterFormValues) => {
-    if (!slugAvailable) {
-      toast.error('El nombre del sitio no está disponible');
-      return;
-    }
+  const onSubmit = async (data: RegisterFormData) => {
+    setIsLoading(true);
 
     try {
-      // Usar el slug del hook en lugar del formulario
-      const formDataWithSlug = {
-        ...data,
-        slug: slug
-      };
+      // 1. Crear usuario con Server Action
+      const formData = new FormData();
+      formData.append('email', data.email);
+      formData.append('password', data.password);
+      formData.append('displayName', data.displayName);
 
-      await signUp(formDataWithSlug);
-      toast.success('Cuenta y tienda creadas correctamente');
+      const registerResult = await registerAction(null, formData);
+
+      if (!registerResult.success) {
+        // Manejar errores del register
+        const errors = registerResult.errors || {};
+        if (errors._form) {
+          toast.error(errors._form[0]);
+        }
+        if (errors.email) {
+          setError('email', { message: errors.email[0] });
+        }
+        if (errors.password) {
+          setError('password', { message: errors.password[0] });
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Auto-login con patrón híbrido
+      const loginResult = await hybridRegister(data.email, data.password);
+
+      if (!loginResult.success) {
+        toast.error('Cuenta creada. Por favor inicia sesión.');
+        router.push('/sign-in');
+        return;
+      }
+
+      // 3. Redirigir a completar perfil
+      toast.success('Cuenta creada correctamente');
+      router.push('/auth/complete-profile');
     } catch (error) {
-      // El error ya se maneja en useAuth con toast
       console.error('Error en registro:', error);
+      toast.error('Error inesperado al crear la cuenta');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -124,7 +121,7 @@ export const RegisterForm = () => {
               disabled={isLoading}
             />
             {errors.email && (
-              <p className="text-sm text-red-500">{String(errors.email?.message || '')}</p>
+              <p className="text-sm text-red-500">{errors.email.message}</p>
             )}
           </div>
 
@@ -155,7 +152,7 @@ export const RegisterForm = () => {
               </Button>
             </div>
             {errors.password && (
-              <p className="text-sm text-red-500">{String(errors.password?.message || '')}</p>
+              <p className="text-sm text-red-500">{errors.password.message}</p>
             )}
           </div>
 
@@ -169,7 +166,7 @@ export const RegisterForm = () => {
               disabled={isLoading}
             />
             {errors.confirmPassword && (
-              <p className="text-sm text-red-500">{String(errors.confirmPassword?.message || '')}</p>
+              <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
             )}
           </div>
 
@@ -183,135 +180,14 @@ export const RegisterForm = () => {
               disabled={isLoading}
             />
             {errors.displayName && (
-              <p className="text-sm text-red-500">{String(errors.displayName?.message || '')}</p>
+              <p className="text-sm text-red-500">{errors.displayName.message}</p>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="whatsappNumber">Número de WhatsApp</Label>
-            <Input
-              id="whatsappNumber"
-              type="tel"
-              placeholder="+54 9 11 1234-5678"
-              {...register('whatsappNumber')}
-              disabled={isLoading}
-            />
-            {errors.whatsappNumber && (
-              <p className="text-sm text-red-500">{String(errors.whatsappNumber?.message || '')}</p>
-            )}
-          </div>
-
-          {/* Datos de la tienda */}
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="font-medium mb-3">Información de tu tienda</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre de la tienda</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Mi Tienda"
-                {...register('name')}
-                disabled={isLoading}
-                onChange={(e) => {
-                  const { value } = e.target;
-                  register('name').onChange(e);
-                  if (value.length >= 3) {
-                    handleStoreNameChange(value);
-                  }
-                }}
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{String(errors.name?.message || '')}</p>
-              )}
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="storeType">Tipo de negocio</Label>
-              <Select
-                defaultValue="other"
-                onValueChange={(value) => setValue('storeType', value as StoreType)}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona el tipo de negocio" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="restaurant">Restaurante</SelectItem>
-                  <SelectItem value="retail">Comercio</SelectItem>
-                  <SelectItem value="service">Servicio</SelectItem>
-                  <SelectItem value="other">Otro</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.storeType && (
-                <p className="text-sm text-red-500">{String(errors.storeType?.message || '')}</p>
-              )}
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="slug">
-                URL de tu tienda
-                <span className="ml-1 text-xs text-gray-500">(tutienda.com/tu-url)</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="slug"
-                  type="text"
-                  placeholder="mi-tienda"
-                  value={slug}
-                  disabled={isLoading}
-                  onChange={(e) => handleSlugChange(e.target.value)}
-                  className={`pr-10 ${slugAvailable === true ? 'border-green-500' : slugAvailable === false ? 'border-red-500' : ''}`}
-                />
-                {isCheckingSlug && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="h-4 w-4 border-2 border-t-blue-500 rounded-full animate-spin"></div>
-                  </div>
-                )}
-                {!isCheckingSlug && slugAvailable === true && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
-                    ✓
-                  </div>
-                )}
-                {!isCheckingSlug && slugAvailable === false && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500">
-                    ✗
-                  </div>
-                )}
-              </div>
-              {errors.slug && (
-                <p className="text-sm text-red-500">{String(errors.slug?.message || '')}</p>
-              )}
-              {!errors.slug && slugAvailable === false && (
-                <p className="text-sm text-red-500">Este nombre de sitio ya está en uso</p>
-              )}
-            </div>
-          </div>
-
-          {/* Términos y condiciones */}
-          <div className="flex items-start space-x-2 mt-4">
-            <Checkbox
-              id="terms"
-              {...register('terms')}
-              disabled={isLoading}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label htmlFor="terms" className="text-sm font-normal cursor-pointer">
-                Acepto los{' '}
-                <Link href="/terminos-condiciones" className="text-primary hover:underline" target="_blank">
-                  términos y condiciones
-                </Link>
-              </Label>
-              {errors.terms && (
-                <p className="text-sm text-red-500">{String(errors.terms?.message || '')}</p>
-              )}
-            </div>
           </div>
 
           <Button
             type="submit"
             className="w-full mt-6"
-            disabled={isLoading || isCheckingSlug || slugAvailable === false}
+            disabled={isLoading}
           >
             {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
           </Button>

@@ -12,7 +12,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileSection, FormState } from '../../types/store.type';
-import { useProfileStore } from '../../api/profileStore';
 import { cn } from '@/lib/utils';
 import { CheckCircle, AlertCircle, Circle } from 'lucide-react';
 
@@ -29,9 +28,65 @@ interface ProfileNavigationProps {
   activeSection: ProfileSection;
   onSectionChange: (section: ProfileSection) => void;
   formState: FormState;
+  /** Campos modificados (dirty) del formulario - opcional para tracking por sección */
+  dirtyFields?: Record<string, boolean>;
   variant?: 'desktop' | 'mobile';
   className?: string;
 }
+
+/**
+ * Mapeo de campos del formulario a secciones
+ */
+const FIELD_TO_SECTION_MAP: Record<string, ProfileSection> = {
+  // Información básica
+  name: 'basic',
+  description: 'basic',
+  siteName: 'basic',
+  storeType: 'basic',
+  category: 'basic',
+  slug: 'basic',
+  type: 'basic',
+  
+  // Contacto
+  whatsapp: 'contact',
+  website: 'contact',
+  email: 'contact',
+  phone: 'contact',
+  
+  // Dirección
+  street: 'address',
+  city: 'address',
+  province: 'address',
+  country: 'address',
+  zipCode: 'address',
+  
+  // Horarios
+  schedule: 'schedule',
+  openingHours: 'schedule',
+  
+  // Redes sociales
+  instagram: 'social',
+  facebook: 'social',
+  socialLinks: 'social',
+  
+  // Tema
+  theme: 'theme',
+  primaryColor: 'theme',
+  secondaryColor: 'theme',
+  accentColor: 'theme',
+  logoUrl: 'theme',
+  bannerUrl: 'theme',
+  fontFamily: 'theme',
+  style: 'theme',
+  
+  // Configuración de pagos y entrega
+  paymentMethods: 'settings',
+  deliveryMethods: 'settings',
+  currency: 'settings',
+  
+  // Suscripción
+  subscription: 'subscription',
+};
 
 /**
  * Componente de navegación del perfil
@@ -41,29 +96,48 @@ export function ProfileNavigation({
   activeSection,
   onSectionChange,
   formState,
+  dirtyFields = {},
   variant = 'desktop',
   className,
 }: ProfileNavigationProps) {
-  const { getSectionState } = useProfileStore();
-  
-  // Memoizar estados de secciones para evitar recálculos innecesarios
+  // Calcular qué secciones tienen campos modificados
+  const getDirtySections = useCallback((): Set<ProfileSection> => {
+    const dirtySections = new Set<ProfileSection>();
+    
+    Object.keys(dirtyFields).forEach(field => {
+      if (dirtyFields[field]) {
+        // Buscar el campo base (sin índices de array como [0])
+        const baseField = field.split('.')[0].replace(/\[\d+\]/g, '');
+        const section = FIELD_TO_SECTION_MAP[baseField];
+        if (section) {
+          dirtySections.add(section);
+        }
+      }
+    });
+    
+    return dirtySections;
+  }, [dirtyFields]);
+
+  // Memoizar estados de secciones basado en formState y dirtyFields
   const sectionStatuses = useMemo(() => {
+    const dirtySections = getDirtySections();
+    
     return sections.reduce((acc, section) => {
-      const sectionState = getSectionState(section.id);
       const sectionErrors = formState.errors[section.id];
-      const hasErrors = sectionErrors && sectionErrors.length > 0;
+      const hasErrors = sectionErrors && (typeof sectionErrors === 'string' ? sectionErrors.length > 0 : Object.keys(sectionErrors).length > 0);
+      const isSectionDirty = dirtySections.has(section.id);
       
       let status: 'error' | 'modified' | 'clean' = 'clean';
-      if (hasErrors || sectionState.error) {
+      if (hasErrors) {
         status = 'error';
-      } else if (sectionState.isDirty) {
+      } else if (isSectionDirty) {
         status = 'modified';
       }
       
       acc[section.id] = status;
       return acc;
     }, {} as Record<ProfileSection, 'error' | 'modified' | 'clean'>);
-  }, [sections, formState.errors, getSectionState]);
+  }, [sections, formState.errors, getDirtySections]);
   
   // Obtener estado de una sección desde el cache memoizado
   const getSectionStatus = useCallback((sectionId: ProfileSection) => {

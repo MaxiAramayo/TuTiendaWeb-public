@@ -9,10 +9,10 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Download, 
-  RefreshCw, 
-  Share2, 
+import {
+  Download,
+  RefreshCw,
+  Share2,
   Printer,
   Smartphone,
   Monitor,
@@ -108,7 +108,7 @@ const QRActions: React.FC<QRActionsProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>QR Code - ${storeProfile?.basicInfo?.name || user.displayName || 'Mi Tienda'}</title>
+          <title>QR Code - ${storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda'}</title>
           <style>
             body {
               margin: 0;
@@ -176,7 +176,7 @@ const QRActions: React.FC<QRActionsProps> = ({
         </head>
         <body>
           <div class="qr-print-container">
-            <div class="store-name">${storeProfile?.basicInfo?.name || user.displayName || 'Mi Tienda'}</div>
+            <div class="store-name">${storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda'}</div>
             <div class="badge">Menú Digital</div>
             <div class="qr-wrapper">
               ${qrContainer.querySelector('.bg-white')?.innerHTML || ''}
@@ -190,7 +190,7 @@ const QRActions: React.FC<QRActionsProps> = ({
 
     printWindow.document.write(printContent);
     printWindow.document.close();
-    
+
     // Esperar a que cargue antes de imprimir
     setTimeout(() => {
       printWindow.print();
@@ -223,7 +223,7 @@ const QRActions: React.FC<QRActionsProps> = ({
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Acciones del Código QR
           </h3>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Update QR */}
             <Button
@@ -281,7 +281,7 @@ const QRActions: React.FC<QRActionsProps> = ({
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Opciones de Compartir
           </h3>
-          
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 qr-actions-grid">
             {/* Copy URL */}
             <Button
@@ -361,7 +361,7 @@ const QRActions: React.FC<QRActionsProps> = ({
             <Monitor className="w-5 h-5" />
             <span>Consejos de Uso</span>
           </h3>
-          
+
           <div className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
             <div className="flex items-start space-x-2">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
@@ -369,14 +369,14 @@ const QRActions: React.FC<QRActionsProps> = ({
                 <strong>Para imprimir:</strong> Descarga el PDF para obtener la mejor calidad de impresión
               </p>
             </div>
-            
+
             <div className="flex items-start space-x-2">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
               <p>
                 <strong>Para mostrar en pantalla:</strong> Usa el código QR directamente desde esta página
               </p>
             </div>
-            
+
             <div className="flex items-start space-x-2">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
               <p>

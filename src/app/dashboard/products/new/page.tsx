@@ -16,6 +16,10 @@ export default async function NewProductPage() {
     redirect('/sign-in');
   }
 
+  if (!session.storeId) {
+    redirect('/dashboard');
+  }
+
   const [categories, tags] = await Promise.all([
     getCategories(session.storeId),
     getTags(session.storeId),

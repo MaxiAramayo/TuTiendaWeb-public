@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSellStore } from "@/features/dashboard/modules/sells/api/sellStore";
-import { useAuthStore } from "@/features/auth/api/authStore";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { ProductSelector } from "./ProductSelector";
 import { ProductInCart } from "@/shared/types/store";
 import { Product as ProductDocument } from "@/shared/types/firebase.types";
@@ -115,7 +115,7 @@ export const SellForm: React.FC<SellFormProps> = ({
 }) => {
   const router = useRouter();
   const { addSell, updateSell, isLoading, getSellById } = useSellStore();
-  const { user } = useAuthStore();
+  const { user } = useAuthClient();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<ProductInCart[]>([]);
 
@@ -319,7 +319,7 @@ export const SellForm: React.FC<SellFormProps> = ({
         status: data.status || "pending",
         notes: data.notes || "",
         source: data.source || "local",
-        createdBy: user?.id || "",
+        createdBy: user?.uid || "",
         discount: data.discount,
         tax: data.tax,
         updatedAt: new Date()

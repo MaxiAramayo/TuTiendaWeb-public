@@ -1,6 +1,8 @@
 /**
  * Formulario para completar el perfil después de registrarse con Google
  * 
+ * Refactored to use Server Actions instead of useAuth hook
+ * 
  * @module features/auth/components/GoogleProfileSetup
  */
 
@@ -20,19 +22,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { completeRegistrationAction } from '@/features/auth/actions/auth.actions';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
-import type { StoreType } from '@shared/validations';
-import { googleProfileSchema, type GoogleProfileSetupValues } from '@/features/auth/validation';
+import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
+import { googleProfileSchema, type GoogleProfileSetupValues } from '@/features/auth/schemas/google-profile.schema';
 
 
 
 /**
  * Componente para completar el perfil después de registrarse con Google
+ * Usa Server Actions para crear tienda y actualizar perfil
  */
 export const GoogleProfileSetup = () => {
-  const { completeGoogleProfile, isLoading } = useAuth();
   const [user, loading, error] = useAuthState(auth);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     slug,
     isAvailable: slugAvailable,
@@ -99,18 +102,41 @@ export const GoogleProfileSetup = () => {
         toast.error('Usuario no autenticado');
         return;
       }
-      
-      // Usar el slug del hook en lugar del formulario
-      const formDataWithSlug = {
-        ...data,
-        slug: slug
-      };
-      
-      await completeGoogleProfile(user.uid, formDataWithSlug);
-      toast.success('Perfil completado correctamente');
+
+      setIsSubmitting(true);
+
+      // Map Google profile data to completeRegistrationAction format
+      const formData = new FormData();
+
+      // User profile data
+      formData.append('displayName', user.displayName || '');
+      formData.append('phone', data.whatsappNumber);
+
+      // Store data
+      formData.append('storeName', data.name);
+      formData.append('storeType', data.storeType);
+      formData.append('address', data.address || '');
+      formData.append('phone', data.whatsappNumber);
+
+      // Call Server Action
+      const result = await completeRegistrationAction(null, formData);
+
+      if (result.success) {
+        toast.success('Perfil completado correctamente');
+        router.push('/dashboard');
+      } else {
+        // Handle errors
+        if (result.errors._form) {
+          toast.error(result.errors._form[0]);
+        } else {
+          toast.error('Error al completar el perfil');
+        }
+      }
     } catch (error) {
-      // El error ya se maneja en useAuth con toast
       console.error('Error al completar perfil:', error);
+      toast.error('Error inesperado al completar el perfil');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -141,7 +167,7 @@ export const GoogleProfileSetup = () => {
           Para finalizar tu registro, necesitamos algunos datos adicionales
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
@@ -153,7 +179,7 @@ export const GoogleProfileSetup = () => {
               type="tel"
               placeholder="+54 9 11 1234-5678"
               {...register('whatsappNumber')}
-              disabled={isLoading}
+              disabled={isSubmitting}
             />
             {errors.whatsappNumber && (
               <p className="text-sm text-red-500">{errors.whatsappNumber.message}</p>
@@ -163,7 +189,7 @@ export const GoogleProfileSetup = () => {
           {/* Datos de la tienda */}
           <div className="pt-4 border-t border-gray-200">
             <h3 className="font-medium mb-3">Información de tu tienda</h3>
-            
+
             <div className="space-y-2">
               <Label htmlFor="name">Nombre de la tienda</Label>
               <Input
@@ -171,7 +197,7 @@ export const GoogleProfileSetup = () => {
                 type="text"
                 placeholder="Mi Tienda"
                 {...register('name')}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 onChange={(e) => {
                   const { value } = e.target;
                   register('name').onChange(e);
@@ -187,10 +213,10 @@ export const GoogleProfileSetup = () => {
 
             <div className="space-y-2 mt-4">
               <Label htmlFor="storeType">Tipo de negocio</Label>
-              <Select 
+              <Select
                 defaultValue="other"
                 onValueChange={(value) => setValue('storeType', value as StoreType)}
-                disabled={isLoading}
+                disabled={isSubmitting}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona el tipo de negocio" />
@@ -198,7 +224,7 @@ export const GoogleProfileSetup = () => {
                 <SelectContent>
                   <SelectItem value="restaurant">Restaurante</SelectItem>
                   <SelectItem value="retail">Comercio</SelectItem>
-                  <SelectItem value="service">Servicio</SelectItem>
+                  <SelectItem value="services">Servicio</SelectItem>
                   <SelectItem value="other">Otro</SelectItem>
                 </SelectContent>
               </Select>
@@ -218,7 +244,7 @@ export const GoogleProfileSetup = () => {
                   type="text"
                   placeholder="mi-tienda"
                   value={slug}
-                  disabled={isLoading}
+                  disabled={isSubmitting}
                   onChange={(e) => handleSlugChange(e.target.value)}
                   className={`pr-10 ${slugAvailable === true ? 'border-green-500' : slugAvailable === false ? 'border-red-500' : ''}`}
                 />
@@ -252,7 +278,7 @@ export const GoogleProfileSetup = () => {
                 id="description"
                 placeholder="Describe brevemente tu negocio"
                 {...register('description')}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="resize-none"
               />
               {errors.description && (
@@ -263,12 +289,12 @@ export const GoogleProfileSetup = () => {
 
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full mt-6" 
-            disabled={isLoading || isCheckingSlug || slugAvailable === false}
+          <Button
+            type="submit"
+            className="w-full mt-6"
+            disabled={isSubmitting || isCheckingSlug || slugAvailable === false}
           >
-            {isLoading ? 'Guardando...' : 'Completar perfil'}
+            {isSubmitting ? 'Guardando...' : 'Completar perfil'}
           </Button>
         </form>
       </CardContent>

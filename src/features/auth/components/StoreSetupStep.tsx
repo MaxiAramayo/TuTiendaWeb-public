@@ -12,16 +12,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Store, Phone, ArrowLeft, Check, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { registerAction, completeRegistrationAction } from '@/features/auth/actions/auth.actions';
+import { hybridRegister } from '@/features/auth/lib/hybrid-login';
 import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
 import { UserData, StoreData } from './MultiStepRegister';
-import type { StoreType } from '@shared/validations';
+import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
 
 // Schema de validación para el segundo paso
 const storeSetupSchema = z.object({
@@ -42,13 +44,14 @@ interface StoreSetupStepProps {
 /**
  * Componente del segundo paso de registro
  */
-export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({ 
-  userData, 
-  onComplete, 
-  onBack 
+export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
+  userData,
+  onComplete,
+  onBack
 }) => {
-  const { signUp, completeGoogleProfile, isLoading } = useAuth();
-  
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
   const {
     slug,
     isAvailable: slugAvailable,
@@ -97,56 +100,70 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
     }
 
     try {
+      setIsLoading(true);
       // Detectar si es usuario de Google (sin contraseña)
       const isGoogleUser = !userData.password;
-      
+
       if (isGoogleUser) {
-        // Para usuarios de Google, usar completeGoogleProfile
-        const profileData = {
-          whatsappNumber: data.whatsappNumber,
-          name: data.name,
-          storeType: data.storeType as StoreType,
-          slug: slug
-        };
-        
-        // Obtener el UID del usuario actual de Firebase
-        const { getAuth } = await import('firebase/auth');
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
-        
-        if (!currentUser) {
-          throw new Error('No hay usuario autenticado');
+        // Para usuarios de Google, ya están autenticados en Firebase Client
+        // Solo necesitamos completar el perfil en el servidor
+
+        // Crear FormData para el action
+        const formData = new FormData();
+        formData.append('displayName', userData.displayName);
+        formData.append('phone', data.whatsappNumber);
+        formData.append('storeName', data.name);
+        formData.append('storeType', data.storeType);
+        formData.append('address', ''); // Address is optional/empty for now
+
+        const result = await completeRegistrationAction(null, formData);
+
+        if (!result.success) {
+          throw new Error(result.errors?._form?.[0] || 'Error al completar registro');
         }
-        
-        await completeGoogleProfile(currentUser.uid, profileData);
+
+        onComplete();
       } else {
-        // Para usuarios con email/password, usar signUp
-        const completeFormData = {
-          email: userData.email,
-          password: userData.password,
-          confirmPassword: userData.password,
-          displayName: userData.displayName,
-          whatsappNumber: data.whatsappNumber,
-          name: data.name,
-          storeType: data.storeType as StoreType,
-          slug: slug,
-          terms: userData.terms as true
-        };
-        
-        await signUp(completeFormData);
+        // Para usuarios con email/password
+        // 1. Crear cuenta y obtener userId
+        const registerFormData = new FormData();
+        registerFormData.append('email', userData.email);
+        registerFormData.append('password', userData.password!);
+        registerFormData.append('displayName', userData.displayName);
+
+        const registerResult = await registerAction(null, registerFormData);
+
+        if (!registerResult.success) {
+          // Manejar errores de validación del servidor
+          if (registerResult.errors?.email) throw new Error(registerResult.errors.email[0]);
+          if (registerResult.errors?.password) throw new Error(registerResult.errors.password[0]);
+          throw new Error(registerResult.errors?._form?.[0] || 'Error al crear cuenta');
+        }
+
+        // 2. Login híbrido (Client Auth + Server Session)
+        await hybridRegister(userData.email, userData.password!);
+
+        // 3. Completar perfil y crear tienda
+        const completeFormData = new FormData();
+        completeFormData.append('displayName', userData.displayName);
+        completeFormData.append('phone', data.whatsappNumber);
+        completeFormData.append('storeName', data.name);
+        completeFormData.append('storeType', data.storeType);
+        completeFormData.append('address', '');
+
+        const completeResult = await completeRegistrationAction(null, completeFormData);
+
+        if (!completeResult.success) {
+          throw new Error(completeResult.errors?._form?.[0] || 'Error al configurar tienda');
+        }
+
+        onComplete();
       }
-      
-      onComplete();
     } catch (error: any) {
-      // Manejo específico de errores
       console.error('Error en registro:', error);
-      
-      // Mostrar mensaje específico según el tipo de error
-      if (error?.code === 'auth/email-already-in-use') {
-        toast.error('Este email ya está registrado. Intenta iniciar sesión o usa otro email.');
-      } else {
-        toast.error(error.message || 'Error al crear la cuenta. Inténtalo de nuevo.');
-      }
+      toast.error(error.message || 'Error al crear la cuenta. Inténtalo de nuevo.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -175,7 +192,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
           Completa los datos de tu tienda para comenzar a vender
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Nombre de la tienda */}
@@ -208,7 +225,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
           {/* Tipo de tienda */}
           <div className="space-y-2">
             <Label htmlFor="storeType">Tipo de tienda</Label>
-            <Select 
+            <Select
               {...register('storeType')}
               onValueChange={(value) => setValue('storeType', value)}
               disabled={isLoading}
@@ -265,7 +282,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
                 className="rounded-l-none h-11"
               />
             </div>
-            
+
             {/* Estado de validación del slug */}
             {slug && (
               <div className="flex items-center gap-2 text-sm">
@@ -287,7 +304,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
                 )}
               </div>
             )}
-            
+
             {slugError && (
               <p className="text-sm text-red-500">{slugError}</p>
             )}
@@ -298,9 +315,9 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
 
           {/* Botones */}
           <div className="flex gap-3 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onBack}
               disabled={isLoading}
               className="flex-1 h-11"
@@ -308,8 +325,8 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
               <ArrowLeft className="h-4 w-4 mr-2" />
               Atrás
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading || !slugAvailable || isCheckingSlug}
               className="flex-1 h-11 text-base font-medium"
             >

@@ -16,16 +16,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { resetPasswordSchema, type ResetPasswordFormValues } from '@/features/auth/validation';
+import { auth } from '@/lib/firebase/client';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { resetPasswordSchema, type ResetPasswordData as ResetPasswordFormValues } from '@/features/auth/schemas/reset-password.schema';
 
+// ...
 
-
-/**
- * Componente de formulario para restablecer contraseña
- */
 export const ResetPasswordForm = () => {
-  const { resetPassword, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
   const {
@@ -41,12 +39,15 @@ export const ResetPasswordForm = () => {
 
   const onSubmit = async (data: ResetPasswordFormValues) => {
     try {
-      await resetPassword(data.email);
+      setIsLoading(true);
+      await sendPasswordResetEmail(auth, data.email);
       setEmailSent(true);
       toast.success('Se ha enviado un correo para restablecer tu contraseña');
-    } catch (error) {
-      // El error ya se maneja en useAuth con toast
+    } catch (error: any) {
       console.error('Error al restablecer contraseña:', error);
+      toast.error(error.message || 'Error al enviar el correo');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -58,7 +59,7 @@ export const ResetPasswordForm = () => {
           Ingresa tu correo electrónico para recibir un enlace de restablecimiento
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         {emailSent ? (
           <div className="text-center space-y-4">
@@ -66,9 +67,9 @@ export const ResetPasswordForm = () => {
               <p>Hemos enviado un correo electrónico con instrucciones para restablecer tu contraseña.</p>
               <p className="mt-2">Revisa tu bandeja de entrada y sigue las instrucciones.</p>
             </div>
-            <Button 
-              variant="outline" 
-              className="mt-4" 
+            <Button
+              variant="outline"
+              className="mt-4"
               onClick={() => setEmailSent(false)}
             >
               Enviar a otro correo
@@ -90,9 +91,9 @@ export const ResetPasswordForm = () => {
               )}
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? 'Enviando...' : 'Enviar instrucciones'}

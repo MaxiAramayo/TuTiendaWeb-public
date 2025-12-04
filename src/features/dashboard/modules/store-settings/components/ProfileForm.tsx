@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfile } from '../hooks/useProfile';
-import { ProfileSection } from '../types/store.type';
+import { ProfileSection, StoreProfile } from '../types/store.type';
 import { ProfileHeader } from './sections/ProfileHeader';
 import { ProfileNavigation } from './sections/ProfileNavigation';
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -97,6 +97,8 @@ interface ProfileFormProps {
   onSectionChange?: (section: ProfileSection) => void;
   showStats?: boolean;
   showTips?: boolean;
+  /** Datos iniciales del perfil (desde Server Component) */
+  initialProfile?: StoreProfile | null;
 }
 
 /**
@@ -107,6 +109,7 @@ export function ProfileForm({
   onSectionChange,
   showStats = true,
   showTips = true,
+  initialProfile,
 }: ProfileFormProps) {
   const [activeSection, setActiveSection] = useState<ProfileSection>('basic');
   const [isMobile, setIsMobile] = useState(false);
@@ -121,12 +124,14 @@ export function ProfileForm({
     isSaving,
     error,
     updateField,
-    validateSlug,
-    uploadImage,
     saveProfile,
     resetForm,
     setActiveSection: setProfileActiveSection,
-  } = useProfile();
+  } = useProfile({ initialProfile });
+
+  // Obtener dirtyFields del formulario para tracking por sección
+  const { formState: rhfFormState } = form;
+  const dirtyFields = rhfFormState.dirtyFields as Record<string, boolean>;
 
   // Detectar dispositivo móvil
   useEffect(() => {
@@ -176,8 +181,6 @@ export function ProfileForm({
       formState,
       form,
       updateField,
-      validateSlug,
-      uploadImage,
       profile,
       onSave: handleSectionSave,
       isSaving,
@@ -268,6 +271,7 @@ export function ProfileForm({
               activeSection={activeSection}
               onSectionChange={handleSectionChange}
               formState={formState}
+              dirtyFields={dirtyFields}
             />
           </div>
         )}
@@ -285,6 +289,7 @@ export function ProfileForm({
                 activeSection={activeSection}
                 onSectionChange={handleSectionChange}
                 formState={formState}
+                dirtyFields={dirtyFields}
                 variant="mobile"
               />
             </div>

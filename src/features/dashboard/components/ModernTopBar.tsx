@@ -16,9 +16,9 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { 
-  Menu, 
-  User, 
+import {
+  Menu,
+  User,
   Settings,
   ChevronDown
 } from "lucide-react";
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User as UserType } from "@/features/user/user.types";
-import { useProfile } from "@/features/dashboard/modules/store-settings/hooks/useProfile";
+import { useProfileName, useProfileLogo } from "@/features/dashboard/modules/store-settings/stores/profile.store";
 import SignOutButton from "./SignOutButton";
 
 /**
@@ -41,7 +41,7 @@ import SignOutButton from "./SignOutButton";
  */
 interface ModernTopBarProps {
   /** Usuario actual */
-  user: UserType | undefined;
+  user: { displayName?: string | null; email?: string | null } | undefined | null;
   /** Función para alternar sidebar móvil */
   toggleMobileSidebar: () => void;
 }
@@ -67,14 +67,14 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   toggleMobileSidebar
 }) => {
   const pathname = usePathname();
-  const { profile } = useProfile();
   
-  // Obtener el nombre de la tienda del perfil, fallback al nombre del usuario
-  const name = profile?.basicInfo?.name || user?.displayName || 'Mi Tienda';
+  // Usar selectores del store para evitar re-renders innecesarios
+  const storeName = useProfileName();
+  const logoUrl = useProfileLogo();
+
+  // Obtener el nombre de la tienda del store, fallback al nombre del usuario
+  const name = storeName || user?.displayName || 'Mi Tienda';
   const storeInitial = name.charAt(0).toUpperCase();
-  
-  // URL del logo de la tienda desde el perfil
-  const logoUrl = profile?.theme?.logoUrl;
 
   /**
    * Obtiene el título de la página actual
@@ -89,7 +89,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   const getBreadcrumbs = () => {
     const segments = pathname.split('/').filter(Boolean);
     const breadcrumbs = [];
-    
+
     let currentPath = '';
     for (const segment of segments) {
       currentPath += `/${segment}`;
@@ -100,7 +100,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
         isLast: currentPath === pathname
       });
     }
-    
+
     return breadcrumbs;
   };
 
@@ -109,7 +109,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4 lg:px-6">
-        
+
         {/* Lado izquierdo - Mobile menu + Breadcrumbs */}
         <div className="flex items-center space-x-2 sm:space-x-4">
           {/* Botón menú móvil */}
@@ -158,8 +158,8 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
                 <div className="flex items-center space-x-1 sm:space-x-2">
                   <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
                     {logoUrl ? (
-                      <AvatarImage 
-                        src={logoUrl} 
+                      <AvatarImage
+                        src={logoUrl}
                         alt={`Logo de ${name}`}
                         className="object-cover"
                       />
@@ -168,7 +168,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
                       {storeInitial}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="hidden md:flex flex-col items-start">
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {name}
@@ -177,12 +177,12 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
                       {user?.email || "email@ejemplo.com"}
                     </span>
                   </div>
-                  
+
                   <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            
+
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
@@ -194,31 +194,31 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
                   </p>
                 </div>
               </DropdownMenuLabel>
-              
+
               <DropdownMenuSeparator />
-              
+
               <DropdownMenuItem asChild>
-                <Link 
-                  href="/dashboard/profile" 
+                <Link
+                  href="/dashboard/profile"
                   className="flex items-center cursor-pointer"
                 >
                   <User className="mr-2 h-4 w-4" />
                   <span>Perfil</span>
                 </Link>
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem asChild>
-                <Link 
-                  href="/dashboard/profile" 
+                <Link
+                  href="/dashboard/profile"
                   className="flex items-center cursor-pointer"
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Configuración</span>
                 </Link>
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
+
               <DropdownMenuItem asChild>
                 <div className="w-full">
                   <SignOutButton inDropdown={true} />

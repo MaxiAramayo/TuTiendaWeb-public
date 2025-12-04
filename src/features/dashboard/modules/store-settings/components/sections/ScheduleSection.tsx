@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Clock, 
-  Save, 
-  Settings, 
-  RotateCcw, 
-  CheckCircle, 
+import {
+  Clock,
+  Save,
+  Settings,
+  RotateCcw,
+  CheckCircle,
   AlertCircle,
   Loader2,
   Plus,
@@ -26,13 +26,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import { useAuthStore } from '@/features/auth/api/authStore';
+import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useProfile } from '../../hooks/useProfile';
-import { useProfileStore } from '../../api/profileStore';
+import { updateScheduleAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
+import type { StoreProfile } from '../../types/store.type';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-import type { 
+import type {
   ProfileFormData,
   FormState,
   WeeklySchedule,
@@ -136,7 +138,7 @@ const PRESET_SCHEDULES = {
  * Horarios comunes para selección rápida
  */
 const COMMON_HOURS = [
-  '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', 
+  '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00',
   '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00',
   '20:00', '21:00', '22:00', '23:00', '23:59'
 ];
@@ -151,9 +153,10 @@ export function ScheduleSection({
   onSave,
   isSaving = false,
 }: ScheduleSectionProps) {
-  const { user } = useAuthStore();
+  const { user } = useAuthClient();
   const { profile } = useProfile();
-  const { updateSchedule, getSectionState } = useProfileStore();
+  const { setProfile } = useProfileStore();
+  const [isSectionSaving, setIsSectionSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [showPresets, setShowPresets] = useState(false);
 
@@ -177,13 +180,10 @@ export function ScheduleSection({
     return defaultSchedule;
   });
 
-  // Obtener estado de la sección
-  const sectionState = getSectionState('schedule');
-
   // Convertir schedule con períodos a formato simple para el backend
   const convertPeriodsScheduleToSimple = useCallback((periodsSchedule: WeeklySchedule) => {
     const simpleSchedule: Record<string, string> = {};
-    
+
     Object.entries(periodsSchedule).forEach(([day, dayData]) => {
       if (dayData.closed || !dayData.periods || dayData.periods.length === 0) {
         simpleSchedule[day] = 'Cerrado';
@@ -196,42 +196,54 @@ export function ScheduleSection({
         simpleSchedule[day] = periodsText;
       }
     });
-    
+
     return simpleSchedule;
   }, []);
 
-  // Guardar cambios de la sección
+  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
-    if (!user?.id) {
+    if (!user?.uid) {
       toast.error('No se pudo identificar al usuario');
       return;
     }
-    
+
     if (!profile?.id) {
       toast.error('No se encontró el perfil de la tienda');
       return;
     }
-    
+
+    setIsSectionSaving(true);
     try {
-      // Convertir el schedule con períodos al formato simple que espera el backend
-      const scheduleToSave = convertPeriodsScheduleToSimple(schedule);
-      
       // Actualizar el campo schedule en el formulario
       updateField('schedule', schedule);
-      
-      // Guardar usando el store de perfil específico para horarios con el ID de la tienda
-      const success = await updateSchedule(profile.id, scheduleToSave);
-      
-      if (success) {
+
+      // Convertir a Record<string, ...> para Server Action
+      const scheduleData: Record<string, { closed?: boolean; periods?: Array<{ open: string; close: string; nextDay?: boolean }> }> = {};
+      Object.entries(schedule).forEach(([day, data]) => {
+        scheduleData[day] = data;
+      });
+
+      // Guardar usando Server Action
+      const result = await updateScheduleAction(scheduleData);
+
+      if (result.success) {
+        // Refrescar el store para actualizar todos los componentes
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
         toast.success('Horarios guardados correctamente');
       } else {
-        toast.error('Error al guardar los horarios. Inténtalo de nuevo.');
+        const errorMsg = result.errors._form?.[0] || 'Error al guardar los horarios. Inténtalo de nuevo.';
+        toast.error(errorMsg);
       }
     } catch (err) {
       console.error('Error al guardar horarios:', err);
       toast.error('Error al guardar los horarios. Inténtalo de nuevo.');
+    } finally {
+      setIsSectionSaving(false);
     }
-  }, [user?.id, profile?.id, schedule, updateField, updateSchedule, convertPeriodsScheduleToSimple]);
+  }, [user?.uid, profile?.id, schedule, updateField, setProfile]);
 
   // Aplicar horario predefinido
   const applyPreset = useCallback((presetKey: string) => {
@@ -240,9 +252,9 @@ export function ScheduleSection({
       setSchedule(preset.schedule);
       setSelectedPreset(presetKey);
       setShowPresets(false);
-      
+
       updateField('schedule', preset.schedule);
-      
+
       toast.success(`Horario "${preset.name}" aplicado correctamente`);
     }
   }, [updateField]);
@@ -253,7 +265,7 @@ export function ScheduleSection({
       ...schedule,
       [day]: newDayData
     };
-    
+
     setSchedule(newSchedule);
     setSelectedPreset(''); // Limpiar preset al hacer cambios manuales
     updateField('schedule', newSchedule);
@@ -267,13 +279,13 @@ export function ScheduleSection({
       close: '18:00',
       nextDay: false
     };
-    
+
     const newDayData: DailySchedule = {
       ...daySchedule,
       closed: false,
       periods: [...(daySchedule.periods || []), newPeriod]
     };
-    
+
     updateDaySchedule(day, newDayData);
   }, [schedule, updateDaySchedule]);
 
@@ -281,13 +293,13 @@ export function ScheduleSection({
   const removePeriod = useCallback((day: string, periodIndex: number) => {
     const daySchedule = schedule[day as keyof WeeklySchedule];
     const newPeriods = (daySchedule.periods || []).filter((_, index) => index !== periodIndex);
-    
+
     const newDayData: DailySchedule = {
       ...daySchedule,
       periods: newPeriods,
       closed: newPeriods.length === 0
     };
-    
+
     updateDaySchedule(day, newDayData);
   }, [schedule, updateDaySchedule]);
 
@@ -299,12 +311,12 @@ export function ScheduleSection({
       ...newPeriods[periodIndex],
       [field]: value
     };
-    
+
     const newDayData: DailySchedule = {
       ...daySchedule,
       periods: newPeriods
     };
-    
+
     updateDaySchedule(day, newDayData);
   }, [schedule, updateDaySchedule]);
 
@@ -312,16 +324,16 @@ export function ScheduleSection({
   const formatScheduleDisplay = useMemo(() => {
     return DAYS_OF_WEEK.map(day => {
       const daySchedule = schedule[day.key as keyof WeeklySchedule];
-      
+
       if (daySchedule.closed || (daySchedule.periods || []).length === 0) {
         return `${day.short}: Cerrado`;
       }
-      
+
       const periodsText = (daySchedule.periods || []).map(period => {
         const closeText = period.nextDay ? `${period.close}+1` : period.close;
         return `${period.open}-${closeText}`;
       }).join(', ');
-      
+
       return `${day.short}: ${periodsText}`;
     }).join(' | ');
   }, [schedule]);
@@ -337,11 +349,11 @@ export function ScheduleSection({
       saturday: { closed: true, periods: [] },
       sunday: { closed: true, periods: [] }
     };
-    
+
     setSchedule(emptySchedule);
     setSelectedPreset('');
     updateField('schedule', emptySchedule);
-    
+
     toast.success('Todos los horarios han sido limpiados');
   }, [updateField]);
 
@@ -360,15 +372,15 @@ export function ScheduleSection({
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={sectionState.isSaving}
+          disabled={isSectionSaving}
           className="flex items-center space-x-2"
         >
-          {sectionState.isSaving ? (
+          {isSectionSaving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Save className="w-4 h-4" />
           )}
-          <span>{sectionState.isSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
@@ -385,7 +397,7 @@ export function ScheduleSection({
             <Settings className="w-4 h-4" />
             <span>Plantillas</span>
           </Button>
-          
+
           <Button
             type="button"
             variant="outline"
@@ -397,7 +409,7 @@ export function ScheduleSection({
             <span>Limpiar todo</span>
           </Button>
         </div>
-        
+
         {selectedPreset && (
           <Badge variant="secondary" className="text-xs">
             Usando: {PRESET_SCHEDULES[selectedPreset as keyof typeof PRESET_SCHEDULES]?.name}
@@ -446,10 +458,10 @@ export function ScheduleSection({
         <Label className="text-sm font-medium text-gray-700">
           Configuración personalizada
         </Label>
-        
+
         {DAYS_OF_WEEK.map((day, index) => {
           const daySchedule = schedule[day.key as keyof WeeklySchedule];
-          
+
           return (
             <motion.div
               key={day.key}
@@ -470,8 +482,8 @@ export function ScheduleSection({
                       onCheckedChange={(checked) => {
                         const newDayData: DailySchedule = {
                           closed: !checked,
-                          periods: checked && (daySchedule.periods || []).length === 0 
-                            ? [{ open: '09:00', close: '18:00', nextDay: false }] 
+                          periods: checked && (daySchedule.periods || []).length === 0
+                            ? [{ open: '09:00', close: '18:00', nextDay: false }]
                             : daySchedule.periods
                         };
                         updateDaySchedule(day.key, newDayData);
@@ -517,7 +529,7 @@ export function ScheduleSection({
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Hora de apertura */}
                         <div className="space-y-2">
@@ -571,7 +583,7 @@ export function ScheduleSection({
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Resumen del período */}
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <div className="flex items-center space-x-2">
@@ -583,7 +595,7 @@ export function ScheduleSection({
                       </div>
                     </div>
                   ))}
-                  
+
                   {(daySchedule.periods || []).length === 0 && (
                     <div className="text-center py-4 text-gray-500">
                       <p className="text-sm">No hay horarios configurados para este día</p>

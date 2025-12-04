@@ -1,8 +1,7 @@
-# Documento de Diseño y Arquitectura de Software (Server Actions First)
+# Documento de Arquitectura de Software - Next.js 15 Server Actions First
 
-**Proyecto:** E-commerce / Delivery App  
 **Stack:** Next.js 15, TypeScript, Firebase, Zustand, React Hook Form, Zod  
-**Enfoque:** Feature-Based Architecture, Server Actions Obligatorias, State Mínimo en Cliente
+**Versión:** 2.0 | Diciembre 2025
 
 ***
 
@@ -10,16 +9,15 @@
 
 ### 1.1. Server-First Philosophy
 
-Todo el flujo de datos y mutaciones **debe** pasar por el servidor. No existen API Routes tradicionales: las mutaciones se manejan exclusivamente con **Server Actions**.[1][2]
+**REGLAS OBLIGATORIAS:**
+- ✅ Lectura inicial: Server Components (`async function page()`)
+- ✅ Mutaciones: Server Actions (`'use server'`)
+- ✅ Estado global: Solo UI state (tabs, modals, filters)
+- ❌ NO API Routes tradicionales
+- ❌ NO fetch en `useEffect` para datos iniciales
+- ❌ NO datos de negocio en Zustand
 
-**Regla de Oro:**
-- **Lectura inicial:** Server Components (async fetch en `page.tsx`)
-- **Mutaciones:** Server Actions (`'use server'`)
-- **Estado global:** Solo si es estrictamente necesario (UI state, no data fetching)[3][4]
-
-### 1.2. Prohibición Estricta de Barrels
-
-Los archivos barrel (`index.ts` con `export *`) están **prohibidos** porque rompen el tree-shaking y causan ciclos en Server Components.[5]
+### 1.2. Prohibición de Barrels
 
 ```typescript
 // ❌ PROHIBIDO
@@ -29,153 +27,161 @@ export * from './components'
 import { login } from '@/features/auth/actions/auth.actions'
 ```
 
-### 1.3. Separación de Responsabilidades
+**RAZÓN:** Rompe tree-shaking, crea ciclos, aumenta bundle size.
 
-| Capa | Responsabilidad | Ubicación |
-|------|----------------|-----------|
-| **Server Pages** | Fetch inicial + Metadatos | `app/**/page.tsx` |
-| **Server Actions** | Mutaciones + Validación | `features/**/actions/*.actions.ts` |
-| **Client Components** | UI + Interactividad | `features/**/components/*.tsx` |
-| **Zustand Store** | Estado UI global (tabs, modals, filters) | `store/**/*.store.ts` |
-| **Schemas** | Validación con Zod | `features/**/schemas/*.schema.ts` |
+### 1.3. Tabla de Responsabilidades
+
+| Capa | Responsabilidad | Ubicación | Entorno |
+|------|----------------|-----------|---------|
+| Server Pages | Fetch inicial + Metadatos | `app/**/page.tsx` | Servidor |
+| Server Actions | Mutaciones + Validación | `features/**/actions/*.actions.ts` | Servidor |
+| Client Components | UI + Interactividad | `features/**/components/*.tsx` | Cliente |
+| Zustand | Estado UI global | `store/**/*.store.ts` | Cliente |
+| Schemas | Validación Zod | `features/**/schemas/*.schema.ts` | Compartido |
+| Services | DB/API logic | `features/**/services/*.service.ts` | Servidor |
 
 ***
 
-## 2. Arquitectura de Server Actions
+## 2. Server Actions - Estructura Obligatoria
 
-### 2.1. ¿Qué son las Server Actions?
-
-Son funciones asíncronas que **siempre** se ejecutan en el servidor, proporcionando un entorno seguro para mutaciones. Reemplazan completamente las API Routes tradicionales.[6][7][1]
-
-**Características:**
-- Ejecutan en el servidor incluso cuando se llaman desde Client Components
-- Protección CSRF automática (validación de `Origin` vs `Host`)[8][6]
-- Soporte nativo para Progressive Enhancement (funcionan sin JavaScript)[9]
-- Integración directa con formularios HTML
-
-### 2.2. Estructura de una Server Action
+### 2.1. Template Estándar
 
 ```typescript
-// src/features/products/actions/product.actions.ts
+// features/products/actions/product.actions.ts
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { productSchema } from '../schemas/product.schema';
-import { createProduct as createProductDB } from '../services/product.service';
-import { auth } from '@/lib/auth'; // Tu sistema de autenticación
+import { createProduct } from '../services/product.service';
+import { getServerSession } from '@/lib/auth/server-session';
 
-export async function createProductAction(formData: FormData) {
-  // 1. AUTENTICACIÓN Y AUTORIZACIÓN (OBLIGATORIO)
-  const session = await auth();
-  if (!session || session.user.role !== 'admin') {
-    return { 
-      success: false, 
-      errors: { _form: 'No autorizado' } 
-    };
-  }
+type ActionResponse<T = unknown> = 
+  | { success: true; data: T }
+  | { success: false; errors: Record<string, string[]> };
 
-  // 2. EXTRACCIÓN Y PARSEO
+export async function createProductAction(formData: FormData): Promise<ActionResponse<{ id: string }>> {
+  // 1. AUTH (SIEMPRE PRIMERO)
+  const session = await getServerSession();
+  if (!session) return { success: false, errors: { _form: ['No autenticado'] } };
+  if (session.role !== 'admin') return { success: false, errors: { _form: ['No autorizado'] } };
+
+  // 2. PARSE
   const rawData = {
     name: formData.get('name'),
     price: formData.get('price'),
-    image: formData.get('image'), // File object
+    image: formData.get('image'),
   };
 
-  // 3. VALIDACIÓN CON ZOD
+  // 3. VALIDATE
   const validation = productSchema.safeParse(rawData);
-  
   if (!validation.success) {
-    return {
-      success: false,
-      errors: validation.error.flatten().fieldErrors,
-    };
+    return { success: false, errors: validation.error.flatten().fieldErrors };
   }
 
-  // 4. MUTACIÓN EN BASE DE DATOS
+  // 4. MUTATE
   try {
-    const product = await createProductDB(validation.data);
+    const product = await createProduct(validation.data, session.storeId);
     
-    // 5. REVALIDACIÓN DE CACHE
+    // 5. REVALIDATE
     revalidatePath('/dashboard/products');
     
-    return { success: true, data: product };
+    return { success: true, data: { id: product.id } };
   } catch (error) {
-    return { 
-      success: false, 
-      errors: { _form: 'Error al crear producto' } 
-    };
+    return { success: false, errors: { _form: ['Error al crear'] } };
   }
 }
 ```
 
-**Aspectos clave validados por documentación:**
-- Siempre verificar autorización en la Server Action (no confiar solo en UI)[10][11]
-- Validar en servidor con Zod (la validación cliente puede ser bypasseada)[12][13]
-- Usar `revalidatePath()` para invalidar cache después de mutaciones[14]
+### 2.2. Progressive Enhancement
+
+```typescript
+// components/product-form-progressive.tsx
+'use client';
+import { useFormState, useFormStatus } from 'react-dom';
+import { createProductAction } from '../actions/product.actions';
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>{pending ? 'Guardando...' : 'Crear'}</button>;
+}
+
+export function ProductForm() {
+  const [state, formAction] = useFormState(createProductAction, null);
+
+  return (
+    <form action={formAction}>
+      <input name="name" required />
+      {state?.errors?.name && <span>{state.errors.name[0]}</span>}
+      <SubmitButton />
+    </form>
+  );
+}
+```
 
 ***
 
-## 3. Integración con React Hook Form + Zod
+## 3. React Hook Form + Zod
 
-### 3.1. Schema de Validación
+### 3.1. Schema Pattern
 
 ```typescript
-// src/features/products/schemas/product.schema.ts
+// features/products/schemas/product.schema.ts
 import { z } from 'zod';
 
+// Base (DB)
 export const productSchema = z.object({
-  name: z.string().min(3, 'Mínimo 3 caracteres'),
-  price: z.coerce.number().positive('Debe ser positivo'),
+  name: z.string().min(3).max(100),
+  price: z.coerce.number().positive(),
+  categoryId: z.string().min(1),
+  tags: z.array(z.string()).default([]),
+  imageUrl: z.string().url().optional(),
+});
+
+// Form (con File)
+export const productFormSchema = productSchema.extend({
   image: z.instanceof(File).optional(),
 });
 
-export type ProductFormData = z.infer<typeof productSchema>;
+// Update (parcial)
+export const productUpdateSchema = productSchema.partial();
+
+export type Product = z.infer<typeof productSchema>;
+export type ProductFormData = z.infer<typeof productFormSchema>;
 ```
 
-### 3.2. Client Component con React Hook Form
+### 3.2. Form Component Pattern
 
 ```typescript
-// src/features/products/components/product-form.tsx
+// features/products/components/product-form.tsx
 'use client';
-
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { productSchema, type ProductFormData } from '../schemas/product.schema';
-import { createProductAction } from '../actions/product.actions';
 import { useTransition } from 'react';
+import { productFormSchema, type ProductFormData } from '../schemas/product.schema';
+import { createProductAction } from '../actions/product.actions';
 
-export function ProductForm() {
+export function ProductForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isPending, startTransition] = useTransition();
-  
-  const { 
-    register, 
-    handleSubmit, 
-    formState: { errors },
-    setError 
-  } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
+  const { register, handleSubmit, formState: { errors }, setError } = useForm<ProductFormData>({
+    resolver: zodResolver(productFormSchema),
   });
 
   const onSubmit = handleSubmit(async (data) => {
     startTransition(async () => {
-      // Convertir a FormData para enviar al Server Action
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, value);
+        if (value !== undefined) formData.append(key, value);
       });
 
       const result = await createProductAction(formData);
       
-      if (!result.success && result.errors) {
-        // Mapear errores del servidor al formulario
+      if (result.success) {
+        onSuccess?.();
+      } else {
         Object.entries(result.errors).forEach(([field, messages]) => {
-          setError(field as any, { 
-            message: messages[0] 
-          });
+          setError(field as any, { message: messages[0] });
         });
       }
-      
-      // Si es exitoso, Next.js revalida automáticamente
     });
   });
 
@@ -183,53 +189,39 @@ export function ProductForm() {
     <form onSubmit={onSubmit}>
       <input {...register('name')} />
       {errors.name && <span>{errors.name.message}</span>}
-      
-      <input type="number" {...register('price')} />
-      {errors.price && <span>{errors.price.message}</span>}
-      
-      <input type="file" {...register('image')} />
-      
-      <button type="submit" disabled={isPending}>
-        {isPending ? 'Guardando...' : 'Crear Producto'}
-      </button>
+      <button disabled={isPending}>{isPending ? 'Guardando...' : 'Crear'}</button>
     </form>
   );
 }
 ```
 
-**Validación según documentación:**
-- Validación doble: cliente (UX) + servidor (seguridad)[15][13]
-- `useTransition` para manejar pending state durante mutaciones[2]
-- Mapeo de errores del servidor al formulario[15]
-
 ***
 
-## 4. Uso de Zustand (Solo Estado UI Global)
+## 4. Zustand - Solo UI State
 
-### 4.1. Cuándo usar Zustand vs Props
+### 4.1. Qué usar/no usar
 
-**Usa Zustand SOLO para:**[4][16][3]
-- Estado UI que necesitan **múltiples componentes no relacionados** (modal abierto/cerrado, filtros activos, tabs seleccionadas)
-- Preferencias de usuario (tema, idioma)
-- Estado temporal de UI (sidebar collapsed, panel de búsqueda)
+**✅ USAR Zustand para:**
+- Modal abierto/cerrado
+- Sidebar collapsed
+- Filtros activos
+- Tab seleccionada
+- Tema (dark/light)
 
-**NO uses Zustand para:**
-- Datos fetched del servidor (usa props desde Server Components)[17]
-- Estado local de un formulario (usa React Hook Form)
-- Datos que solo usa un componente (usa `useState`)
+**❌ NO usar Zustand para:**
+- Datos del servidor (productos, usuarios)
+- Estado de formularios (usar React Hook Form)
+- Loading states (usar `useTransition`)
 
-### 4.2. Ejemplo de Store Válido
+### 4.2. Store Pattern
 
 ```typescript
-// src/store/ui.store.ts
+// store/ui.store.ts
 import { create } from 'zustand';
 
 interface UIState {
-  // Estado UI que múltiples componentes necesitan
   sidebarOpen: boolean;
   activeFilters: string[];
-  
-  // Acciones
   toggleSidebar: () => void;
   setFilters: (filters: string[]) => void;
 }
@@ -237,170 +229,269 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   sidebarOpen: true,
   activeFilters: [],
-  
-  toggleSidebar: () => set((state) => ({ 
-    sidebarOpen: !state.sidebarOpen 
-  })),
-  
+  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setFilters: (filters) => set({ activeFilters: filters }),
 }));
 ```
 
-**Uso en componente:**
+### 4.3. Persist Middleware (Preferencias)
+
 ```typescript
-'use client';
+// store/preferences.store.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-import { useUIStore } from '@/store/ui.store';
-
-export function FilterPanel() {
-  // Solo suscribirse a la parte del state que necesitas
-  const filters = useUIStore(s => s.activeFilters);
-  const setFilters = useUIStore(s => s.setFilters);
-  
-  return (
-    <div>
-      {/* UI de filtros */}
-    </div>
-  );
+interface PreferencesState {
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
 }
-```
 
-**Validación según documentación:**
-- Zustand para evitar prop drilling de estado UI[18][19]
-- Selectores específicos para evitar re-renders innecesarios[18]
-- NO para datos del servidor (eso va por props)[3]
+export const usePreferencesStore = create<PreferencesState>()(
+  persist(
+    (set) => ({
+      theme: 'light',
+      setTheme: (theme) => set({ theme }),
+    }),
+    { name: 'user-preferences' }
+  )
+);
+```
 
 ***
 
-## 5. Estructura de Directorios Definitiva
+## 5. Estructura de Directorios
 
 ```
 src/
-├── app/                                    # App Router de Next.js
-│   ├── (dashboard)/                        # Grupo de rutas con layout
+├── app/
+│   ├── (dashboard)/
 │   │   ├── products/
-│   │   │   ├── page.tsx                    # ✅ SERVER: Fetch inicial
-│   │   │   ├── loading.tsx                 # ✅ Skeleton automático
-│   │   │   ├── error.tsx                   # ✅ Error boundary
+│   │   │   ├── page.tsx          # Server Component (async fetch)
+│   │   │   ├── loading.tsx       # Skeleton
+│   │   │   ├── error.tsx         # Error boundary
 │   │   │   └── [id]/
 │   │   │       ├── page.tsx
 │   │   │       └── loading.tsx
 │   │   └── layout.tsx
-│   ├── layout.tsx                          # Root layout
-│   └── globals.css
+│   ├── layout.tsx
+│   ├── global-error.tsx          # Error boundary global
+│   └── not-found.tsx
 │
-├── features/                               # Feature-based organization
+├── features/
 │   ├── products/
-│   │   ├── actions/                        # ✅ SERVER ACTIONS
-│   │   │   └── product.actions.ts          # 'use server' - Mutaciones
-│   │   ├── components/                     # Client Components
-│   │   │   ├── product-form.tsx            # 'use client'
-│   │   │   └── product-list.tsx
-│   │   ├── schemas/                        # Zod schemas
-│   │   │   └── product.schema.ts
-│   │   ├── services/                       # DB/API logic (usado por actions)
-│   │   │   └── product.service.ts
+│   │   ├── actions/
+│   │   │   └── product.actions.ts     # 'use server'
+│   │   ├── components/
+│   │   │   ├── product-form.tsx       # 'use client'
+│   │   │   ├── product-list.tsx
+│   │   │   └── product-card.tsx
+│   │   ├── schemas/
+│   │   │   └── product.schema.ts      # Zod schemas
+│   │   ├── services/
+│   │   │   └── product.service.ts     # Firebase Admin SDK
 │   │   └── types/
 │   │       └── product.types.ts
 │   │
 │   ├── auth/
 │   │   ├── actions/
-│   │   │   └── auth.actions.ts             # login, logout, register
 │   │   ├── components/
-│   │   └── schemas/
+│   │   ├── schemas/
+│   │   └── services/
 │   │
 │   └── orders/
 │       ├── actions/
 │       ├── components/
 │       └── schemas/
 │
-├── components/
-│   └── ui/
-│       ├── skeletons/                      # Skeletons reutilizables
-│       │   ├── table-skeleton.tsx
-│       │   └── card-skeleton.tsx
-│       ├── button.tsx
-│       └── input.tsx
+├── components/ui/
+│   ├── skeletons/
+│   │   ├── table-skeleton.tsx
+│   │   └── card-skeleton.tsx
+│   ├── button.tsx
+│   └── input.tsx
 │
-├── store/                                  # ⚠️ SOLO ESTADO UI
-│   ├── ui.store.ts                         # Sidebar, modals, etc.
-│   └── filters.store.ts                    # Filtros temporales
+├── store/
+│   ├── ui.store.ts               # Solo UI state
+│   └── preferences.store.ts
 │
 ├── lib/
-│   ├── auth.ts                             # Lógica de autenticación
-│   ├── firebase.ts                         # Inicialización Firebase
-│   └── utils.ts
+│   ├── auth/
+│   │   └── server-session.ts
+│   ├── firebase/
+│   │   ├── admin.ts              # Firebase Admin SDK
+│   │   └── client.ts             # Firebase Client SDK
+│   └── utils/
+│       └── firestore.ts
 │
 └── types/
-    └── global.d.ts                         # Tipos globales
+    └── global.d.ts
 ```
 
 ***
 
-## 6. Flujo Completo de Datos
+## 6. Firebase Architecture
 
+### 6.1. Dual SDK Strategy
+
+| SDK | Uso | Entorno | Privilegios |
+|-----|-----|---------|------------|
+| **Admin** | Server Actions, Server Components | Node.js | Sin restricciones |
+| **Client** | Auth UI, Listeners real-time | Browser | Con Security Rules |
+
+### 6.2. Admin SDK Setup
+
+```typescript
+// lib/firebase/admin.ts
+import * as admin from 'firebase-admin';
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID!,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')!,
+    }),
+  });
+}
+
+export const adminDb = admin.firestore();
+export const adminAuth = admin.auth();
+export const adminStorage = admin.storage();
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  1. SERVER PAGE (page.tsx)                                  │
-│     - Async fetch de datos iniciales                        │
-│     - Ejecuta en servidor, renderiza HTML                   │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  2. CLIENT COMPONENT recibe initialData via props           │
-│     - Renderiza UI                                          │
-│     - NO hace fetch (ya tiene los datos)                    │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼ (Usuario interactúa)
-┌─────────────────────────────────────────────────────────────┐
-│  3. REACT HOOK FORM + ZOD                                   │
-│     - Validación cliente (UX)                               │
-│     - onSubmit llama a Server Action                        │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  4. SERVER ACTION ('use server')                            │
-│     - Verifica auth/autorización                            │
-│     - Valida con Zod (seguridad)                            │
-│     - Ejecuta mutación en DB                                │
-│     - revalidatePath() para invalidar cache                 │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  5. NEXT.JS REVALIDACIÓN                                    │
-│     - Automáticamente re-fetcha page.tsx                    │
-│     - UI se actualiza con datos frescos                     │
-└─────────────────────────────────────────────────────────────┘
+
+### 6.3. Client SDK Setup
+
+```typescript
+// lib/firebase/client.ts
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+
+const app = getApps().length === 0 ? initializeApp({
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+}) : getApps()[0];
+
+export const auth = getAuth(app);
+```
+
+### 6.4. Environment Variables
+
+```bash
+# .env.local
+
+# Cliente (NEXT_PUBLIC_ = expuestas al browser)
+NEXT_PUBLIC_FIREBASE_API_KEY=xxx
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxx
+
+# Servidor (SIN NEXT_PUBLIC_ = solo servidor)
+FIREBASE_PROJECT_ID=xxx
+FIREBASE_CLIENT_EMAIL=xxx
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+### 6.5. Service Layer Pattern
+
+```typescript
+// features/products/services/product.service.ts
+import { adminDb } from '@/lib/firebase/admin';
+import { cleanForFirestore } from '@/lib/utils/firestore';
+import type { Product } from '../schemas/product.schema';
+import * as admin from 'firebase-admin';
+
+const COLLECTION = 'products';
+
+export async function getProducts(storeId: string): Promise<Product[]> {
+  const snapshot = await adminDb
+    .collection('stores').doc(storeId)
+    .collection(COLLECTION)
+    .where('active', '==', true)
+    .orderBy('createdAt', 'desc')
+    .get();
+
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+}
+
+export async function createProduct(data: Omit<Product, 'id'>, storeId: string): Promise<Product> {
+  const cleanData = cleanForFirestore({
+    ...data,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const docRef = await adminDb
+    .collection('stores').doc(storeId)
+    .collection(COLLECTION)
+    .add(cleanData);
+
+  const doc = await docRef.get();
+  return { id: docRef.id, ...doc.data() } as Product;
+}
+
+export async function updateProduct(id: string, data: Partial<Product>, storeId: string): Promise<void> {
+  const cleanData = cleanForFirestore({
+    ...data,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await adminDb
+    .collection('stores').doc(storeId)
+    .collection(COLLECTION)
+    .doc(id)
+    .update(cleanData);
+}
+```
+
+### 6.6. Firestore Utils
+
+```typescript
+// lib/utils/firestore.ts
+export function cleanForFirestore<T extends Record<string, any>>(obj: T): Partial<T> {
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    if (value !== undefined) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {} as any);
+}
 ```
 
 ***
 
-## 7. Patterns y Loading States
+## 7. Server Pages Pattern
 
-### 7.1. Loading Pattern con loading.tsx
+### 7.1. Basic Server Page
 
 ```typescript
 // app/(dashboard)/products/page.tsx
+import { getServerSession } from '@/lib/auth/server-session';
 import { getProducts } from '@/features/products/services/product.service';
-import { ProductList } from '@/features/products/components/product-list';
+import { ProductsMain } from '@/features/products/components/products-main';
+import { redirect } from 'next/navigation';
+
+export const metadata = {
+  title: 'Productos | Dashboard',
+};
 
 export default async function ProductsPage() {
-  // Este fetch BLOQUEA el renderizado hasta resolverse
-  // Mientras tanto, Next.js muestra loading.tsx
-  const products = await getProducts();
-  
+  const session = await getServerSession();
+  if (!session) redirect('/login');
+
+  const products = await getProducts(session.storeId);
+
   return (
     <main>
       <h1>Productos</h1>
-      <ProductList initialData={products} />
+      <ProductsMain initialProducts={products} />
     </main>
   );
 }
+```
 
+### 7.2. Loading State
+
+```typescript
 // app/(dashboard)/products/loading.tsx
 import { TableSkeleton } from '@/components/ui/skeletons/table-skeleton';
 
@@ -409,90 +500,272 @@ export default function Loading() {
 }
 ```
 
-**Validación según documentación:**
-- `loading.tsx` se muestra automáticamente durante fetch[20]
-- Aprovecha Suspense de React bajo el hood[20]
-
-### 7.2. Suspense para Componentes Específicos
+### 7.3. Error Boundary
 
 ```typescript
-import { Suspense } from 'react';
-import { WidgetSkeleton } from '@/components/ui/skeletons';
+// app/(dashboard)/products/error.tsx
+'use client';
 
-export default async function DashboardPage() {
+export default function Error({ error, reset }: { error: Error; reset: () => void }) {
   return (
-    <main>
-      <h1>Dashboard</h1>
-      
-      {/* Widget que carga rápido */}
-      <QuickStats />
-      
-      {/* Widget que tarda más - lo envolvemos en Suspense */}
-      <Suspense fallback={<WidgetSkeleton />}>
-        <RecommendedProducts />
-      </Suspense>
-    </main>
+    <div>
+      <h2>Error al cargar productos</h2>
+      <p>{error.message}</p>
+      <button onClick={reset}>Reintentar</button>
+    </div>
   );
 }
 ```
 
-**Validación según documentación:**
-- Las Server Actions son endpoints públicos HTTP[6][10]
-- NUNCA confiar solo en que el UI oculta un botón[10]
-- Protección CSRF automática por Next.js[8][6]
+### 7.4. Global Error
+
+```typescript
+// app/global-error.tsx
+'use client';
+
+export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <html>
+      <body>
+        <h1>Error Global</h1>
+        <p>{error.message}</p>
+        <button onClick={reset}>Reintentar</button>
+      </body>
+    </html>
+  );
+}
+```
 
 ***
 
-## 10. Referencias Oficiales
+## 8. Client Components Pattern
 
-Toda esta arquitectura está respaldada por:
+### 8.1. Data Display (Props)
 
-- **Server Actions:**[1][2][6]
-- **Data Fetching:**[21][22]
-- **Loading & Suspense:**[23][20]
-- **Revalidación:**[14]
-- **Seguridad:**[11][8][10]
-- **Forms + Zod:**[13][12][15]
-- **State Management:**[24][17][4][3]
-- **Tree Shaking:**[5]
-- **Project Structure:**[25][26]
+```typescript
+// features/products/components/products-main.tsx
+'use client';
+import { useState } from 'react';
+import type { Product } from '../schemas/product.schema';
+import { ProductGrid } from './product-grid';
 
+interface ProductsMainProps {
+  initialProducts: Product[];
+}
 
+export function ProductsMain({ initialProducts }: ProductsMainProps) {
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [search, setSearch] = useState('');
 
+  const filtered = initialProducts.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
-Esta es la arquitectura **oficial y recomendada** para Next.js 15 según la documentación de Vercel.[2][21][1]
+  return (
+    <div>
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." />
+      <ProductGrid products={filtered} />
+    </div>
+  );
+}
+```
 
-[1](https://nextjs.org/docs/14/app/building-your-application/data-fetching/server-actions-and-mutations)
-[2](https://nextjs.org/docs/app/getting-started/updating-data)
-[3](https://www.yoseph.tech/posts/nextjs/nextjs-foot-guns-over-reliance-on-client-side-state)
-[4](https://blog.logrocket.com/guide-state-management-next-js/)
-[5](https://github.com/vercel/next.js/issues/12557)
-[6](https://nextjs.org/docs/app/guides/data-security)
-[7](https://reliasoftware.com/blog/nextjs-15-new-features)
-[8](https://nextjs.org/docs/app/api-reference/config/next-config-js/serverActions)
-[9](https://www.youtube.com/watch?v=Qc8_y9irMP4)
-[10](https://nextjs.org/docs/app/guides/authentication)
-[11](https://clerk.com/articles/complete-authentication-guide-for-nextjs-app-router)
-[12](https://www.freecodecamp.org/news/handling-forms-nextjs-server-actions-zod/)
-[13](https://leapcell.io/blog/streamlined-form-handling-and-validation-in-next-js-server-actions)
-[14](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
-[15](https://monique-mcintyre.com/blogs/form-validation-with-zod-rhf-nextjs-server-actions)
-[16](https://vercel.com/kb/guide/react-context-state-management-nextjs)
-[17](https://www.reddit.com/r/nextjs/comments/1hp01vg/how_do_you_store_state_on_the_server_components/)
-[18](https://www.linkedin.com/pulse/simplifying-state-management-nextjs-zustand-guide-aakarshit-giri-ch4nc)
-[19](https://dev.to/mrsupercraft/mastering-state-management-with-zustand-in-nextjs-and-react-1g26)
-[20](https://rishibakshi.hashnode.dev/mastering-loading-states-in-nextjs-effective-use-of-suspense-and-loadingtsx)
-[21](https://nextjs.org/docs/app/getting-started/fetching-data)
-[22](https://dev.to/sudiip__17/how-data-fetching-works-in-nextjs-server-vs-client-components-3779)
-[23](https://github.com/vercel/next.js/issues/73474)
-[24](https://nextjs.org/docs/app/getting-started/server-and-client-components)
-[25](https://dev.to/bajrayejoon/best-practices-for-organizing-your-nextjs-15-2025-53ji)
-[26](https://www.reddit.com/r/nextjs/comments/1kkpqtm/sharing_my_goto_project_structure_for_nextjs/)
-[27](https://nextjs.org/docs/13/app/building-your-application/data-fetching/forms-and-mutations)
-[28](https://nextjs.org/docs/13/app/api-reference/functions/server-actions)
-[29](https://www.reddit.com/r/nextjs/comments/18mwflc/how_to_revalidate_the_current_path_using_server/)
-[30](https://www.youtube.com/watch?v=R_Pj593TH_Q)
-[31](https://www.developerway.com/posts/react-state-management-2025)
-[32](https://stackoverflow.com/questions/78916619/how-to-use-global-props-in-nextjs-strategy)
-[33](https://github.com/vercel/next.js/discussions/61326)
-[34](https://nextjs.org/docs/pages/guides/authentication)
+### 8.2. Mutations (Server Actions)
+
+```typescript
+// features/products/components/product-card.tsx
+'use client';
+import { useTransition } from 'react';
+import { deleteProductAction } from '../actions/product.actions';
+import type { Product } from '../schemas/product.schema';
+import { toast } from 'sonner';
+
+export function ProductCard({ product }: { product: Product }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleDelete = () => {
+    if (!confirm('¿Eliminar?')) return;
+
+    startTransition(async () => {
+      const result = await deleteProductAction(product.id);
+      if (result.success) {
+        toast.success('Eliminado');
+      } else {
+        toast.error(result.errors._form?.[0]);
+      }
+    });
+  };
+
+  return (
+    <div>
+      <h3>{product.name}</h3>
+      <p>${product.price}</p>
+      <button onClick={handleDelete} disabled={isPending}>
+        {isPending ? 'Eliminando...' : 'Eliminar'}
+      </button>
+    </div>
+  );
+}
+```
+
+***
+
+## 9. Seguridad
+
+### 9.1. Auth en Server Actions (OBLIGATORIO)
+
+```typescript
+'use server';
+
+export async function deleteProductAction(productId: string) {
+  // 1. AUTH
+  const session = await getServerSession();
+  if (!session) return { success: false, errors: { _form: ['No autenticado'] } };
+  
+  // 2. AUTHORIZATION
+  if (session.role !== 'admin') return { success: false, errors: { _form: ['No autorizado'] } };
+  
+  // 3. OWNERSHIP
+  const product = await getProduct(productId);
+  if (product.storeId !== session.storeId) return { success: false, errors: { _form: ['No encontrado'] } };
+  
+  // 4. MUTATE
+  await deleteProduct(productId);
+  revalidatePath('/dashboard/products');
+  
+  return { success: true };
+}
+```
+
+### 9.2. Session Helper
+
+```typescript
+// lib/auth/server-session.ts
+import { cookies } from 'next/headers';
+import { adminAuth } from '@/lib/firebase/admin';
+
+export async function getServerSession() {
+  const cookieStore = await cookies();
+  const idToken = cookieStore.get('idToken')?.value;
+
+  if (!idToken) return null;
+
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(idToken, true);
+    const user = await adminAuth.getUser(decodedToken.uid);
+
+    return {
+      userId: decodedToken.uid,
+      email: user.email || '',
+      storeId: user.customClaims?.storeId as string,
+      role: user.customClaims?.role as string || 'user',
+    };
+  } catch {
+    return null;
+  }
+}
+```
+
+### 9.3. Rate Limiting (Upstash)
+
+```typescript
+// lib/rate-limit.ts
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '10 s'),
+});
+
+export async function checkRateLimit(identifier: string) {
+  const { success } = await ratelimit.limit(identifier);
+  return success;
+}
+```
+
+***
+
+## 10. Directrices de Desarrollo
+
+### 10.1. Orden de Implementación
+
+1. **Schemas** (Zod) → Define tipos y validaciones
+2. **Services** (Firebase Admin) → Lógica de DB
+3. **Server Actions** → Auth + Validación + Mutación
+4. **Server Pages** → Fetch inicial + Metadata
+5. **Client Components** → UI + Interactividad
+6. **Loading/Error** → Estados de carga y errores
+
+### 10.2. Checklist de Calidad
+
+**Antes de commit:**
+- [ ] No hay barrels (`index.ts`)
+- [ ] Server Actions tienen auth check
+- [ ] Schemas de Zod para todas las entidades
+- [ ] `revalidatePath()` después de mutaciones
+- [ ] `loading.tsx` en rutas con fetch
+- [ ] `error.tsx` en rutas críticas
+- [ ] No hay `useEffect` para fetch inicial
+- [ ] Zustand solo para UI state
+- [ ] Variables de entorno correctas (NEXT_PUBLIC_ solo si es necesario)
+- [ ] `cleanForFirestore()` antes de `.add()` o `.update()`
+
+### 10.3. Performance Checklist
+
+- [ ] Server Components por defecto
+- [ ] `'use client'` solo cuando sea necesario
+- [ ] Suspense para componentes lentos
+- [ ] Selectores específicos en Zustand (`useStore(s => s.specific)`)
+- [ ] `useTransition` para mutaciones con UI feedback
+- [ ] Images con `next/image`
+- [ ] Fonts con `next/font`
+
+### 10.4. Testing Strategy
+
+```typescript
+// __tests__/features/products/actions/product.actions.test.ts
+import { createProductAction } from '@/features/products/actions/product.actions';
+
+jest.mock('@/lib/auth/server-session');
+
+describe('createProductAction', () => {
+  it('debe rechazar sin auth', async () => {
+    (getServerSession as jest.Mock).mockResolvedValue(null);
+    
+    const formData = new FormData();
+    formData.append('name', 'Test');
+    
+    const result = await createProductAction(formData);
+    
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain('No autenticado');
+  });
+});
+```
+
+***
+
+## 11. Referencias
+
+**Next.js 15:**
+- [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
+- [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components)
+- [Error Handling](https://nextjs.org/docs/app/building-your-application/routing/error-handling)
+- [Project Structure](https://nextjs.org/docs/app/building-your-application/routing/colocation)
+
+**Firebase:**
+- [Admin SDK Setup](https://firebase.google.com/docs/admin/setup)
+- [Admin Auth API](https://firebase.google.com/docs/auth/admin)
+- [Firestore Data Modeling](https://firebase.google.com/docs/firestore/data-model)
+
+**Validation:**
+- [Zod Documentation](https://zod.dev/)
+- [React Hook Form](https://react-hook-form.com/)
+
+**State Management:**
+- [Zustand Documentation](https://docs.pmnd.rs/zustand)
+
+***
+
+**Fin del documento. Esta arquitectura es production-ready y sigue las mejores prácticas oficiales de Next.js 15, Firebase y la comunidad TypeScript.**

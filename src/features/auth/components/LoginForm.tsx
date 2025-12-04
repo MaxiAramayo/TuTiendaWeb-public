@@ -1,6 +1,8 @@
 /**
  * Formulario de inicio de sesión
  * 
+ * Refactored to use Server Actions and hybrid authentication pattern
+ * 
  * @module features/auth/components/LoginForm
  */
 
@@ -11,6 +13,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -19,23 +22,26 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { GoogleButton } from '@/features/auth/components/GoogleButton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { loginSchema, type LoginFormValues } from '@/features/auth/validation';
+import { hybridLogin } from '@/features/auth/lib/hybrid-login';
+import { loginSchema, type LoginFormData } from '@/features/auth/schemas/login.schema';
 
 
 
 /**
  * Componente de formulario de inicio de sesión
+ * Usa patrón híbrido: Firebase Client SDK + Server Actions
  */
 export const LoginForm = () => {
-  const { signIn, isLoading } = useAuth();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors }
-  } = useForm<LoginFormValues>({
+    formState: { errors },
+    setError
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
@@ -44,16 +50,32 @@ export const LoginForm = () => {
     }
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (data: LoginFormData) => {
+    setIsLoading(true);
+
     try {
-      await signIn({
-        email: data.email,
-        password: data.password
-      });
-      toast.success('Sesión iniciada correctamente');
+      const result = await hybridLogin(data.email, data.password);
+
+      if (result.success) {
+        toast.success('Sesión iniciada correctamente');
+        router.push('/dashboard');
+      } else {
+        const errors = result.errors || {};
+        if (errors._form) {
+          toast.error(errors._form[0]);
+        }
+        if (errors.email) {
+          setError('email', { message: errors.email[0] });
+        }
+        if (errors.password) {
+          setError('password', { message: errors.password[0] });
+        }
+      }
     } catch (error) {
-      // El error ya se maneja en useAuth con toast
       console.error('Error en inicio de sesión:', error);
+      toast.error('Error inesperado al iniciar sesión');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -65,7 +87,7 @@ export const LoginForm = () => {
           Ingresa tus credenciales para acceder a tu cuenta
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -85,7 +107,7 @@ export const LoginForm = () => {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label htmlFor="password">Contraseña</Label>
-              <Link 
+              <Link
                 href="/reset-password"
                 className="text-sm text-primary hover:underline"
               >
@@ -122,9 +144,9 @@ export const LoginForm = () => {
           </div>
 
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="remember" 
-              {...register('remember')} 
+            <Checkbox
+              id="remember"
+              {...register('remember')}
               disabled={isLoading}
             />
             <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
@@ -132,9 +154,9 @@ export const LoginForm = () => {
             </Label>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             disabled={isLoading}
           >
             {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}

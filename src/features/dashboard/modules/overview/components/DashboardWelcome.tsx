@@ -26,7 +26,7 @@ import {
   Star,
   Calendar
 } from 'lucide-react';
-import { useAuthStore } from '@/features/auth/api/authStore';
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 
 import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -45,7 +45,7 @@ interface DashboardWelcomeProps {
  */
 const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { storeId } = useCurrentStore();
   // const { stats, loadStats, loading } = useProducts();
   const { stats: sellStats, calculateStatsFromLoadedData, getSells, sells, isLoadingStats } = useSellStore();
   const { isOnline, wasOffline, resetWasOffline } = useNetworkStatus();
@@ -57,7 +57,6 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
    * Cargar datos iniciales al montar el componente - UNA SOLA VEZ POR TIENDA
    */
   useEffect(() => {
-    const storeId = user?.storeIds?.[0];
     if (storeId && loadedForStore !== storeId) {
 
       console.log('🚀 Inicializando dashboard para tienda:', storeId);
@@ -89,7 +88,7 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
       setLoadedForStore(storeId);
       console.log('✅ Dashboard inicializado para tienda:', storeId);
     }
-  }, [user?.storeIds, loadedForStore, calculateStatsFromLoadedData, getSells, sells.length]);
+  }, [storeId, loadedForStore, calculateStatsFromLoadedData, getSells, sells.length]);
 
   /**
    * Manejar reconexión a internet
@@ -98,13 +97,12 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
     if (isOnline && wasOffline) {
       console.log('🌐 Reconexión detectada, actualizando datos');
       toast.success('Conexión restaurada. Actualizando datos...');
-      const storeId = user?.storeIds?.[0];
       if (storeId) {
         // loadStats(); // Force refresh para productos
       }
       resetWasOffline();
     }
-  }, [isOnline, wasOffline, user?.storeIds, resetWasOffline]);
+  }, [isOnline, wasOffline, storeId, resetWasOffline]);
 
   /**
    * Acciones rápidas principales
@@ -137,9 +135,8 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
       icon: Eye,
       color: 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700',
       action: () => {
-        const storeUrl = user?.id;
-        if (storeUrl) {
-          window.open(`/store/${storeUrl}`, '_blank');
+        if (storeId) {
+          window.open(`/store/${storeId}`, '_blank');
         }
       }
     }

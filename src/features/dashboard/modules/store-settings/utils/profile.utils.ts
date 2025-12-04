@@ -7,7 +7,8 @@
  * @module features/dashboard/modules/profile/utils
  */
 
-import { StoreProfile, ProfileFormData, ProfileSection } from '../types/store.type';
+import { StoreProfile, ProfileSection } from '../types/store.type';
+import type { ProfileFormData } from '../schemas/profile.schema';
 import { 
   formatPrice, 
   formatDate, 
@@ -152,12 +153,25 @@ function calculateAddressScore(profile: StoreProfile): number {
 
 /**
  * Calcula el score de horarios
+ * Verifica si hay al menos un día con horarios configurados (no cerrado y con períodos)
  */
 function calculateScheduleScore(profile: StoreProfile): number {
   if (!profile.schedule) return 0;
 
   const days = Object.values(profile.schedule);
-  const configuredDays = days.filter(day => day.isOpen && day.openTime && day.closeTime).length;
+  // Verifica si hay días con períodos configurados (formato moderno)
+  // o días abiertos con horarios (formato legacy)
+  const configuredDays = days.filter(day => {
+    // Formato moderno: tiene períodos y no está cerrado
+    if (day.periods && Array.isArray(day.periods) && day.periods.length > 0 && !day.closed) {
+      return true;
+    }
+    // Formato legacy: isOpen es true y tiene horarios
+    if (day.isOpen && day.openTime && day.closeTime) {
+      return true;
+    }
+    return false;
+  }).length;
   
   return configuredDays > 0 ? 1 : 0;
 }
@@ -196,11 +210,11 @@ function calculateSettingsScore(profile: StoreProfile): number {
   let score = 0;
   
   // Métodos de pago configurados
-  const enabledPayments = profile.settings.paymentMethods.filter(method => method.enabled).length;
+  const enabledPayments = profile.settings?.paymentMethods?.filter(method => method.enabled).length || 0;
   if (enabledPayments >= 2) score += 0.5;
   
   // Métodos de entrega configurados
-  const enabledDelivery = profile.settings.deliveryMethods.filter(method => method.enabled).length;
+  const enabledDelivery = profile.settings?.deliveryMethods?.filter(method => method.enabled).length || 0;
   if (enabledDelivery >= 1) score += 0.5;
   
   return Math.min(score, 1);
@@ -266,7 +280,7 @@ export function getProfileRecommendations(profile: StoreProfile): string[] {
     recommendations.push('Conecta tus redes sociales para aumentar tu alcance');
   }
 
-  const enabledPayments = profile.settings.paymentMethods.filter(method => method.enabled).length;
+  const enabledPayments = profile.settings?.paymentMethods?.filter(method => method.enabled).length || 0;
   if (enabledPayments < 2) {
     recommendations.push('Configura múltiples métodos de pago para facilitar las compras');
   }
@@ -379,6 +393,28 @@ export function convertPeriodsScheduleToSimple(schedule: any): any {
 }
 
 /**
+ * Mapea tipos de tienda legacy a los nuevos tipos del schema
+ */
+function mapStoreType(type: string): 'retail' | 'restaurant' | 'service' | 'digital' | 'fashion' | 'beauty' | 'health' | 'sports' | 'electronics' | 'home' | 'automotive' | 'other' {
+  const typeMap: Record<string, 'retail' | 'restaurant' | 'service' | 'digital' | 'fashion' | 'beauty' | 'health' | 'sports' | 'electronics' | 'home' | 'automotive' | 'other'> = {
+    'services': 'service', // Mapeo legacy: 'services' -> 'service'
+    'restaurant': 'restaurant',
+    'retail': 'retail',
+    'other': 'other',
+    'digital': 'digital',
+    'fashion': 'fashion',
+    'beauty': 'beauty',
+    'health': 'health',
+    'sports': 'sports',
+    'electronics': 'electronics',
+    'home': 'home',
+    'automotive': 'automotive',
+    'service': 'service',
+  };
+  return typeMap[type] || 'other';
+}
+
+/**
  * Convierte datos del perfil a datos del formulario
  */
 export function profileToFormData(profile: StoreProfile): ProfileFormData {
@@ -387,7 +423,7 @@ export function profileToFormData(profile: StoreProfile): ProfileFormData {
     name: profile.basicInfo.name,
     description: profile.basicInfo.description || '',
     siteName: profile.basicInfo.slug,
-    storeType: profile.basicInfo.type,
+    storeType: mapStoreType(profile.basicInfo.type),
     category: profile.basicInfo.category || '',
     
     // Contacto
@@ -408,11 +444,13 @@ export function profileToFormData(profile: StoreProfile): ProfileFormData {
     instagram: profile.socialLinks?.instagram || '',
     facebook: profile.socialLinks?.facebook || '',
     
-    // Configuración - currency, language y timezone no están en CommerceConfig
+    // Configuración
+    currency: 'ARS',
+    language: 'es',
     
     // Métodos de pago y entrega
-    paymentMethods: profile.settings.paymentMethods || [],
-    deliveryMethods: profile.settings.deliveryMethods || [],
+    paymentMethods: profile.settings?.paymentMethods || [],
+    deliveryMethods: profile.settings?.deliveryMethods || [],
     
 
     
@@ -447,61 +485,9 @@ export function getDayName(day: string): string {
   return dayNames[day] || day;
 }
 
-
-
-/**
- * Genera un color aleatorio
- */
-export function generateRandomColor(): string {
-  const colors = [
-    '#6366f1', // Indigo
-    '#8b5cf6', // Violet
-    '#06b6d4', // Cyan
-    '#10b981', // Emerald
-    '#f59e0b', // Amber
-    '#ef4444', // Red
-    '#ec4899', // Pink
-    '#84cc16', // Lime
-  ];
-  
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-/**
- * Debounce function para optimizar búsquedas
- */
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
-
-/**
- * Throttle function para limitar llamadas
- */
-export function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-}
-
 /**
  * Comprime una imagen antes de subirla
+ * Nota: Usar profile-client.service.ts optimizeImage() para WebP es preferible
  */
 export function compressImage(file: File, quality: number = 0.8): Promise<File> {
   return new Promise((resolve) => {
@@ -554,14 +540,4 @@ export function compressImage(file: File, quality: number = 0.8): Promise<File> 
     
     img.src = URL.createObjectURL(file);
   });
-}
-
-/**
- * Verifica si un nombre de sitio es único
- * Esta función debería conectarse con la base de datos para verificar unicidad
- */
-export async function isSiteNameUnique(siteName: string, currentUserId?: string): Promise<boolean> {
-  // Verificación real con Firebase no implementada
-  // Por ahora retorna true para evitar errores de compilación
-  return true;
 }

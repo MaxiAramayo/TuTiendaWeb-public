@@ -40,10 +40,10 @@ const QRPreview: React.FC<QRPreviewProps> = ({
       </div>
 
       {/* QR Container */}
-      <Card 
+      <Card
         id="qr-container"
         className="bg-gradient-to-br from-slate-800 to-slate-900 border-0 shadow-2xl max-w-md mx-auto qr-container-pdf"
-        style={{ 
+        style={{
           background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
           minHeight: '500px',
           printColorAdjust: 'exact',
@@ -54,7 +54,7 @@ const QRPreview: React.FC<QRPreviewProps> = ({
           {/* Store Name */}
           <div className="text-center space-y-3">
             <h2 className="text-3xl font-bold text-white leading-tight">
-              {storeProfile?.basicInfo?.name || user.displayName || 'Mi Tienda'}
+              {storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda'}
             </h2>
             <div className="inline-flex items-center px-4 py-2 bg-white/20 rounded-full border border-white/30">
               <span className="text-white font-medium text-sm">Menú Digital</span>
@@ -63,7 +63,7 @@ const QRPreview: React.FC<QRPreviewProps> = ({
 
           {/* QR Code */}
           <div className="bg-white p-2 rounded-3xl shadow-2xl">
-            <QRCode 
+            <QRCode
               id="qr-code"
               value={storeURL}
               size={DEFAULT_QR_CONFIG.size}

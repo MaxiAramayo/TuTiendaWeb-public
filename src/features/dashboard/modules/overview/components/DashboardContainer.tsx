@@ -8,7 +8,7 @@
  */
 
 "use client";
-import { useAuthHydrated } from "@/features/auth/hooks/useAuthHydrated";
+import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import AlertDialogSuscripcion from "@/components/ui/generals/AlertDialogSuscripcion";
 import HeaderWelcome from "./HeaderWelcome";
 import DashboardOverview from "./DashboardOverview";
@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * @returns Componente React
  */
 const DashboardContainer: React.FC = () => {
-  const { user, isReady, isLoading } = useAuthHydrated();
+  const { user, isLoading } = useAuthClient();
 
   // Loading state optimizado
   if (isLoading) {
@@ -38,7 +38,7 @@ const DashboardContainer: React.FC = () => {
   }
 
   // Usuario no disponible
-  if (!isReady || !user) {
+  if (!isLoading && !user) {
     return (
       <div className="flex flex-col gap-6 items-center md:max-w-4xl mx-auto w-[90%]">
         <p className="text-gray-500">Cargando información del usuario...</p>

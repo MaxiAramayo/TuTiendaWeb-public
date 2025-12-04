@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import CtaButton from './CtaButton';
-import { useAuthHydrated } from '@/features/auth/hooks/useAuthHydrated';
+import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 
 /**
  * Enlaces principales de navegación
@@ -37,7 +37,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === '/';
-  const { user, isLoading } = useAuthHydrated();
+  const { user, isLoading } = useAuthClient();
 
   // Manejador para detectar scroll
   useEffect(() => {
@@ -78,17 +78,16 @@ const Navbar = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? 'bg-white shadow-md py-2' 
-          : 'bg-transparent py-4'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
+        ? 'bg-white shadow-md py-2'
+        : 'bg-transparent py-4'
+        }`}
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="flex items-center font-bold text-2xl text-gray-900"
           >
             <span className="text-purple-600">Tu</span>Tienda
@@ -100,11 +99,10 @@ const Navbar = () => {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  scrolled 
-                    ? 'text-gray-700 hover:text-purple-600 hover:bg-purple-50' 
-                    : 'text-gray-800 hover:text-purple-700'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${scrolled
+                  ? 'text-gray-700 hover:text-purple-600 hover:bg-purple-50'
+                  : 'text-gray-800 hover:text-purple-700'
+                  }`}
                 onClick={closeMenu}
               >
                 {link.label}
@@ -114,37 +112,40 @@ const Navbar = () => {
 
           {/* Botones de acción - Escritorio */}
           <div className="hidden md:flex items-center space-x-4">
-            {!isLoading && (
-              user ? (
-                <CtaButton 
-                  href="/dashboard" 
-                  variant="primary" 
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <User size={16} />
-                  Panel de control
-                </CtaButton>
-              ) : (
-                <>
-                  <Link 
-                    href="/sign-in" 
-                    className={`text-sm font-medium ${
-                      scrolled ? 'text-gray-700 hover:text-purple-600' : 'text-gray-800 hover:text-purple-700'
+            {isLoading ? (
+              // Skeleton mientras carga
+              <div className="flex items-center space-x-4">
+                <div className="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-28 h-9 bg-purple-200 rounded-lg animate-pulse"></div>
+              </div>
+            ) : user ? (
+              <CtaButton
+                href="/dashboard"
+                variant="primary"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <User size={16} />
+                Panel de control
+              </CtaButton>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className={`text-sm font-medium ${scrolled ? 'text-gray-700 hover:text-purple-600' : 'text-gray-800 hover:text-purple-700'
                     }`}
-                  >
-                    Iniciar sesión
-                  </Link>
-                  
-                  <CtaButton 
-                    href="/sign-up" 
-                    variant="primary" 
-                    size="sm"
-                  >
-                    Crear cuenta
-                  </CtaButton>
-                </>
-              )
+                >
+                  Iniciar sesión
+                </Link>
+
+                <CtaButton
+                  href="/sign-up"
+                  variant="primary"
+                  size="sm"
+                >
+                  Crear cuenta
+                </CtaButton>
+              </>
             )}
           </div>
 
@@ -187,37 +188,41 @@ const Navbar = () => {
                   </Link>
                 ))}
               </nav>
-              
+
               <div className="mt-auto mb-8 flex flex-col space-y-4">
-                {!isLoading && (
-                  user ? (
+                {isLoading ? (
+                  // Skeleton mientras carga
+                  <div className="flex flex-col space-y-4">
+                    <div className="w-full h-12 bg-gray-100 border border-gray-200 rounded-md animate-pulse"></div>
+                    <div className="w-full h-12 bg-purple-200 rounded-md animate-pulse"></div>
+                  </div>
+                ) : user ? (
+                  <Link
+                    href="/dashboard"
+                    className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center justify-center gap-2"
+                    onClick={closeMenu}
+                  >
+                    <User size={16} />
+                    Panel de control
+                  </Link>
+                ) : (
+                  <>
                     <Link
-                      href="/dashboard"
-                      className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center justify-center gap-2"
+                      href="/sign-in"
+                      className="w-full py-3 text-center text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                       onClick={closeMenu}
                     >
-                      <User size={16} />
-                      Panel de control
+                      Iniciar sesión
                     </Link>
-                  ) : (
-                    <>
-                      <Link
-                        href="/sign-in"
-                        className="w-full py-3 text-center text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                        onClick={closeMenu}
-                      >
-                        Iniciar sesión
-                      </Link>
-                      
-                      <Link
-                        href="/sign-up"
-                        className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700"
-                        onClick={closeMenu}
-                      >
-                        Crear cuenta
-                      </Link>
-                    </>
-                  )
+
+                    <Link
+                      href="/sign-up"
+                      className="w-full py-3 text-center text-white bg-purple-600 rounded-md hover:bg-purple-700"
+                      onClick={closeMenu}
+                    >
+                      Crear cuenta
+                    </Link>
+                  </>
                 )}
               </div>
             </div>

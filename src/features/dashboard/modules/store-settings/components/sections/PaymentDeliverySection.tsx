@@ -9,10 +9,12 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ProfileFormData, FormState } from '../../types/store.type';
+import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
 import { PaymentMethod, DeliveryMethod } from '@/shared/types/firebase.types';
+import { updatePaymentDeliveryAction, getProfileAction } from '../../actions/profile.actions';
+import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -22,12 +24,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { 
   CreditCard, 
   Truck, 
   DollarSign, 
   MapPin, 
-  Globe, 
   Plus, 
   Trash2, 
   Edit,
@@ -45,6 +47,7 @@ interface PaymentDeliverySectionProps {
   formData: ProfileFormData;
   formState: FormState;
   updateField: (field: keyof ProfileFormData, value: any) => void;
+  profile?: StoreProfile | null;
   onSave?: () => Promise<void>;
   isSaving?: boolean;
 }
@@ -113,11 +116,50 @@ export function PaymentDeliverySection({
   formData,
   formState,
   updateField,
+  profile,
   onSave,
-  isSaving = false,
+  isSaving: externalIsSaving = false,
 }: PaymentDeliverySectionProps) {
   const [editingPayment, setEditingPayment] = useState<string | null>(null);
   const [editingDelivery, setEditingDelivery] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const { setProfile } = useProfileStore();
+
+  // Handler propio para guardar y actualizar el store
+  const handleSectionSave = useCallback(async () => {
+    if (!profile?.id) {
+      toast.error('No se encontró el perfil');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const paymentDeliveryData = {
+        paymentMethods: formData.paymentMethods || [],
+        deliveryMethods: formData.deliveryMethods || []
+      };
+
+      const result = await updatePaymentDeliveryAction(paymentDeliveryData);
+
+      if (result.success) {
+        // Refrescar el store con los datos actualizados
+        const refreshResult = await getProfileAction();
+        if (refreshResult.success && refreshResult.data) {
+          setProfile(refreshResult.data as StoreProfile);
+        }
+        toast.success('Métodos de pago y entrega guardados correctamente');
+      } else {
+        toast.error(result.errors?._form?.[0] || 'Error al guardar');
+      }
+    } catch (error) {
+      console.error('Error saving payment/delivery:', error);
+      toast.error('Error al guardar los métodos de pago y entrega');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [profile?.id, formData.paymentMethods, formData.deliveryMethods, setProfile]);
+
+  const isCurrentlySaving = isSaving || externalIsSaving;
 
   // Obtener métodos actuales o inicializar con arrays vacíos
   const paymentMethods = useMemo(() => {
@@ -476,21 +518,19 @@ export function PaymentDeliverySection({
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Métodos de pago y entrega</h2>
           <p className="text-xs sm:text-sm text-gray-500">Configura cómo recibirás pagos y entregarás productos</p>
         </div>
-        {onSave && (
-          <Button
-            onClick={onSave}
-            disabled={isSaving}
-            className="flex items-center justify-center space-x-2 w-full sm:w-auto"
-            size="sm"
-          >
-            {isSaving ? (
-              <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-            ) : (
-              <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-            )}
-            <span className="text-xs sm:text-sm">{isSaving ? 'Guardando...' : 'Guardar'}</span>
-          </Button>
-        )}
+        <Button
+          onClick={handleSectionSave}
+          disabled={isCurrentlySaving}
+          className="flex items-center justify-center space-x-2 w-full sm:w-auto"
+          size="sm"
+        >
+          {isCurrentlySaving ? (
+            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+          ) : (
+            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+          )}
+          <span className="text-xs sm:text-sm">{isCurrentlySaving ? 'Guardando...' : 'Guardar'}</span>
+        </Button>
       </div>
       {/* Validación general */}
       {(!hasActivePayment || !hasActiveDelivery) && (
