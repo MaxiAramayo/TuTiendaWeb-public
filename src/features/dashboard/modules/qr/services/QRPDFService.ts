@@ -6,7 +6,6 @@
  * @module features/dashboard/modules/qr/services
  */
 import jsPDF from 'jspdf'
-import { User } from '@/features/user/user.types'
 import { StoreProfile } from '@/features/dashboard/modules/store-settings/types/store.type'
 
 // --- Tipos auxiliares ---

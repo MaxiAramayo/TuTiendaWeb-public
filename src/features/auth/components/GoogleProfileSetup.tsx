@@ -23,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { completeRegistrationAction } from '@/features/auth/actions/auth.actions';
-import { useSlugValidation } from '@/features/user/hooks/useSlugValidation';
+import { useSlugValidation } from '@/features/auth/hooks/use-slug-validation';
 import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
 import { googleProfileSchema, type GoogleProfileSetupValues } from '@/features/auth/schemas/google-profile.schema';
 

@@ -1,15 +1,51 @@
 /**
  * Hook para validación de slugs
  * 
- * @module features/user/hooks/useSlugValidation
+ * Refactorizado para usar Server Actions en lugar de Zustand store
+ * Sigue la arquitectura Server-First de Next.js 15
+ * 
+ * @module features/auth/hooks/use-slug-validation
  */
 
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useUserStore } from '@/features/user/api/userStore';
-import { validateSlug } from '@shared/validations';
-import { generateSlug, generateSlugSuggestions } from '@/features/user/utils/slugUtils';
+import { useState, useCallback, useTransition } from 'react';
+import { checkSlugAvailabilityAction } from '@/features/auth/actions/auth.actions';
+
+// ============================================================================
+// SLUG UTILITIES (inline para evitar dependencias)
+// ============================================================================
+
+/**
+ * Genera un slug válido a partir de un texto
+ */
+function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')           // Espacios a guiones
+    .replace(/[^a-z0-9-]/g, '')     // Solo letras, números y guiones
+    .replace(/-+/g, '-')            // Múltiples guiones a uno solo
+    .replace(/^-|-$/g, '');         // Remover guiones al inicio y final
+}
+
+/**
+ * Genera sugerencias de slug cuando el original no está disponible
+ */
+function generateSlugSuggestions(baseSlug: string, maxSuggestions: number = 5): string[] {
+  const normalizedBase = generateSlug(baseSlug);
+  const suggestions: string[] = [];
+  
+  for (let i = 1; i <= maxSuggestions; i++) {
+    suggestions.push(`${normalizedBase}-${i}`);
+  }
+  
+  return suggestions;
+}
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 export interface UseSlugValidationOptions {
   /** Debounce delay en milisegundos */
@@ -41,8 +77,14 @@ export interface UseSlugValidationReturn {
   reset: () => void;
 }
 
+// ============================================================================
+// HOOK
+// ============================================================================
+
 /**
  * Hook para manejar validación y disponibilidad de slugs
+ * 
+ * Usa Server Actions para verificar disponibilidad en el servidor
  */
 export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSlugValidationReturn => {
   const {
@@ -53,15 +95,13 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
 
   const [slug, setSlugState] = useState<string>('');
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
-
-  const { checkStoreNameAvailability } = useUserStore();
+  const [isPending, startTransition] = useTransition();
 
   /**
-   * Verifica la disponibilidad de un slug
+   * Verifica la disponibilidad de un slug usando Server Action
    */
   const checkAvailability = useCallback(async (slugToCheck?: string): Promise<boolean> => {
     const targetSlug = slugToCheck || slug;
@@ -72,17 +112,27 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
       return false;
     }
 
-    if (!validateSlug(targetSlug).success) {
+    // Validar formato localmente primero
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (!slugRegex.test(targetSlug)) {
       setIsAvailable(false);
       setError('Formato de slug inválido');
       return false;
     }
 
     try {
-      setIsChecking(true);
       setError(null);
       
-      const available = await checkStoreNameAvailability(targetSlug);
+      // Usar Server Action para verificar disponibilidad
+      const result = await checkSlugAvailabilityAction(targetSlug);
+      
+      if (!result.success) {
+        setError(result.errors._form?.[0] || 'Error al verificar');
+        setIsAvailable(null);
+        return false;
+      }
+      
+      const available = result.data.isAvailable;
       setIsAvailable(available);
       
       if (!available && autoSuggest) {
@@ -98,10 +148,8 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
       setError('Error al verificar disponibilidad');
       setIsAvailable(null);
       return false;
-    } finally {
-      setIsChecking(false);
     }
-  }, [slug, checkStoreNameAvailability, autoSuggest, maxSuggestions]);
+  }, [slug, autoSuggest, maxSuggestions]);
 
   /**
    * Establece un nuevo slug con debounce
@@ -118,7 +166,8 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
     }
 
     // Validación inmediata de formato
-    if (newSlug && !validateSlug(newSlug).success) {
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (newSlug && !slugRegex.test(newSlug)) {
       setError('Formato de slug inválido');
       setIsAvailable(false);
       return;
@@ -127,7 +176,9 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
     // Verificar disponibilidad con debounce
     if (newSlug && newSlug.length >= 3) {
       const timer = setTimeout(() => {
-        checkAvailability(newSlug);
+        startTransition(() => {
+          checkAvailability(newSlug);
+        });
       }, debounceMs);
       setDebounceTimer(timer);
     }
@@ -150,7 +201,6 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
     }
     setSlugState('');
     setIsAvailable(null);
-    setIsChecking(false);
     setError(null);
     setSuggestions([]);
     setDebounceTimer(null);
@@ -159,7 +209,7 @@ export const useSlugValidation = (options: UseSlugValidationOptions = {}): UseSl
   return {
     slug,
     isAvailable,
-    isChecking,
+    isChecking: isPending,
     error,
     suggestions,
     setSlug,

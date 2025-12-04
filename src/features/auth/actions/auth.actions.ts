@@ -519,3 +519,55 @@ export async function syncTokenAction(
         };
     }
 }
+
+// ============================================================================
+// CHECK SLUG AVAILABILITY ACTION
+// ============================================================================
+
+/**
+ * Check Slug Availability Action - Verificar si un slug está disponible
+ * 
+ * Usado durante el registro para validar el nombre único de la tienda
+ * 
+ * @param slug - Slug a verificar
+ * @returns ActionResponse con isAvailable
+ */
+export async function checkSlugAvailabilityAction(
+    slug: string
+): Promise<ActionResponse<{ isAvailable: boolean }>> {
+    try {
+        // 1. VALIDATE FORMAT
+        const slugRegex = /^[a-z0-9-]+$/;
+        if (!slug || !slugRegex.test(slug) || slug.length < 3 || slug.length > 50) {
+            return {
+                success: false,
+                errors: { _form: ['Formato de slug inválido'] },
+            };
+        }
+
+        // 2. CHECK IN FIRESTORE using Admin SDK
+        const { adminDb } = await import('@/lib/firebase/admin');
+        const storesQuery = adminDb
+            .collection('stores')
+            .where('basicInfo.slug', '==', slug)
+            .limit(1);
+        
+        const querySnapshot = await storesQuery.get();
+        const isAvailable = querySnapshot.empty;
+
+        console.log(`[CheckSlugAvailabilityAction] Slug "${slug}" available: ${isAvailable}`);
+
+        // 3. RETURN SUCCESS
+        return {
+            success: true,
+            data: { isAvailable },
+        };
+    } catch (error: any) {
+        console.error('[CheckSlugAvailabilityAction] Error:', error);
+
+        return {
+            success: false,
+            errors: { _form: ['Error al verificar disponibilidad'] },
+        };
+    }
+}

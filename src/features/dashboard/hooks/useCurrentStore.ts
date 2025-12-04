@@ -1,83 +1,78 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { getProfileAction } from '@/features/dashboard/modules/store-settings/actions/profile.actions';
-import { StoreProfile } from '@/features/dashboard/modules/store-settings/types/store.type';
+import { useProfileStore } from '@/features/dashboard/modules/store-settings/stores/profile.store';
 
 /**
  * Hook to get the current store for the authenticated user.
  * 
- * Uses Server Actions to fetch the store profile.
- * This replaces the legacy useAuthStore which had storeIds in the user object.
+ * Uses the global profile store as source of truth.
+ * Fetches via Server Action only once per user session.
  */
 export function useCurrentStore() {
     const { user, isLoading: isAuthLoading } = useAuthClient();
-    const [storeId, setStoreId] = useState<string | null>(null);
-    const [storeProfile, setStoreProfile] = useState<StoreProfile | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    
+    // Store global - fuente de verdad única
+    const profile = useProfileStore((state) => state.profile);
+    const isLoading = useProfileStore((state) => state.isLoading);
+    const setProfile = useProfileStore((state) => state.setProfile);
+    const setLoading = useProfileStore((state) => state.setLoading);
+    const clear = useProfileStore((state) => state.clear);
+    
+    // Control de fetch único por usuario
+    const fetchedForUserRef = useRef<string | null>(null);
 
     useEffect(() => {
-        let isMounted = true;
+        // Esperar a que auth inicialice
+        if (isAuthLoading) return;
 
-        async function fetchStore() {
-            // Wait for auth to initialize
-            if (isAuthLoading) return;
+        // Si no hay usuario, limpiar
+        if (!user?.uid) {
+            clear();
+            fetchedForUserRef.current = null;
+            return;
+        }
 
-            if (!user?.uid) {
-                if (isMounted) {
-                    setIsLoading(false);
-                    setStoreId(null);
-                    setStoreProfile(null);
-                }
-                return;
-            }
+        // Si ya cargamos para este usuario, no hacer nada
+        if (fetchedForUserRef.current === user.uid) {
+            return;
+        }
 
+        // Si ya tenemos el perfil cargado (de otro componente), marcar como cargado
+        if (profile && profile.id) {
+            fetchedForUserRef.current = user.uid;
+            return;
+        }
+
+        // Cargar perfil
+        async function fetchProfile() {
+            setLoading(true);
+            fetchedForUserRef.current = user!.uid; // Marcar antes para evitar duplicados
+            
             try {
-                // Only set loading if we don't have data yet to avoid flicker on re-renders
-                if (!storeProfile) {
-                    setIsLoading(true);
-                }
-
-                // Usar Server Action para obtener el perfil
                 const result = await getProfileAction();
-
-                if (isMounted) {
-                    if (result.success && result.data) {
-                        const profile = result.data as StoreProfile;
-                        setStoreProfile(profile);
-                        setStoreId(profile.id);
-                    } else {
-                        setStoreProfile(null);
-                        setStoreId(null);
-                    }
-                    setError(null);
+                
+                if (result.success && result.data) {
+                    setProfile(result.data);
                 }
             } catch (err) {
                 console.error('Error fetching store profile:', err);
-                if (isMounted) {
-                    setError('Error loading store profile');
-                }
+                fetchedForUserRef.current = null; // Permitir reintento
             } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
+                setLoading(false);
             }
         }
 
-        fetchStore();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [user?.uid, isAuthLoading]);
+        fetchProfile();
+    }, [user?.uid, isAuthLoading, profile, setProfile, setLoading, clear]);
 
     return {
-        storeId,
-        storeProfile,
+        storeId: profile?.id ?? null,
+        storeProfile: profile,
         isLoading: isLoading || isAuthLoading,
-        error,
+        error: null,
         isAuthenticated: !!user,
     };
 }

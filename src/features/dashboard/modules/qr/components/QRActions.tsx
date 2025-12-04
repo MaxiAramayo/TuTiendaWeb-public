@@ -1,6 +1,10 @@
 /**
  * Componente para las acciones del código QR
  * 
+ * Refactorizado para seguir arquitectura Server-First:
+ * - Eliminada dependencia de User (usa storeProfile.basicInfo.name)
+ * - Datos vienen del Server Component via props
+ * 
  * @module features/dashboard/modules/qr/components
  */
 
@@ -26,22 +30,23 @@ import toast from "react-hot-toast";
 /**
  * Componente para las acciones disponibles del código QR
  */
-const QRActions: React.FC<QRActionsProps> = ({
+export function QRActions({
   isGenerating,
   qrDataURL,
-  user,
   storeProfile,
   onUpdateQR,
   onDownloadPDF
-}) => {
+}: QRActionsProps) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
+
+  const storeName = storeProfile.basicInfo?.name || 'Mi Tienda';
+  const slug = storeProfile.basicInfo?.slug;
 
   /**
    * Copia la URL al portapapeles
    */
   const handleCopyURL = async () => {
-    const slug = storeProfile?.basicInfo?.slug;
     if (slug) {
       const url = `https://tutiendaweb.com.ar/${slug}`;
       try {
@@ -60,8 +65,6 @@ const QRActions: React.FC<QRActionsProps> = ({
    * Comparte el QR usando Web Share API
    */
   const handleShare = async () => {
-    const slug = storeProfile?.basicInfo?.slug;
-    const storeName = storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda';
     if (slug) {
       const url = `https://tutiendaweb.com.ar/${slug}`;
       const shareData = {
@@ -108,7 +111,7 @@ const QRActions: React.FC<QRActionsProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>QR Code - ${storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda'}</title>
+          <title>QR Code - ${storeName}</title>
           <style>
             body {
               margin: 0;
@@ -176,13 +179,13 @@ const QRActions: React.FC<QRActionsProps> = ({
         </head>
         <body>
           <div class="qr-print-container">
-            <div class="store-name">${storeProfile?.basicInfo?.name || user?.displayName || 'Mi Tienda'}</div>
+            <div class="store-name">${storeName}</div>
             <div class="badge">Menú Digital</div>
             <div class="qr-wrapper">
               ${qrContainer.querySelector('.bg-white')?.innerHTML || ''}
             </div>
-            ${storeProfile?.contactInfo?.whatsapp ? `<div class="info-section">WhatsApp: ${storeProfile.contactInfo.whatsapp}</div>` : ''}
-            <div class="url-section">tutiendaweb.com.ar/${storeProfile?.basicInfo?.slug || 'mi-tienda'}</div>
+            ${storeProfile.contactInfo?.whatsapp ? `<div class="info-section">WhatsApp: ${storeProfile.contactInfo.whatsapp}</div>` : ''}
+            <div class="url-section">tutiendaweb.com.ar/${slug || 'mi-tienda'}</div>
           </div>
         </body>
       </html>
@@ -203,7 +206,6 @@ const QRActions: React.FC<QRActionsProps> = ({
    * Abre vista móvil en nueva ventana
    */
   const handleMobileView = () => {
-    const slug = storeProfile?.basicInfo?.slug;
     if (slug) {
       const url = `https://tutiendaweb.com.ar/${slug}`;
       const mobileWindow = window.open(url, '_blank', 'width=375,height=667,scrollbars=yes,resizable=yes');
@@ -238,7 +240,7 @@ const QRActions: React.FC<QRActionsProps> = ({
             {/* Download PDF */}
             <Button
               onClick={onDownloadPDF}
-              disabled={isGenerating || !qrDataURL || !storeProfile?.basicInfo?.slug}
+              disabled={isGenerating || !qrDataURL || !slug}
               className="flex items-center space-x-2 h-12"
             >
               {isGenerating ? (
@@ -259,12 +261,11 @@ const QRActions: React.FC<QRActionsProps> = ({
           <div className="mt-4">
             <Button
               onClick={() => {
-                const slug = storeProfile?.basicInfo?.slug;
                 if (slug) {
                   window.open(`https://tutiendaweb.com.ar/${slug}`, '_blank');
                 }
               }}
-              disabled={!storeProfile?.basicInfo?.slug}
+              disabled={!slug}
               variant="secondary"
               className="w-full flex items-center space-x-2 h-12"
             >
@@ -388,6 +389,6 @@ const QRActions: React.FC<QRActionsProps> = ({
       </Card>
     </div>
   );
-};
+}
 
 export default QRActions;
