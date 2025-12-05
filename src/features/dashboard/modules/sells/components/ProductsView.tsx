@@ -7,12 +7,48 @@
  */
 
 "use client";
-import { Sells } from "@/shared/types/store";
-import { Package, DollarSign, ShoppingCart, Search } from "lucide-react";
-import { useState } from "react";
+
+import { DollarSign, ShoppingCart, Search } from "lucide-react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
-import { groupProductsByName } from "../utils/sell-utils";
-import { ProductsViewProps } from "../types/components";
+import { Sale, SaleItem } from "../schemas/sell.schema";
+
+interface ProductsViewProps {
+  /** Lista de ventas para analizar productos */
+  sells: Sale[];
+}
+
+interface ProductStat {
+  name: string;
+  productId: string;
+  totalQuantity: number;
+  totalRevenue: number;
+  image?: string;
+}
+
+/** Agrupa productos por nombre y calcula estadísticas */
+const groupProductsByName = (sales: Sale[]): Record<string, ProductStat> => {
+  const stats: Record<string, ProductStat> = {};
+
+  sales.forEach((sale) => {
+    sale.items.forEach((item) => {
+      const key = item.productId;
+      if (stats[key]) {
+        stats[key].totalQuantity += item.quantity;
+        stats[key].totalRevenue += item.subtotal;
+      } else {
+        stats[key] = {
+          name: item.productName,
+          productId: item.productId,
+          totalQuantity: item.quantity,
+          totalRevenue: item.subtotal,
+        };
+      }
+    });
+  });
+
+  return stats;
+};
 
 /**
  * Componente para mostrar productos vendidos con estadísticas
@@ -24,14 +60,17 @@ const ProductsView: React.FC<ProductsViewProps> = ({ sells }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Agrupar productos por nombre
-  const productStats = groupProductsByName(sells);
+  const productStats = useMemo(() => groupProductsByName(sells), [sells]);
 
   // Filtrar y ordenar productos por cantidad
-  const sortedProducts = Object.values(productStats)
-    .sort((a, b) => b.totalQuantity - a.totalQuantity)
-    .filter(product => 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const sortedProducts = useMemo(() => 
+    Object.values(productStats)
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .filter(product => 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [productStats, searchTerm]
+  );
 
   return (
     <div className="space-y-6" aria-label="Estadísticas de productos vendidos">
@@ -65,7 +104,7 @@ const ProductsView: React.FC<ProductsViewProps> = ({ sells }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedProducts.map((product, index) => (
             <div 
-              key={index} 
+              key={product.productId || index} 
               className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow"
               aria-label={`Estadísticas de ${product.name}`}
             >

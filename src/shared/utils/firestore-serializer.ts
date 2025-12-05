@@ -9,6 +9,11 @@ export function serializeFirestoreData<T>(data: any): T {
         return data.toDate().toISOString() as any;
     }
 
+    // Manejar objetos Date nativos
+    if (data instanceof Date) {
+        return data.toISOString() as any;
+    }
+
     if (Array.isArray(data)) {
         return data.map(item => serializeFirestoreData(item)) as any;
     }

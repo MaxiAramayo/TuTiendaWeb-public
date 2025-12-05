@@ -9,6 +9,8 @@
 
 import { SellsPageClient } from "@/features/dashboard/modules/sells/components/SellsPageClient";
 import { getProducts } from "@/features/products/services/product.service";
+import { getCategories } from "@/features/products/services/category.service";
+import { getSaleById } from "@/features/dashboard/modules/sells/services/sale.service";
 import { getServerSession } from "@/lib/auth/server-session";
 import { redirect } from "next/navigation";
 
@@ -27,12 +29,26 @@ export default async function EditSellPage({ params }: EditSellPageProps) {
   }
 
   if (!session.storeId) {
-    return <SellsPageClient sellId={id} mode="edit" products={[]} />;
+    return <SellsPageClient storeId="" saleId={id} mode="edit" products={[]} />;
   }
 
-  const products = await getProducts(session.storeId);
+  // Cargar datos en paralelo
+  const [products, categories, sale] = await Promise.all([
+    getProducts(session.storeId),
+    getCategories(session.storeId),
+    getSaleById(session.storeId, id),
+  ]);
 
-  return <SellsPageClient sellId={id} mode="edit" products={products} />;
+  return (
+    <SellsPageClient 
+      storeId={session.storeId}
+      saleId={id} 
+      mode="edit" 
+      products={products}
+      categories={categories}
+      sale={sale || undefined}
+    />
+  );
 }
 
 export async function generateMetadata({ params }: EditSellPageProps) {

@@ -9,7 +9,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Package,
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 
-import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
+import { SellsStats } from '@/features/dashboard/modules/sells/schemas/sell.schema';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { formatNumber } from '@/shared/utils/format.utils';
 import { toast } from 'sonner';
@@ -38,71 +38,27 @@ interface DashboardWelcomeProps {
     totalProducts: number;
     activeProducts: number;
   };
+  sellStats?: SellsStats;
 }
 
 /**
  * Componente de bienvenida del dashboard
  */
-const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => {
+const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats, sellStats }) => {
   const router = useRouter();
   const { storeId } = useCurrentStore();
-  // const { stats, loadStats, loading } = useProducts();
-  const { stats: sellStats, calculateStatsFromLoadedData, getSells, sells, isLoadingStats } = useSellStore();
   const { isOnline, wasOffline, resetWasOffline } = useNetworkStatus();
-
-  // Estado para controlar carga única por tienda
-  const [loadedForStore, setLoadedForStore] = useState<string | null>(null);
-
-  /**
-   * Cargar datos iniciales al montar el componente - UNA SOLA VEZ POR TIENDA
-   */
-  useEffect(() => {
-    if (storeId && loadedForStore !== storeId) {
-
-      console.log('🚀 Inicializando dashboard para tienda:', storeId);
-
-      // 1. Cargar productos si es necesario
-      // if (!stats || Object.keys(stats).length === 0) {
-      //   console.log('🔄 Cargando estadísticas de productos...');
-      //   loadStats();
-      // } else {
-      //   console.log('📦 Productos ya cargados');
-      // }
-
-      // 2. Para ventas, primero intentar calcular desde cache
-      calculateStatsFromLoadedData();
-
-      // 3. Si no hay datos de ventas cached, cargar en segundo plano
-      if (sells.length === 0) {
-        console.log('🔄 Cargando ventas en segundo plano...');
-        getSells(storeId, { limit: 50 }).then(() => {
-          console.log('✅ Ventas cargadas, recalculando estadísticas...');
-          calculateStatsFromLoadedData();
-        }).catch((error: any) => {
-          console.warn('⚠️ Error cargando ventas:', error);
-        });
-      } else {
-        console.log(`📦 Usando ${sells.length} ventas desde persistencia`);
-      }
-
-      setLoadedForStore(storeId);
-      console.log('✅ Dashboard inicializado para tienda:', storeId);
-    }
-  }, [storeId, loadedForStore, calculateStatsFromLoadedData, getSells, sells.length]);
 
   /**
    * Manejar reconexión a internet
    */
   useEffect(() => {
     if (isOnline && wasOffline) {
-      console.log('🌐 Reconexión detectada, actualizando datos');
-      toast.success('Conexión restaurada. Actualizando datos...');
-      if (storeId) {
-        // loadStats(); // Force refresh para productos
-      }
+      console.log('🌐 Reconexión detectada');
+      toast.success('Conexión restaurada.');
       resetWasOffline();
     }
-  }, [isOnline, wasOffline, storeId, resetWasOffline]);
+  }, [isOnline, wasOffline, resetWasOffline]);
 
   /**
    * Acciones rápidas principales
@@ -235,55 +191,45 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
             </div>
           </div>
 
-          {/* Manejo de errores de carga */}
-          {(isLoadingStats) && (
-            <div className="bg-white rounded-xl p-6 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
-              <p className="text-gray-600">Cargando estadísticas...</p>
-            </div>
-          )}
-
           {/* Estadísticas rápidas */}
-          {!isLoadingStats && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Productos</p>
-                    <p className="text-2xl font-bold text-gray-900">{initialStats?.totalProducts || 0}</p>
-                  </div>
-                  <Package className="w-8 h-8 text-blue-500" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Productos</p>
+                  <p className="text-2xl font-bold text-gray-900">{initialStats?.totalProducts || 0}</p>
                 </div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Ventas</p>
-                    <p className="text-2xl font-bold text-gray-900">{sellStats?.totalOrders || 0}</p>
-                  </div>
-                  <ShoppingCart className="w-8 h-8 text-green-500" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Productos Activos</p>
-                    <p className="text-2xl font-bold text-gray-900">{initialStats?.activeProducts || 0}</p>
-                  </div>
-                  <Eye className="w-8 h-8 text-purple-500" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Ventas Totales</p>
-                    <p className="text-2xl font-bold text-gray-900">${formatNumber(sellStats?.totalSales || 0)}</p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-orange-500" />
-                </div>
+                <Package className="w-8 h-8 text-blue-500" />
               </div>
             </div>
-          )}
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Ventas</p>
+                  <p className="text-2xl font-bold text-gray-900">{sellStats?.totalOrders || 0}</p>
+                </div>
+                <ShoppingCart className="w-8 h-8 text-green-500" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Productos Activos</p>
+                  <p className="text-2xl font-bold text-gray-900">{initialStats?.activeProducts || 0}</p>
+                </div>
+                <Eye className="w-8 h-8 text-purple-500" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Ventas Totales</p>
+                  <p className="text-2xl font-bold text-gray-900">${formatNumber(sellStats?.totalSales || 0)}</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-orange-500" />
+              </div>
+            </div>
+          </div>
 
           {/* Acciones rápidas */}
           <section>
@@ -336,7 +282,7 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
                   <div>
                     <p className="text-xs sm:text-sm font-medium text-gray-600 mb-0.5 sm:mb-1">Ventas</p>
                     <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                      {isLoadingStats ? '...' : formatNumber(sellStats?.totalOrders || 0)}
+                      {formatNumber(sellStats?.totalOrders || 0)}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">Este mes</p>
                   </div>
@@ -364,9 +310,9 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats }) => 
                   <div>
                     <p className="text-xs sm:text-sm font-medium text-gray-600 mb-0.5 sm:mb-1">Ingresos</p>
                     <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                      {isLoadingStats ? '...' : `$${formatNumber(sellStats?.monthSales || 0)}`}
+                      {`$${formatNumber(sellStats?.totalSales || 0)}`}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">Este mes</p>
+                    <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">Total</p>
                   </div>
                   <div className="p-2 sm:p-2.5 lg:p-3 bg-orange-50 rounded-full">
                     <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-orange-600" />

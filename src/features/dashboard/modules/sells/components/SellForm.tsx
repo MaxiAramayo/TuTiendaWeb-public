@@ -1,18 +1,15 @@
 /**
- * Formulario avanzado de ventas con validación Zod y ProductSelector
+ * Formulario de ventas con validación Zod y ProductSelector
  *
- * Funcionalidades mejoradas:
- * - Validación completa con Zod + React Hook Form
- * - Selector de productos con búsqueda y topics
- * - Cálculo automático de totales
- * - Estados simplificados de venta y pago
+ * Actualizado para usar la nueva estructura de datos con objetos anidados
+ * (customer, delivery, payment, totals, metadata)
  *
  * @module features/dashboard/modules/sells/components
  */
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,61 +31,54 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useSellStore } from "@/features/dashboard/modules/sells/api/sellStore";
-import { useAuthClient } from "@/features/auth/hooks/use-auth-client";
 import { ProductSelector } from "./ProductSelector";
 import { ProductInCart } from "@/shared/types/store";
 import { Product as ProductDocument } from "@/shared/types/firebase.types";
 import { z } from "zod";
+import { toast } from "sonner";
 
 // === TIPOS Y VALIDACIONES ===
 import {
-  OptimizedSell as Sell,
-} from "../types/optimized-sell";
-import {
-  SELL_SOURCES,
-} from "../types/constants";
+  Sale,
+  SaleItem,
+  DELIVERY_METHODS,
+  DELIVERY_METHODS_LABELS,
+  PAYMENT_METHODS,
+  PAYMENT_METHODS_LABELS,
+  SALE_SOURCES,
+  SALE_SOURCE_LABELS,
+} from "../schemas/sell.schema";
 
-// Schema de validación con validación condicional para dirección
-const sellSchema = z.object({
-  customerName: z.string().min(1, "Nombre del cliente es requerido"),
-  customerPhone: z.string().optional(),
-  orderNumber: z.string().optional(),
-  date: z.date(),
-  deliveryDate: z.date().optional(),
-  products: z.array(z.any()),
-  subtotal: z.number(),
-  total: z.number(),
-  status: z.string(),
-  paymentStatus: z.string(),
-  paymentMethod: z.string(),
-  deliveryMethod: z.string(),
-  source: z.string(),
+// Server Actions
+import { createSaleAction, updateSaleAction, getSaleByIdAction } from "../actions/sale.actions";
+
+// Schema del formulario 
+const formSchema = z.object({
+  customer: z.object({
+    name: z.string().min(1, "Nombre del cliente es requerido"),
+    phone: z.string().optional(),
+    email: z.string().email().optional().or(z.literal("")),
+  }),
+  delivery: z.object({
+    method: z.enum(["retiro", "delivery"]),
+    address: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+  payment: z.object({
+    method: z.enum(["efectivo", "transferencia", "mercadopago"]),
+  }),
+  source: z.enum(["local", "web", "whatsapp"]),
   notes: z.string().optional(),
-  discount: z.any().optional(),
-  tax: z.any().optional(),
-  address: z.string().optional(),
-  deliveryNotes: z.string().optional(),
-}).refine((data) => {
-  // Validar que la dirección sea obligatoria para delivery y shipping
-  if ((data.deliveryMethod === 'delivery' || data.deliveryMethod === 'shipping') && !data.address?.trim()) {
-    return false;
-  }
-  return true;
-}, {
-  message: "La dirección es obligatoria para envío a domicilio y envío por correo",
-  path: ["address"]
+  discount: z.coerce.number().nonnegative(),
 });
 
-type SellInput = z.infer<typeof sellSchema>;
-
-import { validateSellTotals } from '@shared/validations';
+type FormData = z.infer<typeof formSchema>;
 
 interface SellFormProps {
   /** ID de la venta a editar (undefined para nueva venta) */
   sellId?: string;
   /** Venta existente para editar */
-  sell?: Sell;
+  sell?: Sale;
   /** ID de la tienda */
   storeId: string;
   /** Callback al guardar exitosamente */
@@ -102,7 +92,7 @@ interface SellFormProps {
 }
 
 /**
- * Formulario mejorado para crear/editar ventas con ProductSelector
+ * Formulario para crear/editar ventas
  */
 export const SellForm: React.FC<SellFormProps> = ({
   sellId,
@@ -114,77 +104,78 @@ export const SellForm: React.FC<SellFormProps> = ({
   products = [],
 }) => {
   const router = useRouter();
-  const { addSell, updateSell, isLoading, getSellById } = useSellStore();
-  const { user } = useAuthClient();
+  const [isPending, startTransition] = useTransition();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<ProductInCart[]>([]);
+  const [calculatedTotals, setCalculatedTotals] = useState({
+    subtotal: 0,
+    discount: 0,
+    total: 0,
+  });
 
-  const form = useForm<SellInput>({
-    resolver: zodResolver(sellSchema),
-    mode: 'onChange', // Validar en tiempo real
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    mode: 'onChange',
     defaultValues: {
-      customerName: sell?.customerName || "",
-      customerPhone: sell?.customerPhone || "",
-      orderNumber: sell?.orderNumber || "",
-      date: sell?.date || new Date(),
-      deliveryDate: sell?.deliveryDate || undefined,
-      products: [],
-      subtotal: 0,
-      total: 0,
-      status: sell?.status || "pending",
-      paymentStatus: sell?.paymentStatus || "pending",
-      paymentMethod: sell?.paymentMethod || "efectivo",
-      deliveryMethod: sell?.deliveryMethod || "pickup",
-      source: sell?.source || "local",
+      customer: {
+        name: sell?.customer?.name || "",
+        phone: sell?.customer?.phone || "",
+        email: sell?.customer?.email || "",
+      },
+      delivery: {
+        method: (sell?.delivery?.method as "retiro" | "delivery") || "retiro",
+        address: sell?.delivery?.address || "",
+        notes: sell?.delivery?.notes || "",
+      },
+      payment: {
+        method: (sell?.payment?.method as "efectivo" | "transferencia" | "mercadopago") || "efectivo",
+      },
+      source: (sell?.source as "local" | "web" | "whatsapp") || "local",
       notes: sell?.notes || "",
-      discount: undefined, // Cambiado a undefined para evitar problemas
-      tax: undefined,      // Cambiado a undefined para evitar problemas
-      address: sell?.address || "",
-      deliveryNotes: sell?.deliveryNotes || "",
+      discount: sell?.totals?.discount || 0,
     },
   });
 
   // Cargar venta existente si solo se proporciona ID
   useEffect(() => {
-    if (sellId && !sell && storeId) {
-      getSellById(storeId, sellId).then((fetchedSell) => {
-        if (fetchedSell) {
+    if (sellId && !sell) {
+      getSaleByIdAction(sellId).then((result) => {
+        if (result.success && result.data) {
+          const fetchedSale = result.data.sale;
           form.reset({
-            customerName: fetchedSell.customerName || "",
-            customerPhone: fetchedSell.customerPhone || "",
-            orderNumber: fetchedSell.orderNumber || "",
-            date: fetchedSell.date || new Date(),
-            deliveryDate: fetchedSell.deliveryDate || undefined,
-            products: [],
-            subtotal: fetchedSell.subtotal || 0,
-            total: fetchedSell.total || 0,
-            status: fetchedSell.status || "pending",
-            paymentStatus: fetchedSell.paymentStatus || "pending",
-            paymentMethod: fetchedSell.paymentMethod || "efectivo",
-            deliveryMethod: fetchedSell.deliveryMethod || "pickup",
-            source: fetchedSell.source || "local",
-            notes: fetchedSell.notes || "",
-            address: fetchedSell.address || "",
-            deliveryNotes: fetchedSell.deliveryNotes || "",
-            discount: fetchedSell.discount || { type: "fixed", value: 0 },
-            tax: fetchedSell.tax || { amount: 0 },
+            customer: {
+              name: fetchedSale.customer.name || "",
+              phone: fetchedSale.customer.phone || "",
+              email: fetchedSale.customer.email || "",
+            },
+            delivery: {
+              method: fetchedSale.delivery.method,
+              address: fetchedSale.delivery.address || "",
+              notes: fetchedSale.delivery.notes || "",
+            },
+            payment: {
+              method: fetchedSale.payment.method,
+            },
+            source: fetchedSale.source,
+            notes: fetchedSale.notes || "",
+            discount: fetchedSale.totals.discount || 0,
           });
 
-          // Convertir productos a ProductInCart
-          if (fetchedSell.products) {
-            const convertedProducts: ProductInCart[] = fetchedSell.products.map(product => ({
-              id: `${product.idProduct}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              idProduct: product.idProduct,
-              name: product.name,
-              description: "", // ProductInSell no tiene description
-              price: product.price,
-              cantidad: product.cantidad,
-              category: product.category,
-              aclaracion: product.aclaracion,
-              topics: product.appliedTopics?.map(topic => ({
-                id: topic.id,
-                name: topic.name,
-                price: topic.price
+          // Convertir items a ProductInCart
+          if (fetchedSale.items) {
+            const convertedProducts: ProductInCart[] = fetchedSale.items.map(item => ({
+              id: `${item.productId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              idProduct: item.productId,
+              name: item.productName,
+              description: "",
+              price: item.unitPrice,
+              cantidad: item.quantity,
+              category: item.categoryId,
+              aclaracion: item.notes || "",
+              topics: item.variants?.map(v => ({
+                id: v.id,
+                name: v.name,
+                price: v.price
               }))
             }));
             setSelectedProducts(convertedProducts);
@@ -192,24 +183,24 @@ export const SellForm: React.FC<SellFormProps> = ({
         }
       });
     }
-  }, [sellId, sell, storeId, getSellById, form]);
+  }, [sellId, sell, form]);
 
   // Inicializar productos seleccionados desde la venta existente
   useEffect(() => {
-    if (sell?.products) {
-      const convertedProducts: ProductInCart[] = sell.products.map(product => ({
-        id: `${product.idProduct}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        idProduct: product.idProduct,
-        name: product.name,
-        description: "", // ProductInSell no tiene description
-        price: product.price,
-        cantidad: product.cantidad,
-        category: product.category,
-        aclaracion: product.aclaracion,
-        topics: product.appliedTopics?.map(topic => ({
-          id: topic.id,
-          name: topic.name,
-          price: topic.price
+    if (sell?.items) {
+      const convertedProducts: ProductInCart[] = sell.items.map(item => ({
+        id: `${item.productId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        idProduct: item.productId,
+        name: item.productName,
+        description: "",
+        price: item.unitPrice,
+        cantidad: item.quantity,
+        category: item.categoryId,
+        aclaracion: item.notes || "",
+        topics: item.variants?.map(v => ({
+          id: v.id,
+          name: v.name,
+          price: v.price
         }))
       }));
       setSelectedProducts(convertedProducts);
@@ -218,130 +209,106 @@ export const SellForm: React.FC<SellFormProps> = ({
 
   // Calcular totales automáticamente basados en productos seleccionados
   useEffect(() => {
-    if (selectedProducts.length > 0) {
-      const productTotal = selectedProducts.reduce((sum, product) => {
-        const basePrice = product.price || 0;
-        const topicsPrice = product.topics?.reduce((topicSum, topic) => topicSum + topic.price, 0) || 0;
-        const totalPrice = basePrice + topicsPrice;
-        return sum + totalPrice * (product.cantidad || 0);
-      }, 0);
+    const subtotal = selectedProducts.reduce((sum, product) => {
+      const basePrice = product.price || 0;
+      const topicsPrice = product.topics?.reduce((topicSum, topic) => topicSum + topic.price, 0) || 0;
+      return sum + (basePrice + topicsPrice) * (product.cantidad || 0);
+    }, 0);
 
-      let calculatedTotal = productTotal;
+    const discount = form.watch("discount") || 0;
+    const total = Math.max(0, subtotal - discount);
 
-      // Aplicar descuento
-      const discount = form.watch("discount");
-      if (discount?.value) {
-        const discountAmount =
-          discount.type === "percentage"
-            ? (productTotal * discount.value) / 100
-            : discount.value;
-        calculatedTotal -= discountAmount;
-      }
+    setCalculatedTotals({ subtotal, discount, total });
+  }, [selectedProducts, form.watch("discount")]);
 
-      // Aplicar impuestos
-      const tax = form.watch("tax");
-      if (tax?.amount) {
-        calculatedTotal += tax.amount;
-      }
-
-      form.setValue("subtotal", productTotal);
-      form.setValue("total", Math.max(0, calculatedTotal));
-
-      // Actualizar los productos en el formulario
-      const formProducts = selectedProducts.map(product => ({
-        id: product.id,
-        idProduct: product.idProduct,
-        name: product.name,
-        price: product.price,
-        cantidad: product.cantidad,
-        category: product.category || "",
-        aclaracion: product.aclaracion || "",
-      }));
-      form.setValue("products", formProducts);
-    } else {
-      form.setValue("subtotal", 0);
-      form.setValue("total", 0);
-      form.setValue("products", []);
+  const onSubmit = async (data: FormData) => {
+    // Validar que hay productos
+    if (selectedProducts.length === 0) {
+      toast.error("Debe agregar al menos un producto");
+      return;
     }
-  }, [selectedProducts, form]);
 
-  const onSubmit = async (data: SellInput) => {
-    try {
-      // Validar que hay productos
-      if (selectedProducts.length === 0) {
-        form.setError("products", {
-          message: "Debe agregar al menos un producto",
-        });
-        return;
-      }
+    // Validar dirección para delivery
+    if (data.delivery.method === 'delivery' && !data.delivery.address?.trim()) {
+      form.setError('delivery.address', {
+        type: 'manual',
+        message: 'La dirección es obligatoria para delivery'
+      });
+      return;
+    }
 
-      // Validar totales antes de enviar
-      const totalsValidation = validateSellTotals(data);
+    // Construir items para la venta
+    const items: SaleItem[] = selectedProducts.map((product, index) => {
+      const variantsTotal = product.topics?.reduce((sum, t) => sum + t.price, 0) || 0;
+      return {
+        id: product.id || `item-${index}-${Date.now()}`,
+        productId: product.idProduct,
+        productName: product.name,
+        categoryId: product.category || "",
+        quantity: product.cantidad,
+        unitPrice: product.price,
+        subtotal: (product.price + variantsTotal) * product.cantidad,
+        variants: product.topics?.map(t => ({
+          id: t.id,
+          name: t.name,
+          price: t.price
+        })),
+        notes: product.aclaracion,
+      };
+    });
 
-      if (!totalsValidation.success) {
-        form.setError("total", {
-          message: "Los totales calculados no coinciden",
-        });
-        return;
-      }
+    const saleData = {
+      orderNumber: sell?.orderNumber || `ORD-${Date.now()}`,
+      storeId,
+      source: data.source,
+      customer: {
+        name: data.customer.name,
+        phone: data.customer.phone || undefined,
+        email: data.customer.email || undefined,
+      },
+      items,
+      delivery: {
+        method: data.delivery.method,
+        address: data.delivery.address || undefined,
+        notes: data.delivery.notes || undefined,
+      },
+      payment: {
+        method: data.payment.method,
+        total: calculatedTotals.total,
+      },
+      totals: {
+        subtotal: calculatedTotals.subtotal,
+        discount: data.discount || 0,
+        total: calculatedTotals.total,
+      },
+      notes: data.notes || undefined,
+    };
 
-      // Convertir ProductInCart a ProductInSell para la venta
-      const sellProducts = selectedProducts.map(product => ({
-        id: product.id,
-        idProduct: product.idProduct,
-        name: product.name,
-        price: product.price,
-        category: product.category || "",
-        cantidad: product.cantidad,
-        aclaracion: product.aclaracion || "",
-        appliedTopics: product.topics?.map(topic => ({
-          id: topic.id,
-          name: topic.name,
-          price: topic.price
-        })) || []
-      }));
-
-      const sellData: Sell = {
-        id: sell?.id || sellId || "",
-        orderNumber: data.orderNumber || "ORD-" + Date.now(),
-        customerName: data.customerName || "",
-        customerPhone: data.customerPhone || "",
-        products: sellProducts,
-        subtotal: data.subtotal || 0,
-        total: data.total || 0,
-        date: data.date || new Date(),
-        deliveryDate: data.deliveryDate,
-        deliveryMethod: data.deliveryMethod || "pickup",
-        address: data.address || "",
-        deliveryNotes: data.deliveryNotes || "",
-        paymentMethod: data.paymentMethod || "efectivo",
-        paymentStatus: data.paymentStatus || "pending",
-        status: data.status || "pending",
-        notes: data.notes || "",
-        source: data.source || "local",
-        createdBy: user?.uid || "",
-        discount: data.discount,
-        tax: data.tax,
-        updatedAt: new Date()
-      } as Sell;
-
-      let success = false;
-      if (sell?.id || sellId) {
-        success = await updateSell(sellData, storeId);
-      } else {
-        success = await addSell(sellData, storeId);
-      }
-
-      if (success) {
-        onSuccess?.();
-        if (!sell?.id && !sellId) {
-          form.reset();
-          setSelectedProducts([]);
+    startTransition(async () => {
+      try {
+        let result;
+        if (sell?.id || sellId) {
+          result = await updateSaleAction(sell?.id || sellId!, saleData);
+        } else {
+          result = await createSaleAction(saleData);
         }
+
+        if (result.success) {
+          toast.success(sell?.id || sellId ? "Venta actualizada" : "Venta creada");
+          onSuccess?.();
+          if (!sell?.id && !sellId) {
+            form.reset();
+            setSelectedProducts([]);
+          }
+        } else {
+          const errorMessage = Object.values(result.errors).flat().join(", ");
+          toast.error(errorMessage || "Error al guardar la venta");
+        }
+      } catch (error) {
+        console.error("Error al guardar venta:", error);
+        toast.error("Error al guardar la venta");
       }
-    } catch (error) {
-      console.error("Error al guardar venta:", error);
-    }
+    });
   };
 
   // Funciones para manejar productos
@@ -413,35 +380,33 @@ export const SellForm: React.FC<SellFormProps> = ({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="customerName">Nombre del Cliente *</Label>
+                <Label htmlFor="customer.name">Nombre del Cliente *</Label>
                 <Controller
-                  name="customerName"
+                  name="customer.name"
                   control={form.control}
                   render={({ field }) => (
                     <Input
                       {...field}
-                      value={field.value || ""}
                       placeholder="Nombre completo"
                       disabled={readOnly}
                     />
                   )}
                 />
-                {form.formState.errors.customerName && (
+                {form.formState.errors.customer?.name && (
                   <p className="text-sm text-red-500">
-                    {String(form.formState.errors.customerName?.message || "")}
+                    {form.formState.errors.customer.name.message}
                   </p>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="customerPhone">Teléfono</Label>
+                <Label htmlFor="customer.phone">Teléfono</Label>
                 <Controller
-                  name="customerPhone"
+                  name="customer.phone"
                   control={form.control}
                   render={({ field }) => (
                     <Input
                       {...field}
-                      value={field.value || ""}
                       placeholder="+54 9 11 1234-5678"
                       disabled={readOnly}
                     />
@@ -451,33 +416,48 @@ export const SellForm: React.FC<SellFormProps> = ({
             </div>
 
             {showAdvanced && (
-              <div>
-                <Label htmlFor="source">Canal de Venta</Label>
-                <Controller
-                  name="source"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || "local"}
-                      onValueChange={field.onChange}
-                      disabled={readOnly}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar canal" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.values(SELL_SOURCES).map((source) => (
-                          <SelectItem key={source} value={source}>
-                            {source === "local" && "Local"}
-                            {source === "whatsapp" && "WhatsApp"}
-                            {source === "instagram" && "Instagram"}
-                            {source === "web" && "Sitio Web"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customer.email">Email</Label>
+                  <Controller
+                    name="customer.email"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        type="email"
+                        placeholder="email@ejemplo.com"
+                        disabled={readOnly}
+                      />
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="source">Canal de Venta</Label>
+                  <Controller
+                    name="source"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar canal" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(SALE_SOURCES).map((source) => (
+                            <SelectItem key={source} value={source}>
+                              {SALE_SOURCE_LABELS[source]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -491,11 +471,6 @@ export const SellForm: React.FC<SellFormProps> = ({
           onUpdateQuantity={handleUpdateQuantity}
           onRemoveProduct={handleRemoveProduct}
         />
-        {form.formState.errors.products && (
-          <p className="text-sm text-red-500 mt-2">
-            {String(form.formState.errors.products?.message || "")}
-          </p>
-        )}
 
         {/* Totales */}
         <Card>
@@ -510,61 +485,35 @@ export const SellForm: React.FC<SellFormProps> = ({
               <div>
                 <Label>Subtotal</Label>
                 <div className="text-lg font-semibold">
-                  ${form.watch("subtotal")?.toFixed(2) || "0.00"}
+                  ${calculatedTotals.subtotal.toFixed(2)}
                 </div>
               </div>
 
               {showAdvanced && (
                 <div>
                   <Label>Descuento</Label>
-                  <div className="space-y-2">
-                    <Controller
-                      name="discount.type"
-                      control={form.control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value || "fixed"}
-                          onValueChange={field.onChange}
-                          disabled={readOnly}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="percentage">
-                              Porcentaje
-                            </SelectItem>
-                            <SelectItem value="fixed">Monto fijo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <Controller
-                      name="discount.value"
-                      control={form.control}
-                      render={({ field }) => (
-                        <Input
-                          {...field}
-                          value={field.value || 0}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0"
-                          disabled={readOnly}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="discount"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        disabled={readOnly}
+                        value={field.value || 0}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    )}
+                  />
                 </div>
               )}
 
               <div>
                 <Label>Total</Label>
                 <div className="text-xl font-bold text-green-600">
-                  ${form.watch("total")?.toFixed(2) || "0.00"}
+                  ${calculatedTotals.total.toFixed(2)}
                 </div>
               </div>
             </div>
@@ -581,11 +530,11 @@ export const SellForm: React.FC<SellFormProps> = ({
               <div>
                 <Label>Método de Entrega</Label>
                 <Controller
-                  name="deliveryMethod"
+                  name="delivery.method"
                   control={form.control}
                   render={({ field }) => (
                     <Select
-                      value={field.value || "pickup"}
+                      value={field.value}
                       onValueChange={field.onChange}
                       disabled={readOnly}
                     >
@@ -593,11 +542,9 @@ export const SellForm: React.FC<SellFormProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {["pickup", "delivery", "shipping"].map((method) => (
+                        {Object.values(DELIVERY_METHODS).map((method) => (
                           <SelectItem key={method} value={method}>
-                            {method === "pickup" && "Retiro en local"}
-                            {method === "delivery" && "Envío a domicilio"}
-                            {method === "shipping" && "Envío por correo"}
+                            {DELIVERY_METHODS_LABELS[method]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -609,11 +556,11 @@ export const SellForm: React.FC<SellFormProps> = ({
               <div>
                 <Label>Método de Pago</Label>
                 <Controller
-                  name="paymentMethod"
+                  name="payment.method"
                   control={form.control}
                   render={({ field }) => (
                     <Select
-                      value={field.value || "efectivo"}
+                      value={field.value}
                       onValueChange={field.onChange}
                       disabled={readOnly}
                     >
@@ -621,19 +568,9 @@ export const SellForm: React.FC<SellFormProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {[
-                          "efectivo",
-                          "tarjeta",
-                          "transferencia",
-                          "mercadopago",
-                          "otro",
-                        ].map((method) => (
+                        {Object.values(PAYMENT_METHODS).map((method) => (
                           <SelectItem key={method} value={method}>
-                            {method === "efectivo" && "Efectivo"}
-                            {method === "tarjeta" && "Tarjeta"}
-                            {method === "transferencia" && "Transferencia"}
-                            {method === "mercadopago" && "MercadoPago"}
-                            {method === "otro" && "Otro"}
+                            {PAYMENT_METHODS_LABELS[method]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -643,92 +580,26 @@ export const SellForm: React.FC<SellFormProps> = ({
               </div>
             </div>
 
-            {(form.watch("deliveryMethod") === "delivery" || form.watch("deliveryMethod") === "shipping") && (
+            {form.watch("delivery.method") === "delivery" && (
               <div>
                 <Label>Dirección de Entrega *</Label>
                 <Controller
-                  name="address"
+                  name="delivery.address"
                   control={form.control}
                   render={({ field }) => (
                     <Textarea
                       {...field}
-                      value={field.value || ""}
                       placeholder="Dirección completa..."
                       disabled={readOnly}
-                      className={form.formState.errors.address ? "border-red-500" : ""}
+                      className={form.formState.errors.delivery?.address ? "border-red-500" : ""}
                     />
                   )}
                 />
-                {form.formState.errors.address && (
+                {form.formState.errors.delivery?.address && (
                   <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.address.message}
+                    {form.formState.errors.delivery.address.message}
                   </p>
                 )}
-              </div>
-            )}
-
-            {showAdvanced && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Estado de Venta</Label>
-                  <Controller
-                    name="status"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value || "pending"}
-                        onValueChange={field.onChange}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            "pending",
-                            "confirmed",
-                          ].map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status === "pending" && "Pendiente"}
-                              {status === "confirmed" && "Confirmada"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-
-                <div>
-                  <Label>Estado de Pago</Label>
-                  <Controller
-                    name="paymentStatus"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value || "pending"}
-                        onValueChange={field.onChange}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["pending", "paid", "partial", "refunded"].map(
-                            (status) => (
-                              <SelectItem key={status} value={status}>
-                                {status === "pending" && "Pendiente"}
-                                {status === "paid" && "Pagado"}
-                                {status === "partial" && "Pago parcial"}
-                                {status === "refunded" && "Reembolsado"}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
               </div>
             )}
 
@@ -740,7 +611,6 @@ export const SellForm: React.FC<SellFormProps> = ({
                 render={({ field }) => (
                   <Textarea
                     {...field}
-                    value={field.value || ""}
                     placeholder="Notas adicionales..."
                     disabled={readOnly}
                   />
@@ -752,31 +622,15 @@ export const SellForm: React.FC<SellFormProps> = ({
 
         {/* Acciones */}
         <div className="flex justify-end gap-4">
-          {/* Mostrar errores de validación */}
-          {!form.formState.isValid && Object.keys(form.formState.errors).length > 0 && (
-            <div className="flex-1">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <h4 className="font-medium text-red-800 mb-2">Errores de validación:</h4>
-                <ul className="text-sm text-red-600 space-y-1">
-                  {Object.entries(form.formState.errors).map(([field, error]) => (
-                    <li key={field}>
-                      • {field}: {String((error as any)?.message || 'Error de validación')}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-
           <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
           {!readOnly && (
             <Button
               type="submit"
-              disabled={isLoading || !form.formState.isValid}
+              disabled={isPending || !form.formState.isValid}
             >
-              {isLoading ? "Guardando..." : "Guardar Venta"}
+              {isPending ? "Guardando..." : "Guardar Venta"}
               <SaveIcon className="h-4 w-4 ml-2" />
             </Button>
           )}
