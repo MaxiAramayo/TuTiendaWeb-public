@@ -10,13 +10,11 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
-import { useSellStore } from "../api/sellStore";
-import { OptimizedSell, ProductInSell } from "../types/optimized-sell";
+import { Sale, SaleItem, PAYMENT_METHODS_LABELS, DELIVERY_METHODS_LABELS } from "../schemas/sell.schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 
 // Utilidades locales
 const formatCurrency = (amount: number): string => {
@@ -28,48 +26,21 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-const calculateProductTotal = (product: ProductInSell): number => {
-  let basePrice = product.price;
-
-  if (product.appliedTopics && product.appliedTopics.length > 0) {
-    const extrasTotal = product.appliedTopics.reduce(
-      (sum: number, topic: any) => sum + topic.price,
-      0
-    );
-    basePrice += extrasTotal;
-  }
-
-  return basePrice * product.cantidad;
-};
-
-const calculateOrderTotal = (sell: OptimizedSell): number => {
-  // Usar el campo total directamente si existe
-  if (sell.total) {
-    return sell.total;
-  }
-
-  // Calcular el total si no está disponible
-  return sell.products.reduce(
-    (acc: number, product: ProductInSell) => acc + calculateProductTotal(product),
-    0
-  );
-};
-
-const calculateSellsStatistics = (sells: OptimizedSell[]) => {
-  const totalRevenue = sells.reduce((acc, sell) => acc + calculateOrderTotal(sell), 0);
-  const totalOrders = sells.length;
+const calculateSellsStatistics = (sales: Sale[]) => {
+  const totalRevenue = sales.reduce((acc, sale) => acc + sale.totals.total, 0);
+  const totalOrders = sales.length;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   // Ventas por método de pago
-  const paymentStats = sells.reduce((acc, sell) => {
-    const method = sell.paymentMethod || 'Sin especificar';
+  const paymentStats = sales.reduce((acc, sale) => {
+    const method = PAYMENT_METHODS_LABELS[sale.payment.method] || 'Sin especificar';
     acc[method] = (acc[method] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   // Ventas por método de entrega
-  const deliveryStats = sells.reduce((acc, sell) => {
-    const method = sell.deliveryMethod || 'Sin especificar';
+  const deliveryStats = sales.reduce((acc, sale) => {
+    const method = DELIVERY_METHODS_LABELS[sale.delivery.method] || 'Sin especificar';
     acc[method] = (acc[method] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -77,25 +48,24 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
   // Productos más vendidos
   const productStats: Record<string, {
     name: string;
-    idProduct: string;
+    productId: string;
     quantity: number;
     revenue: number;
   }> = {};
 
-  sells.forEach(sell => {
-    sell.products.forEach((product: ProductInSell) => {
-      const key = product.idProduct;
-      const productTotal = calculateProductTotal(product);
+  sales.forEach(sale => {
+    sale.items.forEach((item: SaleItem) => {
+      const key = item.productId;
 
       if (productStats[key]) {
-        productStats[key].quantity += product.cantidad;
-        productStats[key].revenue += productTotal;
+        productStats[key].quantity += item.quantity;
+        productStats[key].revenue += item.subtotal;
       } else {
         productStats[key] = {
-          name: product.name,
-          idProduct: product.idProduct,
-          quantity: product.cantidad,
-          revenue: productTotal
+          name: item.productName,
+          productId: item.productId,
+          quantity: item.quantity,
+          revenue: item.subtotal
         };
       }
     });
@@ -112,9 +82,9 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
     totalSpent: number;
   }> = {};
 
-  sells.forEach(sell => {
-    const customerName = sell.customerName;
-    const orderTotal = calculateOrderTotal(sell);
+  sales.forEach(sale => {
+    const customerName = sale.customer.name;
+    const orderTotal = sale.totals.total;
 
     if (customerStats[customerName]) {
       customerStats[customerName].orders += 1;
@@ -143,14 +113,20 @@ const calculateSellsStatistics = (sells: OptimizedSell[]) => {
   };
 };
 
-const groupSellsByPeriod = (
-  sells: OptimizedSell[],
-  period: 'day' | 'week' | 'month' | 'year'
-): Record<string, OptimizedSell[]> => {
-  const groups: Record<string, OptimizedSell[]> = {};
+/** Convierte timestamp de Firebase a Date */
+const toDate = (date: any): Date => {
+  if (!date) return new Date(0);
+  return date?.toDate ? date.toDate() : new Date(date);
+};
 
-  sells.forEach(sell => {
-    const date = new Date(sell.date);
+const groupSellsByPeriod = (
+  sales: Sale[],
+  period: 'day' | 'week' | 'month' | 'year'
+): Record<string, Sale[]> => {
+  const groups: Record<string, Sale[]> = {};
+
+  sales.forEach(sale => {
+    const date = toDate(sale.metadata.createdAt);
     let key: string;
 
     switch (period) {
@@ -175,45 +151,34 @@ const groupSellsByPeriod = (
     if (!groups[key]) {
       groups[key] = [];
     }
-    groups[key].push(sell);
+    groups[key].push(sale);
   });
 
   return groups;
 };
 
 interface SellsStatsProps {
+  /** Ventas a mostrar */
+  sales: Sale[];
   /** Período seleccionado para mostrar estadísticas */
   period?: 'today' | 'week' | 'month' | 'year' | 'all';
+  /** Indica si está cargando */
+  isLoading?: boolean;
   /** Función callback al hacer clic en una estadística */
   onStatClick?: (stat: string, value: any) => void;
 }
 
 export const SellsStats = ({
+  sales = [],
   period = 'month',
+  isLoading = false,
   onStatClick
 }: SellsStatsProps) => {
-  const { sells, isLoading, getSells, calculateStatsFromLoadedData } = useSellStore();
-  const { storeId } = useCurrentStore();
   const [selectedTab, setSelectedTab] = useState<'overview' | 'products' | 'customers'>('overview');
 
-  // Cargar datos cuando cambia el período
-  useEffect(() => {
-    if (storeId) {
-      // Cargar ventas si no hay datos
-      if (sells.length === 0) {
-        getSells(storeId, {
-          limit: 100 // Cargar más ventas para tener mejores estadísticas
-        });
-      }
-
-      // Calcular estadísticas
-      calculateStatsFromLoadedData();
-    }
-  }, [storeId, period, getSells, calculateStatsFromLoadedData, sells.length]);
-
   // Filtrar ventas por período
-  const filteredSells = useMemo(() => {
-    if (period === 'all') return sells;
+  const filteredSales = useMemo(() => {
+    if (period === 'all') return sales;
 
     const now = new Date();
     const startDate = new Date(now);
@@ -233,27 +198,27 @@ export const SellsStats = ({
         break;
     }
 
-    return sells.filter((sell) => new Date(sell.date) >= startDate);
-  }, [sells, period]);
+    return sales.filter((sale) => toDate(sale.metadata.createdAt) >= startDate);
+  }, [sales, period]);
 
   // Calcular estadísticas
   const stats = useMemo(() =>
-    calculateSellsStatistics(filteredSells),
-    [filteredSells]
+    calculateSellsStatistics(filteredSales),
+    [filteredSales]
   );
 
   // Agrupar ventas por día para gráfico de tendencia
   const dailyStats = useMemo(() => {
-    const grouped = groupSellsByPeriod(filteredSells, 'day');
+    const grouped = groupSellsByPeriod(filteredSales, 'day');
     return Object.entries(grouped)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-7) // Últimos 7 días
-      .map(([date, sellsForDay]) => ({
+      .map(([date, salesForDay]) => ({
         date,
-        revenue: sellsForDay.reduce((acc: number, sell: OptimizedSell) => acc + calculateOrderTotal(sell), 0),
-        orders: sellsForDay.length
+        revenue: salesForDay.reduce((acc: number, sale: Sale) => acc + sale.totals.total, 0),
+        orders: salesForDay.length
       }));
-  }, [filteredSells]);
+  }, [filteredSales]);
 
   const periodLabels = {
     today: 'Hoy',
@@ -286,7 +251,7 @@ export const SellsStats = ({
           Estadísticas de Ventas - {periodLabels[period]}
         </h3>
         <Badge variant="outline">
-          {filteredSells.length} {filteredSells.length === 1 ? 'venta' : 'ventas'}
+          {filteredSales.length} {filteredSales.length === 1 ? 'venta' : 'ventas'}
         </Badge>
       </div>
 
@@ -459,7 +424,7 @@ export const SellsStats = ({
             <CardContent>
               <div className="space-y-3">
                 {stats.topProducts.map((product: any, index: number) => (
-                  <div key={product.idProduct} className="flex items-center justify-between">
+                  <div key={product.productId} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
                         {index + 1}

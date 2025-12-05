@@ -5,14 +5,14 @@
  */
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import type { SubmitHandler } from "react-hook-form";
 import type { ProductInCart, FormCheckoutValues } from "@/shared/types/store";
-import type { OptimizedSell } from "@/features/dashboard/modules/sells/types/optimized-sell";
+import type { CreateSaleData, SaleItem } from "@/features/dashboard/modules/sells/schemas/sell.schema";
 import { formatMessage } from "./utils/formatMessage";
 import { nanoid } from "nanoid";
-import { useSellStore } from "@/features/dashboard/modules/sells/api/sellStore";
+import { createPublicSaleAction } from "@/features/dashboard/modules/sells/actions/sale.actions";
 import { useStoreClient } from "@/features/store/api/storeclient";
 import { Timestamp } from "firebase/firestore";
 import DeliveryEstimation from "./DeliveryEstimation";
@@ -25,7 +25,7 @@ import { CreditCard, AlertCircle, User, Truck, MapPin, MessageSquare, CheckCircl
 interface CheckoutFormProps {
   carrito: ProductInCart[];
   total: number;
-  onOrderComplete?: (orderId: string, orderInfo: any) => void;
+  onOrderComplete?: (orderId: string, orderInfo: Record<string, unknown>) => void;
 }
 
 /**
@@ -107,8 +107,8 @@ export const CheckoutForm = ({
     }
   }, [selectedDeliveryMethod, setValue]);
 
-  // Hooks deben estar al inicio del componente
-  const { addSell } = useSellStore();
+  // Hook para transiciones de Server Actions
+  const [isPending, startTransition] = useTransition();
 
   // Si no hay datos de la tienda o está cargando configuración, mostrar loading
   if (!store || settingsLoading) {
@@ -161,42 +161,54 @@ export const CheckoutForm = ({
         aclaracion,
       });
 
-      const sell: OptimizedSell = {
-        id: orderId,
+      // Convertir carrito a items de venta
+      const items: SaleItem[] = carrito.map(product => ({
+        id: product.id,
+        productId: product.idProduct,
+        productName: product.name,
+        categoryId: product.category || '',
+        quantity: product.cantidad,
+        unitPrice: product.price,
+        subtotal: (product.price + (product.topics?.reduce((s, t) => s + t.price, 0) || 0)) * product.cantidad,
+        variants: product.topics?.map(topic => ({
+          id: topic.id,
+          name: topic.name,
+          price: topic.price
+        })) || [],
+        notes: product.aclaracion || ''
+      }));
+
+      const saleData: CreateSaleData = {
         orderNumber: `ORD-${orderId}`,
-        products: carrito.map(product => ({
-          id: product.id,
-          idProduct: product.idProduct,
-          name: product.name,
-          price: product.price,
-          category: product.category || '',
-          cantidad: product.cantidad,
-          aclaracion: product.aclaracion || '',
-          appliedTopics: product.topics?.map(topic => ({
-            id: topic.id,
-            name: topic.name,
-            price: topic.price
-          })) || []
-        })),
-        date: new Date(),
-        customerName: nombre,
-        customerPhone: '', // Se puede agregar después si es necesario
-        deliveryMethod: formaDeConsumir as 'pickup' | 'delivery' | 'shipping',
-        address: direccion || '',
-        paymentMethod: formaDePago,
-        paymentStatus: 'pending' as const,
-        status: 'pending' as const,
-        subtotal: total,
-        total: finalTotal,
+        storeId: uid,
+        source: 'web',
+        customer: {
+          name: nombre,
+          phone: '',
+        },
+        items,
+        delivery: {
+          method: formaDeConsumir === 'delivery' ? 'delivery' : 'retiro',
+          address: direccion || '',
+          notes: '',
+        },
+        payment: {
+          method: formaDePago as 'efectivo' | 'transferencia' | 'mercadopago',
+          total: finalTotal,
+        },
+        totals: {
+          subtotal: total,
+          discount: 0,
+          total: finalTotal,
+        },
         notes: aclaracion || "",
-        source: 'web' as const
       };
 
-      // Guardar la venta en Firebase
-      const sellResult = await addSell(sell, uid);
+      // Guardar la venta usando Server Action
+      const saleResult = await createPublicSaleAction(uid, saleData);
       
-      if (!sellResult) {
-        throw new Error('Error al guardar la venta en Firebase');
+      if (!saleResult.success) {
+        throw new Error(saleResult.errors?._form?.[0] || 'Error al guardar la venta en Firebase');
       }
       
       // Mostrar notificación de éxito

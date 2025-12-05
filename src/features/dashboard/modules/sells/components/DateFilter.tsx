@@ -9,7 +9,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { DateFilterProps } from "../types/components";
+
+interface DateFilterProps {
+  /** Callback cuando cambia el filtro de fechas */
+  onFilterChange: (startDate: Date | null, endDate: Date | null) => void;
+}
 
 /**
  * Componente para filtrar por rango de fechas
@@ -94,4 +98,4 @@ const DateFilter: React.FC<DateFilterProps> = ({ onFilterChange }) => {
   );
 };
 
-export default DateFilter; 
+export default DateFilter;

@@ -11,8 +11,8 @@ import { FileSpreadsheet, FileText } from "lucide-react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { OptimizedSell as Sell } from "../types/optimized-sell";
-import { formatDate, calculateTotalRevenue, calculateOrderTotal, groupProductsByName } from "../utils/sell-utils";
+import type { Sale } from "../schemas/sell.schema";
+import { formatDate, calculateTotalRevenue, calculateOrderTotal, groupProductsByName } from "../utils/sell.utils";
 
 // Extender la definición del módulo jsPDF para incluir autoTable
 declare module "jspdf" {
@@ -26,7 +26,7 @@ declare module "jspdf" {
  */
 interface ExportButtonsProps {
   /** Ventas filtradas a exportar */
-  filteredSells: Sell[];
+  filteredSells: Sale[];
   /** Modo de vista actual (orders o products) */
   viewMode: "orders" | "products";
   /** Nombre de la tienda */
@@ -51,7 +51,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
     const totalRevenue = calculateTotalRevenue(filteredSells);
     const totalOrders = filteredSells.length;
     const totalProducts = filteredSells.reduce(
-      (acc, sell) => acc + sell.products.length, 
+      (acc, sell) => acc + sell.items.length, 
       0
     );
 
@@ -77,10 +77,10 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
 
       // Hoja de pedidos
       const ordersData = filteredSells.map(sell => ({
-        Cliente: sell.customerName,
-        Fecha: formatDate(sell.date),
-        "Método de entrega": sell.deliveryMethod,
-        "Método de pago": sell.paymentMethod,
+        Cliente: sell.customer.name,
+        Fecha: formatDate(sell.metadata.createdAt),
+        "Método de entrega": sell.delivery.method,
+        "Método de pago": sell.payment.method,
         Total: calculateOrderTotal(sell)
       }));
 
@@ -142,7 +142,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
     const totalRevenue = calculateTotalRevenue(filteredSells);
     const totalOrders = filteredSells.length;
     const totalProducts = filteredSells.reduce(
-      (acc, sell) => acc + sell.products.length, 
+      (acc, sell) => acc + sell.items.length, 
       0
     );
 
@@ -179,10 +179,10 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
 
     if (viewMode === "orders") {
       data = filteredSells.map(sell => [
-        sell.customerName,
-        formatDate(sell.date),
-        sell.deliveryMethod,
-        sell.paymentMethod,
+        sell.customer.name,
+        formatDate(sell.metadata.createdAt),
+        sell.delivery.method,
+        sell.payment.method,
         `$${calculateOrderTotal(sell).toFixed(2)}`
       ]);
       headers = [["Cliente", "Fecha", "Método de entrega", "Método de pago", "Total"]];

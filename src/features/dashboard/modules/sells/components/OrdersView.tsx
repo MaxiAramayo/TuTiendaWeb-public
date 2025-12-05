@@ -7,9 +7,26 @@
  */
 
 "use client";
-import { OptimizedSell as Sell } from "../types/optimized-sell";
-import { calculateOrderTotal, formatDate } from "../utils/sell-utils";
-import { OrdersViewProps } from "../types/components";
+
+import { Sale, DELIVERY_METHODS_LABELS, PAYMENT_METHODS_LABELS } from "../schemas/sell.schema";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+interface OrdersViewProps {
+  /** Lista de ventas a mostrar */
+  sells: Sale[];
+  /** Función callback cuando se selecciona una venta */
+  onSelectSell: (sell: Sale) => void;
+  /** Venta actualmente seleccionada */
+  selectedSell?: Sale | null;
+}
+
+/** Formatea fecha de Firebase Timestamp o Date */
+const formatDate = (date: any): string => {
+  if (!date) return "Sin fecha";
+  const d = date?.toDate ? date.toDate() : new Date(date);
+  return format(d, "dd/MM/yyyy HH:mm", { locale: es });
+};
 
 /**
  * Componente para mostrar una lista de pedidos
@@ -34,23 +51,23 @@ const OrdersView: React.FC<OrdersViewProps> = ({
             key={sell.id}
             onClick={() => onSelectSell(sell)}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md cursor-pointer transition-shadow border border-gray-100"
-            aria-label={`Pedido de ${sell.customerName}`}
+            aria-label={`Pedido de ${sell.customer.name}`}
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-semibold">{sell.customerName}</p>
-                <p className="text-sm text-gray-500">{formatDate(sell.date)}</p>
-                <p className="text-xs text-gray-400 mt-1">{sell.deliveryMethod}</p>
+                <p className="font-semibold">{sell.customer.name}</p>
+                <p className="text-sm text-gray-500">{formatDate(sell.metadata.createdAt)}</p>
+                <p className="text-xs text-gray-400 mt-1">{DELIVERY_METHODS_LABELS[sell.delivery.method]}</p>
               </div>
               <div className="text-right">
                 <p className="font-bold text-lg">
-                  ${calculateOrderTotal(sell).toFixed(2)}
+                  ${sell.totals.total.toFixed(2)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {sell.products.length} producto{sell.products.length !== 1 ? 's' : ''}
+                  {sell.items.length} producto{sell.items.length !== 1 ? 's' : ''}
                 </p>
                 <p className="text-xs bg-[#f8f2ff] text-[#615793] px-2 py-0.5 rounded mt-1 inline-block">
-                  {sell.paymentMethod}
+                  {PAYMENT_METHODS_LABELS[sell.payment.method]}
                 </p>
               </div>
             </div>

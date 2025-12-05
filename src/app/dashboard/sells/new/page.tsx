@@ -10,6 +10,7 @@
 import React from "react";
 import { SellsPageClient } from "@/features/dashboard/modules/sells/components/SellsPageClient";
 import { getProducts } from "@/features/products/services/product.service";
+import { getCategories } from "@/features/products/services/category.service";
 import { getServerSession } from "@/lib/auth/server-session";
 import { redirect } from "next/navigation";
 
@@ -24,12 +25,23 @@ export default async function NewSellPage() {
   }
 
   if (!session.storeId) {
-    return <SellsPageClient mode="new" products={[]} />;
+    return <SellsPageClient storeId="" mode="new" products={[]} />;
   }
 
-  const products = await getProducts(session.storeId);
+  // Cargar productos y categorías en paralelo
+  const [products, categories] = await Promise.all([
+    getProducts(session.storeId),
+    getCategories(session.storeId),
+  ]);
 
-  return <SellsPageClient mode="new" products={products} />;
+  return (
+    <SellsPageClient 
+      storeId={session.storeId} 
+      mode="new" 
+      products={products}
+      categories={categories}
+    />
+  );
 }
 
 export async function generateMetadata() {

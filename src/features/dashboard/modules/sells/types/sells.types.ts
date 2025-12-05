@@ -7,11 +7,10 @@
  * @module features/dashboard/modules/sells/types/components
  */
 
-import { OptimizedSell } from "./optimized-sell";
-import { SellsFilter } from "./base";
+import { Sale, SalesFilter, SellsFilterValues } from "../schemas/sell.schema";
 
-// Alias para mejor legibilidad
-type Sell = OptimizedSell;
+// Alias para compatibilidad
+type Sell = Sale;
 
 /**
  * Props para el componente principal SellsModule
@@ -39,24 +38,6 @@ export interface SellsFiltersProps {
   hasActiveFilters?: boolean;
   /** Total de resultados encontrados */
   resultsCount?: number;
-}
-
-/**
- * Valores de filtros para el componente SellsFilters
- */
-export interface SellsFilterValues {
-  /** Término de búsqueda por cliente */
-  customerSearch: string;
-  /** Fecha de inicio */
-  startDate?: Date;
-  /** Fecha de fin */
-  endDate?: Date;
-  /** Método de pago seleccionado */
-  paymentMethod: string;
-  /** Método de entrega seleccionado */
-  deliveryMethod: string;
-  /** Ordenamiento */
-  sortBy: 'date-desc' | 'date-asc' | 'customer-asc' | 'total-desc';
 }
 
 /**
@@ -138,5 +119,5 @@ export interface SellsStatsProps {
   /** ID de la tienda para obtener estadísticas */
   storeId: string;
   /** Filtros aplicados para las estadísticas */
-  filters?: SellsFilter;
+  filters?: SalesFilter;
 }

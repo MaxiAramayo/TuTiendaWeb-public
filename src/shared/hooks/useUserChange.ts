@@ -4,14 +4,16 @@
  * Este hook previene que los datos de un usuario se muestren a otro usuario
  * cuando hay cambios de sesión.
  * 
- * Refactorizado para eliminar dependencia de userStore (seguir arquitectura Server-First)
+ * Refactorizado para arquitectura Server Actions First:
+ * - Los datos de ventas ahora se obtienen del servidor en cada navegación
+ * - Solo se limpia el estado de UI (sells-ui.store) y el profile store
  * 
  * @module shared/hooks/useUserChange
  */
 
 import { useEffect, useRef } from 'react';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
-import { useSellStore } from '@/features/dashboard/modules/sells/api/sellStore';
+import { useSellsUIStore } from '@/features/dashboard/modules/sells/stores/sells-ui.store';
 import { useProfileStore } from '@/features/dashboard/modules/store-settings/stores/profile.store';
 
 /**
@@ -19,7 +21,7 @@ import { useProfileStore } from '@/features/dashboard/modules/store-settings/sto
  */
 export const useUserChange = () => {
   const { user } = useAuthClient();
-  const { clearDataForUser: clearSellData } = useSellStore();
+  const resetSellsUI = useSellsUIStore((state) => state.reset);
   const clearProfileData = useProfileStore((state) => state.clear);
   const previousUserIdRef = useRef<string | null>(null);
 
@@ -31,12 +33,12 @@ export const useUserChange = () => {
     if (previousUserId !== currentUserId) {
       // Limpiar datos del usuario anterior si existía
       if (previousUserId !== null) {
-        clearSellData();
+        resetSellsUI();
         clearProfileData();
       }
 
       // Actualizar referencia
       previousUserIdRef.current = currentUserId;
     }
-  }, [user?.uid, clearSellData, clearProfileData]);
+  }, [user?.uid, resetSellsUI, clearProfileData]);
 };

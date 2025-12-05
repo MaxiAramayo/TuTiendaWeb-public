@@ -1,8 +1,7 @@
 /**
  * Componente para filtrar y buscar ventas
  * 
- * Proporciona controles de filtrado similares a los del perfil,
- * con opciones específicas para el módulo de ventas.
+ * Proporciona controles de filtrado con opciones específicas para el módulo de ventas.
  * 
  * @module features/dashboard/modules/sells/components/SellsFilters
  */
@@ -20,32 +19,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarIcon, FilterIcon, XIcon } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+
+import type { SellsFilterValues, SortOption } from "../schemas/sell.schema";
 import { 
-  SellsFiltersProps, 
-  SellsFilterValues, 
-} from "../types/components";
-import {
-  PAYMENT_METHODS, 
-  DELIVERY_METHODS 
-} from "../types/constants";
+  PAYMENT_METHODS_LABELS, 
+  DELIVERY_METHODS_LABELS 
+} from "../schemas/sell.schema";
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+interface SellsFiltersProps {
+  /** Función callback cuando se aplican filtros */
+  onFiltersChange: (filters: SellsFilterValues) => void;
+  /** Función callback cuando se limpia la búsqueda */
+  onClearFilters: () => void;
+  /** Indica si hay filtros activos */
+  hasActiveFilters?: boolean;
+  /** Total de resultados encontrados */
+  resultsCount?: number;
+}
+
+// =============================================================================
+// INITIAL VALUES
+// =============================================================================
 
 const initialFilters: SellsFilterValues = {
   customerSearch: '',
   paymentMethod: 'all',
   deliveryMethod: 'all',
-  sortBy: 'date-desc'
+  sortBy: 'date-desc' as SortOption,
 };
 
-export const SellsFilters = ({
+// =============================================================================
+// COMPONENT
+// =============================================================================
+
+export function SellsFilters({
   onFiltersChange,
   onClearFilters,
   hasActiveFilters = false,
   resultsCount
-}: SellsFiltersProps) => {
+}: SellsFiltersProps) {
   const [filters, setFilters] = useState<SellsFilterValues>(initialFilters);
   const [showDatePicker, setShowDatePicker] = useState<'start' | 'end' | null>(null);
 
-  const handleFilterChange = (key: keyof SellsFilterValues, value: any) => {
+  const handleFilterChange = (key: keyof SellsFilterValues, value: unknown) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     onFiltersChange(newFilters);
@@ -57,7 +77,7 @@ export const SellsFilters = ({
   };
 
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
-    if (key === 'customerSearch') return value.trim() !== '';
+    if (key === 'customerSearch') return (value as string).trim() !== '';
     if (key === 'startDate' || key === 'endDate') return value !== undefined;
     if (key === 'paymentMethod' || key === 'deliveryMethod') return value !== 'all';
     if (key === 'sortBy') return value !== 'date-desc';
@@ -197,11 +217,9 @@ export const SellsFilters = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los métodos</SelectItem>
-                <SelectItem value="Efectivo">Efectivo</SelectItem>
-                <SelectItem value="Transferencia">Transferencia</SelectItem>
-                <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                <SelectItem value="Mercado Pago">Mercado Pago</SelectItem>
-                <SelectItem value="Otro">Otro</SelectItem>
+                {Object.entries(PAYMENT_METHODS_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -218,9 +236,9 @@ export const SellsFilters = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los métodos</SelectItem>
-                <SelectItem value="Retiro en local">Retiro en local</SelectItem>
-                <SelectItem value="Delivery">Delivery</SelectItem>
-                <SelectItem value="Envío por correo">Envío por correo</SelectItem>
+                {Object.entries(DELIVERY_METHODS_LABELS).map(([key, value]) => (
+                  <SelectItem key={key} value={key.toLowerCase()}>{value}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -231,7 +249,7 @@ export const SellsFilters = ({
           <label className="text-sm font-medium">Ordenar por</label>
           <Select
             value={filters.sortBy}
-            onValueChange={(value: any) => handleFilterChange('sortBy', value)}
+            onValueChange={(value: SortOption) => handleFilterChange('sortBy', value)}
           >
             <SelectTrigger className="w-full md:w-64">
               <SelectValue />
@@ -315,4 +333,6 @@ export const SellsFilters = ({
       </CardContent>
     </Card>
   );
-};
+}
+
+export default SellsFilters;

@@ -25,17 +25,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 
 import { Product, ProductInCart, Topics } from "@/shared/types/store";
-import { Product as ProductDocument } from "@/shared/types/firebase.types";
+import { Product as ProductDocument, Category } from "@/shared/types/firebase.types";
 import Image from "next/image";
 
 /**
  * Convierte ProductDocument a Product para compatibilidad
+ * Mapea variants de Firebase a topics del store
  */
 const mapProductDocumentToProduct = (productDoc: ProductDocument): Product => {
+  // Mapear variantes de Firebase a Topics del store
+  const topics: Topics[] = productDoc.variants
+    ?.filter(v => v.isAvailable)
+    ?.map(variant => ({
+      id: variant.id,
+      name: variant.name,
+      price: variant.price
+    })) || [];
+
   return {
     id: productDoc.id,
     idProduct: productDoc.id, // Usar id como idProduct
-    idStore: '', // storeId no está disponible en ProductDocument
+    idStore: productDoc.storeId || '', 
     name: productDoc.name,
     description: productDoc.description || '',
     price: productDoc.price,
@@ -43,14 +53,16 @@ const mapProductDocumentToProduct = (productDoc: ProductDocument): Product => {
     imageUrl: productDoc.imageUrls?.[0],
     category: productDoc.categoryId, // Mapear categoryId a category
     available: productDoc.status === 'active',
-    stock: 0, // ProductDocument no tiene quantity, usar valor por defecto
-    topics: [] // ProductDocument no tiene topics, usar array vacío
+    stock: productDoc.stockQuantity || 0,
+    topics: topics // Variantes convertidas a topics
   };
 };
 
 interface ProductSelectorProps {
   /** Productos disponibles para seleccionar (Firebase Type) */
   products: ProductDocument[];
+  /** Categorías para mostrar nombres en lugar de IDs */
+  categories?: Category[];
   /** Productos actualmente seleccionados */
   selectedProducts: ProductInCart[];
   /** Callback para agregar producto */
@@ -66,11 +78,27 @@ interface ProductSelectorProps {
  */
 export const ProductSelector: React.FC<ProductSelectorProps> = ({
   products: productsFromProps,
+  categories = [],
   selectedProducts,
   onAddProduct,
   onUpdateQuantity,
   onRemoveProduct
 }) => {
+
+  // Crear mapa de categoryId -> categoryName
+  const categoryNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach(cat => {
+      map.set(cat.id, cat.name);
+    });
+    return map;
+  }, [categories]);
+
+  // Función helper para obtener nombre de categoría
+  const getCategoryName = (categoryId: string | undefined): string => {
+    if (!categoryId) return 'Sin categoría';
+    return categoryNameMap.get(categoryId) || categoryId;
+  };
 
   // Mapear ProductDocument[] a Product[]
   const products = useMemo(() => {
@@ -110,8 +138,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     });
   }, [products, searchTerm, selectedCategory, showAvailableOnly, selectedProducts]);
 
-  // Obtener categorías únicas
-  const categories = useMemo(() => {
+  // Obtener IDs de categorías únicas de los productos
+  const uniqueCategoryIds = useMemo(() => {
     if (!products) return [];
     const categoriesSet = new Set(products.map(p => p.category).filter((cat): cat is string => Boolean(cat)));
     return Array.from(categoriesSet);
@@ -214,9 +242,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map((category: string) => (
-                <SelectItem key={category} value={category}>
-                  {category}
+              {uniqueCategoryIds.map((categoryId: string) => (
+                <SelectItem key={categoryId} value={categoryId}>
+                  {getCategoryName(categoryId)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -390,10 +418,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               </div>
             </div>
 
-            {/* Extras/Topics - Comentado porque ProductDocument no tiene topics */}
-            {/* {productToAdd.topics && productToAdd.topics.length > 0 && (
+            {/* Extras/Variantes del producto */}
+            {productToAdd.topics && productToAdd.topics.length > 0 && (
               <div>
-                <Label>Extras disponibles</Label>
+                <Label>Extras / Variantes disponibles</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                   {productToAdd.topics.map((topic) => (
                     <label
@@ -413,14 +441,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                         />
                         <span className="text-sm">{topic.name}</span>
                       </div>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium text-green-600">
                         +${topic.price.toFixed(2)}
                       </span>
                     </label>
                   ))}
                 </div>
               </div>
-            )} */}
+            )}
 
             {/* Notas */}
             <div>
@@ -509,12 +537,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                         <span className="font-bold text-green-600">
                           ${product.price.toFixed(2)}
                         </span>
-                        {/* Comentado porque ProductDocument no tiene topics */}
-                        {/* {product.topics && product.topics.length > 0 && (
+                        {product.topics && product.topics.length > 0 && (
                           <Badge variant="outline" className="text-xs">
                             +{product.topics.length} extras
                           </Badge>
-                        )} */}
+                        )}
                       </div>
                     </div>
                   </div>

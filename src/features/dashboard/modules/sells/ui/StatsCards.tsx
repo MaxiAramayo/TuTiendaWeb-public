@@ -7,16 +7,16 @@
  */
 
 "use client";
-import { OptimizedSell as Sell } from "../types/optimized-sell";
+import type { Sale } from "../schemas/sell.schema";
 import { ShoppingCart, Package, TrendingUp } from "lucide-react";
-import { calculateTotalRevenue } from "../utils/sell-utils";
+import { calculateTotalRevenue } from "../utils/sell.utils";
 
 /**
  * Props para el componente StatsCards
  */
 interface StatsCardsProps {
   /** Ventas filtradas para calcular estadísticas */
-  filteredSells: Sell[];
+  filteredSells: Sale[];
 }
 
 /**
@@ -29,7 +29,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ filteredSells }) => {
   // Calcular estadísticas
   const totalOrders = filteredSells.length;
   const totalProducts = filteredSells.reduce(
-    (acc, sell) => acc + sell.products.length, 
+    (acc, sell) => acc + sell.items.length, 
     0
   );
   const totalRevenue = calculateTotalRevenue(filteredSells);
