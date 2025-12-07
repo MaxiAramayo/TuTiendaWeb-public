@@ -27,6 +27,7 @@ import Image from "next/image";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/store/api/cartStore";
 import { useProductModalStore } from "@/features/store/api/productModalStore";
 import { Product, Topics } from "@/shared/types/store";
@@ -40,6 +41,7 @@ export function ProductModal() {
   // Estados locales
   const [quantity, setQuantity] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState<Topics[]>([]);
+  const [notes, setNotes] = useState("");
   const [mounted, setMounted] = useState(false);
 
   // Hooks
@@ -62,6 +64,7 @@ export function ProductModal() {
     if (!isOpen) {
       setQuantity(1);
       setSelectedTopics([]);
+      setNotes("");
     }
   }, [isOpen]);
 
@@ -71,6 +74,7 @@ export function ProductModal() {
   const handleClose = () => {
     setQuantity(1);
     setSelectedTopics([]);
+    setNotes("");
     closeModal();
   };
 
@@ -113,14 +117,13 @@ export function ProductModal() {
   const handleAddToCart = () => {
     if (!product) return;
 
-    // Crear un producto modificado que incluya los extras seleccionados
+    // NO modificar el precio base - las variantes se calculan aparte
     const productWithExtras: Product = {
       ...product,
-      price: product.price + selectedTopics.reduce((acc, topic) => acc + topic.price, 0),
       topics: selectedTopics.length > 0 ? selectedTopics : undefined,
     };
 
-    addToCart(productWithExtras, quantity);
+    addToCart(productWithExtras, quantity, notes.trim() || undefined);
 
     toast({
       title: "Producto añadido",
@@ -210,6 +213,22 @@ export function ProductModal() {
           </div>
         </div>
       )}
+
+      {/* Notas/Aclaraciones del producto */}
+      <div className="space-y-2">
+        <label htmlFor="product-notes" className="text-sm font-medium text-gray-700">
+          Notas o aclaraciones (opcional)
+        </label>
+        <Textarea
+          id="product-notes"
+          placeholder="Ej: Sin cebolla, bien cocido, etc."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="resize-none"
+          rows={2}
+          maxLength={200}
+        />
+      </div>
 
       {/* Controles de cantidad y botón de agregar al carrito */}
       <div className="flex items-center justify-between">

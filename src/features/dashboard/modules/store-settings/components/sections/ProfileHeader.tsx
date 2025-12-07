@@ -90,7 +90,7 @@ export function ProfileHeader({
   const StatusIcon = profileStatus.icon;
 
   // Generar URL de la tienda
-  const storeUrl = `${window.location.origin}/store/${profile.basicInfo.slug}`;
+  const storeUrl = `${window.location.origin}/${profile.basicInfo.slug}`;
 
   // Manejar compartir
   const handleShare = async () => {

@@ -11,21 +11,28 @@ Se refactorizó el módulo de ventas para usar una nueva estructura de datos ani
 ## 📊 Nueva Estructura de Datos
 
 ### Antes (OptimizedSell - OBSOLETO)
+
 ```typescript
 interface OptimizedSell {
   id: string;
   orderNumber?: string;
   date: Date;
-  customerName: string;          // Plano
-  customerPhone?: string;        // Plano
-  products: ProductInSell[];     // Nombre diferente
-  subtotal: number;              // Plano
-  discount?: { type, value };    // Objeto separado
-  total: number;                 // Plano
+  customerName: string; // Plano
+  customerPhone?: string; // Plano
+  products: ProductInSell[]; // Nombre diferente
+  subtotal: number; // Plano
+  discount?: { type; value }; // Objeto separado
+  total: number; // Plano
   deliveryMethod: 'pickup' | 'delivery' | 'shipping';
   paymentMethod: string;
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded';
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'preparing'
+    | 'ready'
+    | 'delivered'
+    | 'cancelled';
   source?: 'web' | 'whatsapp' | 'instagram' | 'local';
   createdBy?: string;
   updatedAt?: Date;
@@ -33,41 +40,47 @@ interface OptimizedSell {
 ```
 
 ### Después (Sale - NUEVA ESTRUCTURA)
+
 ```typescript
 interface Sale {
   id: string;
   orderNumber: string;
   storeId: string;
   source: 'local' | 'web' | 'whatsapp';
-  
-  customer: {                    // ✅ Anidado
+
+  customer: {
+    // ✅ Anidado
     name: string;
     phone?: string;
     email?: string;
   };
-  
-  items: SaleItem[];             // ✅ Renombrado desde products
-  
-  delivery: {                    // ✅ Anidado
+
+  items: SaleItem[]; // ✅ Renombrado desde products
+
+  delivery: {
+    // ✅ Anidado
     method: 'retiro' | 'delivery';
     address?: string;
     notes?: string;
   };
-  
-  payment: {                     // ✅ Anidado
+
+  payment: {
+    // ✅ Anidado
     method: 'efectivo' | 'transferencia' | 'mercadopago';
     total: number;
   };
-  
-  totals: {                      // ✅ Anidado
+
+  totals: {
+    // ✅ Anidado
     subtotal: number;
     discount: number;
     total: number;
   };
-  
+
   notes?: string;
-  
-  metadata: {                    // ✅ Anidado
+
+  metadata: {
+    // ✅ Anidado
     createdAt: Date;
     updatedAt: Date;
     createdBy?: string;
@@ -116,29 +129,31 @@ sells/
 
 ## 🗑️ Archivos Eliminados
 
-| Archivo | Razón |
-|---------|-------|
-| `services/sell.service.ts` | Duplicado de `sale.service.ts` |
-| `components/SaleForm.tsx` | Versión vieja, `SellForm.tsx` es la correcta |
-| `api/sellStore.ts` | Zustand store viejo con Firebase Client |
-| `hooks/useSells.ts` | Hook viejo con Firebase Client directo |
-| `utils/sell-utils.ts` | Usa estructura vieja, reemplazado por `sell.utils.ts` |
-| `types/optimized-sell.ts` | Tipos obsoletos, ahora en schema |
-| `types/base.ts` | Tipos obsoletos, ahora en schema |
-| `types/constants.ts` | Constantes duplicadas, ahora en schema |
-| `types/utils.ts` | Tipos utilitarios obsoletos |
-| Carpeta `hooks/` | Eliminada (vacía) |
-| Carpeta `api/` | Eliminada (vacía) |
+| Archivo                    | Razón                                                 |
+| -------------------------- | ----------------------------------------------------- |
+| `services/sell.service.ts` | Duplicado de `sale.service.ts`                        |
+| `components/SaleForm.tsx`  | Versión vieja, `SellForm.tsx` es la correcta          |
+| `api/sellStore.ts`         | Zustand store viejo con Firebase Client               |
+| `hooks/useSells.ts`        | Hook viejo con Firebase Client directo                |
+| `utils/sell-utils.ts`      | Usa estructura vieja, reemplazado por `sell.utils.ts` |
+| `types/optimized-sell.ts`  | Tipos obsoletos, ahora en schema                      |
+| `types/base.ts`            | Tipos obsoletos, ahora en schema                      |
+| `types/constants.ts`       | Constantes duplicadas, ahora en schema                |
+| `types/utils.ts`           | Tipos utilitarios obsoletos                           |
+| Carpeta `hooks/`           | Eliminada (vacía)                                     |
+| Carpeta `api/`             | Eliminada (vacía)                                     |
 
 ---
 
 ## 📋 Cambios por Archivo
 
 ### Páginas Actualizadas
+
 - `app/dashboard/page.tsx`: Cambiado `calculateSellsStats` → `calculateSalesStats`
 - `app/dashboard/sells/page.tsx`: Cambiado imports a `sale.service.ts`
 
 ### Schema (`schemas/sell.schema.ts`)
+
 - [x] Definición de `Sale` con estructura anidada
 - [x] Definición de `SaleItem` con `productName` (no `name`)
 - [x] Definición de `CreateSaleData` para formularios
@@ -147,14 +162,16 @@ sells/
 - [x] Labels para UI
 
 ### Service (`services/sale.service.ts`)
+
 - [x] `getSales` con filtros y paginación
-- [x] `getSaleById` 
+- [x] `getSaleById`
 - [x] `createSale` con generación de orderNumber
 - [x] `updateSale`
 - [x] `deleteSale`
 - [x] `calculateSalesStats`
 
 ### Actions (`actions/sale.actions.ts`)
+
 - [x] `getSalesAction`
 - [x] `getSaleByIdAction`
 - [x] `createSaleAction`
@@ -163,6 +180,7 @@ sells/
 - [x] `createPublicSaleAction`
 
 ### Utils (`utils/sell.utils.ts`)
+
 - [x] `formatDate`
 - [x] `calculateItemSubtotal`
 - [x] `calculateOrderTotal`
@@ -178,6 +196,7 @@ sells/
 ## 🚨 Breaking Changes
 
 1. **Estructura de datos**:
+
    - `sell.customerName` → `sale.customer.name`
    - `sell.products` → `sale.items`
    - `sell.date` → `sale.metadata.createdAt`
@@ -186,6 +205,7 @@ sells/
    - `sell.deliveryMethod` → `sale.delivery.method`
 
 2. **Items**:
+
    - `item.name` → `item.productName`
    - `item.cantidad` → `item.quantity`
    - `item.price` → `item.unitPrice`

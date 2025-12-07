@@ -34,7 +34,7 @@ import { useProfile } from "@/features/dashboard/modules/store-settings/hooks/us
 const DashboardOverview: React.FC = () => {
   const router = useRouter();
   const { user } = useAuthClient();
-  const { storeId } = useCurrentStore();
+  const { storeSlug } = useCurrentStore();
   const { profile } = useProfile();
 
   /**
@@ -68,8 +68,8 @@ const DashboardOverview: React.FC = () => {
       icon: Eye,
       color: 'bg-orange-500 hover:bg-orange-600',
       action: () => {
-        if (storeId) {
-          window.open(`/store/${storeId}`, '_blank');
+        if (storeSlug) {
+          window.open(`/${storeSlug}`, '_blank');
         }
       }
     }

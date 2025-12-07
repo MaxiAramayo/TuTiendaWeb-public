@@ -61,14 +61,14 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
   const [profileImageError, setProfileImageError] = useState(false);
   
   // Hook para obtener el tema de la tienda
-  const theme = useTheme();
+  const themeContext = useTheme();
   
   // Hooks del tema
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
   
   // Color primario del tema para los iconos
-  const iconColor = theme.colors.primary || '#3b82f6';
+  const iconColor = themeContext.theme.colors.primary || '#3b82f6';
 
   /**
    * Maneja el clic en el botón de WhatsApp

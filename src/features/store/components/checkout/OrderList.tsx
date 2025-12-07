@@ -78,6 +78,27 @@ export const OrderList = ({ carrito, total }: OrderListProps) => {
                 <h3 className={`font-medium text-sm ${themeClasses.price.secondary} truncate`}>
                   {item.name || 'Producto'}
                 </h3>
+                
+                {/* Variantes/Topics seleccionados */}
+                {item.topics && item.topics.length > 0 && (
+                  <div className="mt-1 space-y-0.5">
+                    {item.topics.map((topic, topicIndex) => (
+                      <p key={topicIndex} className="text-xs text-gray-500 flex items-center gap-1">
+                        <span className="text-gray-400">+</span>
+                        {topic.name}
+                        <span className="text-gray-400">(+${topic.price})</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Notas/Aclaraciones */}
+                {item.aclaracion && (
+                  <p className="mt-1 text-xs text-gray-500 italic">
+                    Nota: {item.aclaracion}
+                  </p>
+                )}
+                
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="secondary" className="text-xs">
                     <Package className="w-3 h-3 mr-1" />
@@ -92,7 +113,11 @@ export const OrderList = ({ carrito, total }: OrderListProps) => {
               {/* Precio total del item */}
               <div className="text-right">
                 <p className={`font-semibold text-lg ${themeClasses.price.primary}`}>
-                  ${(item.price || 0) * (item.cantidad || 1)}
+                  ${(() => {
+                    const basePrice = item.price || 0;
+                    const topicsPrice = item.topics?.reduce((sum, topic) => sum + topic.price, 0) || 0;
+                    return (basePrice + topicsPrice) * (item.cantidad || 1);
+                  })()}
                 </p>
               </div>
             </div>

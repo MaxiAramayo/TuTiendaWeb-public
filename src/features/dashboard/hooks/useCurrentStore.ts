@@ -70,6 +70,8 @@ export function useCurrentStore() {
 
     return {
         storeId: profile?.id ?? null,
+        storeSlug: profile?.basicInfo?.slug ?? null,
+        storeName: profile?.basicInfo?.name ?? null,
         storeProfile: profile,
         isLoading: isLoading || isAuthLoading,
         error: null,

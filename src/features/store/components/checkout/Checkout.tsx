@@ -10,8 +10,9 @@ import { ProductInCart } from "@/shared/types/store";
 import { OrderList } from "./OrderList";
 import { CheckoutForm } from "./CheckoutForm";
 import { OrderTicket } from "./OrderTicket";
-import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import type { StoreSettings } from "@/features/store/types/store.types";
+import { useCartStore } from "@/features/store/api/cartStore";
 
 interface CheckoutProps {
   uid: string;
@@ -19,6 +20,7 @@ interface CheckoutProps {
   total: number;
   whatsapp: string;
   Name: string;
+  storeSettings?: StoreSettings;
   onBackToCart: () => void;
   onBackToStore: () => void;
 }
@@ -32,11 +34,13 @@ const Checkout = ({
   whatsapp,
   Name,
   uid,
+  storeSettings,
   onBackToCart,
   onBackToStore,
 }: CheckoutProps) => {
   const [orderCompleted, setOrderCompleted] = useState(false);
   const [orderData, setOrderData] = useState<any>(null);
+  const { clearCart } = useCartStore();
 
   const handleOrderComplete = (orderId: string, orderInfo: any) => {
     setOrderData(orderInfo);
@@ -46,6 +50,8 @@ const Checkout = ({
   const handleBackToStore = () => {
     setOrderCompleted(false);
     setOrderData(null);
+    // Limpiar el carrito antes de volver a la tienda
+    clearCart();
     onBackToStore();
   };
 
@@ -77,6 +83,10 @@ const Checkout = ({
       <CheckoutForm
         carrito={carrito}
         total={total}
+        storeId={uid}
+        storeName={Name}
+        whatsapp={whatsapp}
+        storeSettings={storeSettings}
         onOrderComplete={handleOrderComplete}
       />
     </div>

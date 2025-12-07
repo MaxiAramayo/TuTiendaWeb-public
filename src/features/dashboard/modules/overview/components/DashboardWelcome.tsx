@@ -46,7 +46,7 @@ interface DashboardWelcomeProps {
  */
 const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats, sellStats }) => {
   const router = useRouter();
-  const { storeId } = useCurrentStore();
+  const { storeSlug } = useCurrentStore();
   const { isOnline, wasOffline, resetWasOffline } = useNetworkStatus();
 
   /**
@@ -91,8 +91,8 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({ initialStats, sellS
       icon: Eye,
       color: 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700',
       action: () => {
-        if (storeId) {
-          window.open(`/store/${storeId}`, '_blank');
+        if (storeSlug) {
+          window.open(`/${storeSlug}`, '_blank');
         }
       }
     }
