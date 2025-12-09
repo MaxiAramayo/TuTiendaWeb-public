@@ -244,25 +244,7 @@ export const getFilterStats = (products: Product[], filteredProducts: Product[])
   };
 };
 
-/**
- * Formatea el precio para mostrarlo como moneda
- * 
- * @param price - Precio a formatear
- * @param locale - Configuración regional (por defecto 'es-AR')
- * @param currency - Moneda (por defecto 'ARS')
- * @returns Precio formateado como string (ej: "$ 1.234,56")
- */
-export const formatPrice = (
-  price: number,
-  locale: string = 'es-MX',
-  currency: string = 'MXN'
-): string => {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(price);
-};
+// formatPrice removido - usar import { formatPrice } from '@/shared/utils/format.utils'
 
 /**
  * Filtra productos según criterios

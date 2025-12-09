@@ -9,6 +9,7 @@
 
 import { adminDb } from '@/lib/firebase/admin';
 import { serializeFirestoreData } from '@/shared/utils/firestore-serializer';
+import { cleanForFirestore } from '@/lib/utils/firestore';
 import * as admin from 'firebase-admin';
 import type { 
   Sale, 
@@ -24,18 +25,6 @@ const COLLECTION = 'sells';
 // =============================================================================
 // HELPERS
 // =============================================================================
-
-/**
- * Limpia un objeto removiendo campos undefined para Firestore
- */
-function cleanForFirestore<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.entries(obj).reduce((acc, [key, value]) => {
-    if (value !== undefined) {
-      acc[key as keyof T] = value as T[keyof T];
-    }
-    return acc;
-  }, {} as Partial<T>);
-}
 
 /**
  * Convierte datos de Firestore a tipo Sale

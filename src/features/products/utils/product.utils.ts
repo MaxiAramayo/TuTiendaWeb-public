@@ -1,13 +1,8 @@
 import { Product, ProductStatus } from '@/shared/types/firebase.types';
+import { formatPrice } from '@/shared/utils/format.utils';
 
-export const formatPrice = (price: number, currency: string = 'ARS'): string => {
-    return new Intl.NumberFormat('es-AR', {
-        style: 'currency',
-        currency: currency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-    }).format(price);
-};
+// Re-export para mantener compatibilidad
+export { formatPrice };
 
 export const getProductStatusLabel = (status: ProductStatus | string): string => {
     switch (status) {

@@ -8,7 +8,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { toast } from 'sonner';
-import { errorService, ErrorType, ErrorSeverity } from '@/shared/services/error.service';
+import { errorService, ErrorType, ErrorSeverity } from '@/lib/services/error.service';
 
 interface Props {
   children: ReactNode;

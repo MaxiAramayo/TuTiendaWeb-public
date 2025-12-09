@@ -13,6 +13,11 @@
 import { logger } from './logger.service';
 
 /**
+ * NOTA: Este servicio fue movido desde shared/services/
+ * Es una utilidad de bajo nivel, no lógica compartida de features.
+ */
+
+/**
  * Tipos de errores del sistema
  */
 export enum ErrorType {
