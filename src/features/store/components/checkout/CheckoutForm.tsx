@@ -16,7 +16,7 @@ import type { ProductInCart } from "@/shared/types/store";
 import type { StoreSettings } from "@/features/store/types/store.types";
 import { checkoutFormSchema, type CheckoutFormData } from "../../schemas/checkout.schema";
 import { processCheckoutAction } from "../../actions/checkout.actions";
-import { useCartStore } from "@/features/store/api/cartStore";
+import { useCartStore } from "@/features/store/store/cart.store";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";
 import { CreditCard, AlertCircle, User, Truck, MapPin, MessageSquare, CheckCircle2 } from "lucide-react";

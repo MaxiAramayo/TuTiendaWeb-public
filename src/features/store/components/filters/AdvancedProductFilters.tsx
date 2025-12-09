@@ -37,8 +37,8 @@ import {
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/shared/types/store';
-import { useFiltersStore, useActiveFilters } from '@/features/store/api/filtersStore';
-import { getUniqueCategories, getPriceRange } from '@/features/store/modules/products/utils/productFilterUtils';
+import { useFiltersStore, useActiveFilters } from '@/features/store/store/filters.store';
+import { getUniqueCategories, getPriceRange } from '@/features/store/modules/products/utils/product-filter.utils';
 
 interface AdvancedProductFiltersProps {
   products: Product[];

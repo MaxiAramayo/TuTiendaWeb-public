@@ -133,8 +133,7 @@ export const OrderList = ({ carrito, total }: OrderListProps) => {
             <span className={`text-lg font-semibold ${themeClasses.price.secondary}`}>
               Total del Pedido:
             </span>
-            <span className={`text-2xl font-bold ${themeClasses.price.primary}`}
-                  style={themeStyles.price.primary}>
+            <span className={`text-2xl font-bold ${themeClasses.price.primary}`}>
               ${validTotal}
             </span>
           </div>

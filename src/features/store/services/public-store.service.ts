@@ -240,8 +240,9 @@ export const getPublicStoreBySlug = cache(async (slug: string): Promise<PublicSt
 
     // Serializar y mapear datos (soportar ambas estructuras)
     const serialized = serializeTimestamps({
+      ...data, // Primero los datos originales
       id: doc.id,
-      // Mapear estructura legacy a estructura nueva
+      // Mapear estructura legacy a estructura nueva (esto sobrescribe los campos necesarios)
       basicInfo: data.basicInfo || {
         name: data.name || '',
         slug: data.siteName || slug,
@@ -260,13 +261,12 @@ export const getPublicStoreBySlug = cache(async (slug: string): Promise<PublicSt
         logoUrl: data.urlProfile || '',
         bannerUrl: data.urlPortada || ''
       },
-      schedule: adaptedSchedule,
+      schedule: adaptedSchedule, // Sobrescribir con schedule adaptado
       weeklySchedule: adaptedSchedule, // Mantener por compatibilidad
       settings: data.settings,
       subscription: data.subscription || { active: data.suscripcion !== false },
       // Mantener campos legacy por compatibilidad
-      uid: data.uid || doc.id,
-      ...data
+      uid: data.uid || doc.id
     });
 
     return serialized as PublicStoreData;
@@ -310,8 +310,9 @@ export const getPublicStoreById = cache(async (storeId: string): Promise<PublicS
 
     // Serializar y mapear datos (soportar ambas estructuras)
     const serialized = serializeTimestamps({
+      ...data, // Primero los datos originales
       id: doc.id,
-      // Mapear estructura legacy a estructura nueva
+      // Mapear estructura legacy a estructura nueva (esto sobrescribe los campos necesarios)
       basicInfo: data?.basicInfo || {
         name: data?.name || '',
         slug: data?.siteName || '',
@@ -330,13 +331,12 @@ export const getPublicStoreById = cache(async (storeId: string): Promise<PublicS
         logoUrl: data?.urlProfile || '',
         bannerUrl: data?.urlPortada || ''
       },
-      schedule: adaptedSchedule,
+      schedule: adaptedSchedule, // Sobrescribir con schedule adaptado
       weeklySchedule: adaptedSchedule, // Mantener por compatibilidad
       settings: data?.settings,
       subscription: data?.subscription || { active: data?.suscripcion !== false },
       // Mantener campos legacy por compatibilidad
-      uid: data?.uid || doc.id,
-      ...data
+      uid: data?.uid || doc.id
     });
 
     return serialized as PublicStoreData;

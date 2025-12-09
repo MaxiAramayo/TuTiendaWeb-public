@@ -28,8 +28,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { useCartStore } from "@/features/store/api/cartStore";
-import { useProductModalStore } from "@/features/store/api/productModalStore";
+import { useCartStore } from "@/features/store/store/cart.store";
+import { useProductModalStore } from "@/features/store/store/product-modal.store";
 import { Product, Topics } from "@/shared/types/store";
 
 /**

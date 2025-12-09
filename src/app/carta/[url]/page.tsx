@@ -8,7 +8,7 @@
  */
 
 import ErrorNotFound from "@/features/store/ui/ErrorNotFound";
-import { getStoreBySlug, getStoreProducts } from "@/features/store/api/serverStore";
+import { getPublicStoreBySlug as getStoreBySlug, getPublicProducts as getStoreProducts } from "@/features/store/services/public-store.service";
 import { Product } from "@/shared/types/store";
 import ProductList from "@/features/store/modules/products/components/ProductList";
 import ErrorNotAvailable from "@/features/store/ui/ErrorNotAvailable";

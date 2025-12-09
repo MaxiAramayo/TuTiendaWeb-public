@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Cart from "./Cart";
-import { useCartStore } from "@/features/store/api/cartStore";
+import { useCartStore } from "@/features/store/store/cart.store";
 import { formatearItemsCarrito } from "./CartUtils";
 import { ShoppingBag, X } from "lucide-react";
 import { formatPrice } from "@/features/products/utils/product.utils";

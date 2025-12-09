@@ -9,7 +9,7 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { useCartStore } from "@/features/store/api/cartStore";
+import { useCartStore } from "@/features/store/store/cart.store";
 import Checkout from "./Checkout";
 import type { StoreSettings } from "@/features/store/types/store.types";
 

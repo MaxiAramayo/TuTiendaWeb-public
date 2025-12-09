@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AdvancedThemeConfig } from '@/shared/types/store';
-import { ThemeService } from '../api/themeService';
+import { ThemeService } from '../utils/theme.utils';
 
 /**
  * Opciones para el hook useTheme

@@ -80,7 +80,15 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
       `¡Hola! Me gustaría hacerles una consulta desde la tienda online de ${store.name}`
     );
     
-    window.open(`https://wa.me/+54${store.whatsapp}?text=${message}`, '_blank');
+    // Limpiar el número y asegurar que tenga el formato correcto
+    let phoneNumber = store.whatsapp.replace(/\D/g, ''); // Eliminar todo excepto dígitos
+    
+    // Si no comienza con código de país, agregar el de Argentina
+    if (!phoneNumber.startsWith('54')) {
+      phoneNumber = '54' + phoneNumber;
+    }
+    
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
   /**
@@ -264,13 +272,6 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
                  }`}></div>
                  {storeStatus.status?.isOpen ? 'Abierto' : 'Cerrado'}
               </div>
-              
-              {/* Horario de hoy */}
-              {todaySchedule && typeof todaySchedule === 'object' && todaySchedule.isOpen && todaySchedule.openTime && todaySchedule.closeTime && (
-                <span className="text-white/90 text-sm bg-black/20 px-3 py-2 rounded-xl backdrop-blur-sm">
-                  {todaySchedule.openTime.slice(0, 5)} - {todaySchedule.closeTime.slice(0, 5)}
-                </span>
-              )}
             </div>
           </div>
         </div>

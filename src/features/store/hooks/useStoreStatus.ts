@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { WeeklySchedule, DailySchedule, StoreStatus } from '../types/store.types';
-import { ScheduleService } from '../api/scheduleService';
+import { ScheduleService } from '../utils/schedule.utils';
 
 /**
  * Hook para calcular y mantener actualizado el estado de la tienda

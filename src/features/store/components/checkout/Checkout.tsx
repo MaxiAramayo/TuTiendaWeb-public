@@ -12,7 +12,7 @@ import { CheckoutForm } from "./CheckoutForm";
 import { OrderTicket } from "./OrderTicket";
 import { ArrowLeft } from "lucide-react";
 import type { StoreSettings } from "@/features/store/types/store.types";
-import { useCartStore } from "@/features/store/api/cartStore";
+import { useCartStore } from "@/features/store/store/cart.store";
 
 interface CheckoutProps {
   uid: string;
