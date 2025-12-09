@@ -21,7 +21,7 @@ interface CartState {
 interface CartActions {
   openCart: () => void;
   closeCart: () => void;
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, notes?: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
@@ -54,7 +54,7 @@ const useCartStore = create<CartState & CartActions & CartSelectors>()(
     
     closeCart: () => set({ isOpen: false }),
     
-    addToCart: (product: Product, quantity: number = 1) => {
+    addToCart: (product: Product, quantity: number = 1, notes?: string) => {
       try {
         set({ isLoading: true, error: null });
 
@@ -73,23 +73,25 @@ const useCartStore = create<CartState & CartActions & CartSelectors>()(
 
         const { items } = get();
 
-        // Generar un identificador único basado en idProduct y los ids de los tópicos (ordenados)
+        // Generar un identificador único basado en idProduct, tópicos y notas
         const topicsIds = (product.topics && product.topics.length > 0)
           ? product.topics.map(t => t.id).sort().join('-')
           : '';
-        const uniqueId = `${product.idProduct}-${topicsIds}`;
+        const notesHash = notes ? `-n${notes.slice(0, 10)}` : '';
+        const uniqueId = `${product.idProduct}-${topicsIds}${notesHash}`;
 
-        // Buscar si ya existe un producto con la misma combinación de idProduct + tópicos
+        // Buscar si ya existe un producto con la misma combinación de idProduct + tópicos + notas
         const existingItem = items.find(item => {
           if (item.idProduct !== product.idProduct) return false;
           const itemTopicsIds = (item.topics && item.topics.length > 0)
             ? item.topics.map(t => t.id).sort().join('-')
             : '';
-          return itemTopicsIds === topicsIds;
+          const itemNotes = item.aclaracion || '';
+          return itemTopicsIds === topicsIds && itemNotes === (notes || '');
         });
 
         if (existingItem) {
-          // Si el producto ya existe con la misma combinación de tópicos, actualizamos la cantidad
+          // Si el producto ya existe con la misma combinación de tópicos y notas, actualizamos la cantidad
           const updatedItems = items.map(item =>
             item === existingItem
               ? { ...item, cantidad: item.cantidad + quantity }
@@ -102,10 +104,11 @@ const useCartStore = create<CartState & CartActions & CartSelectors>()(
           });
         } else {
           // Si es una combinación nueva, la agregamos como ítem distinto
-          const newItem = {
+          const newItem: ProductInCart = {
             ...product,
             id: uniqueId, // ID determinista
-            cantidad: quantity
+            cantidad: quantity,
+            aclaracion: notes || undefined
           };
           const updatedItems = [...items, newItem];
           set({ 

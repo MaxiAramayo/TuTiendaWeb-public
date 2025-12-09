@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { User } from "@/features/user/user.types";
+import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 
 /**
  * Props para el componente ModernSidebar
@@ -109,6 +110,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
   onToggleCollapse
 }) => {
   const pathname = usePathname();
+  const { storeSlug } = useCurrentStore();
 
   /**
    * Verifica si una ruta está activa
@@ -242,11 +244,12 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Footer - Tienda Link */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4">
         <Link
-          href={`/tienda`}
+          href={storeSlug ? `/${storeSlug}` : '#'}
           target="_blank"
           className={cn(
             "flex items-center rounded-lg p-2 sm:p-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group",
-            isCollapsed ? "justify-center" : "space-x-2 sm:space-x-3"
+            isCollapsed ? "justify-center" : "space-x-2 sm:space-x-3",
+            !storeSlug && "opacity-50 pointer-events-none"
           )}
         >
           <Store className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400 flex-shrink-0" />

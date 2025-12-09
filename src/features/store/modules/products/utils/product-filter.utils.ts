@@ -5,7 +5,7 @@
  */
 
 import { FilterOptions, GroupedProducts, Product, ProductFilters, SortOption } from "@/shared/types/store";
-import { SortOption as FiltersSortOption } from '@/features/store/api/filtersStore';
+import { SortOption as FiltersSortOption } from '@/features/store/store/filters.store';
 
 /**
  * Filtra los productos por término de búsqueda

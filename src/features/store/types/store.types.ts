@@ -261,3 +261,113 @@ export interface ApiResponse<T = any> {
   /** Código de estado */
   statusCode?: number;
 }
+
+// ============================================================================
+// DATOS DE TIENDA PÚBLICA (para Server Components y Client Components)
+// ============================================================================
+
+/**
+ * Método de pago
+ */
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  enabled: boolean;
+  instructions?: string;
+  type?: 'cash' | 'card' | 'transfer' | 'other';
+}
+
+/**
+ * Método de entrega
+ */
+export interface DeliveryMethod {
+  id: string;
+  name: string;
+  enabled: boolean;
+  price?: number;
+  type?: 'pickup' | 'delivery' | 'dineIn';
+}
+
+/**
+ * Datos de tienda pública (usable en cliente y servidor)
+ * Soporta tanto la estructura nueva como la legacy para compatibilidad
+ */
+export interface PublicStoreData {
+  id: string;
+  
+  // === ESTRUCTURA NUEVA ===
+  basicInfo?: {
+    name: string;
+    slug: string;
+    description?: string;
+  };
+  contactInfo?: {
+    whatsapp?: string;
+    email?: string;
+    phone?: string;
+  };
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+  };
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+  };
+  theme?: {
+    logoUrl?: string;
+    bannerUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+  };
+  schedule?: Record<string, unknown>;
+  settings?: {
+    paymentMethods?: PaymentMethod[];
+    deliveryMethods?: DeliveryMethod[];
+    currency?: string;
+    language?: string;
+    orderSettings?: {
+      preparationTime?: number;
+    };
+  };
+  subscription?: {
+    active: boolean;
+    plan?: string;
+  };
+  
+  // === CAMPOS LEGACY (para compatibilidad) ===
+  uid?: string;
+  name?: string;
+  siteName?: string;
+  descripcion?: string;
+  whatsapp?: string;
+  email?: string;
+  phone?: string;
+  localaddress?: string;
+  instagramlink?: string;
+  urlProfile?: string;
+  urlPortada?: string;
+  openinghours?: string;
+  suscripcion?: boolean;
+  weeklySchedule?: Record<string, unknown>;
+  
+  // Index signature para otros campos legacy no listados
+  [key: string]: unknown;
+}
+
+/**
+ * Configuración de tienda para checkout y componentes cliente
+ */
+export interface StoreSettings {
+  paymentMethods: PaymentMethod[];
+  deliveryMethods: DeliveryMethod[];
+  currency: string;
+  language: string;
+  orderSettings?: {
+    preparationTime?: number;
+  };
+  minOrderAmount?: number;
+  maxOrderAmount?: number;
+}

@@ -1,143 +1,130 @@
 /**
- * Proveedor de tema dinámico para la tienda
+ * Proveedor de tema para tienda pública
  * 
- * Inyecta CSS variables basadas en la configuración del tema
- * y proporciona contexto para componentes hijos
+ * Versión refactorizada que recibe datos del tema desde Server Components
+ * No depende de stores globales ni hace fetch en cliente
  * 
  * @module features/store/components/ThemeProvider
  */
 
 'use client';
 
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
-import { useStoreTheme, StoreTheme } from '../hooks/useStoreTheme';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { 
+  StoreTheme, 
+  StoreThemeData, 
+  generateTheme 
+} from '../hooks/useStoreTheme';
 
-/**
- * Contexto del tema de la tienda
- */
-const StoreThemeContext = createContext<StoreTheme | null>(null);
+// ============================================================================
+// CONTEXT
+// ============================================================================
 
-/**
- * Props del ThemeProvider
- */
-interface ThemeProviderProps {
-  /** Componentes hijos */
-  children: ReactNode;
-  /** Elemento raíz donde aplicar las CSS variables (opcional) */
-  rootElement?: HTMLElement;
+interface StoreThemeContextValue {
+  theme: StoreTheme;
+  themeData?: StoreThemeData;
+}
+
+const StoreThemeContext = createContext<StoreThemeContextValue | null>(null);
+
+// ============================================================================
+// PROVIDER
+// ============================================================================
+
+interface StoreThemeProviderProps {
+  children: React.ReactNode;
+  /**
+   * Datos del tema desde el servidor
+   * Se pasan desde un Server Component
+   */
+  themeData?: StoreThemeData;
 }
 
 /**
- * Proveedor de tema que inyecta CSS variables dinámicas
+ * Proveedor de tema para tienda pública
+ * 
+ * Recibe los datos del tema desde un Server Component y los proporciona
+ * a todos los componentes hijos a través del contexto.
+ * También inyecta las CSS variables necesarias.
+ * 
+ * @example
+ * ```tsx
+ * // En un Server Component
+ * const storeSettings = await getStoreSettings(storeId);
+ * 
+ * return (
+ *   <StoreThemeProvider themeData={storeSettings.theme}>
+ *     <StoreLayout />
+ *   </StoreThemeProvider>
+ * );
+ * ```
  */
-export const StoreThemeProvider: React.FC<ThemeProviderProps> = ({ 
+export function StoreThemeProvider({ 
   children, 
-  rootElement 
-}) => {
-  const theme = useStoreTheme();
+  themeData 
+}: StoreThemeProviderProps) {
+  const theme = useMemo(() => generateTheme(themeData), [themeData]);
 
+  // Inyectar CSS variables en el documento
   useEffect(() => {
-    // Determinar el elemento donde aplicar las CSS variables
-    const targetElement = rootElement || document.documentElement;
+    const root = document.documentElement;
     
-    // Aplicar CSS variables al elemento
-    Object.entries(theme.cssVariables).forEach(([property, value]) => {
-      targetElement.style.setProperty(property, value);
+    Object.entries(theme.cssVariables).forEach(([key, value]) => {
+      root.style.setProperty(key, value);
     });
 
-    // Cleanup: remover variables cuando el componente se desmonte
+    // Cleanup al desmontar
     return () => {
-      Object.keys(theme.cssVariables).forEach((property) => {
-        targetElement.style.removeProperty(property);
+      Object.keys(theme.cssVariables).forEach((key) => {
+        root.style.removeProperty(key);
       });
     };
-  }, [theme.cssVariables, rootElement]);
+  }, [theme.cssVariables]);
+
+  const contextValue = useMemo(() => ({
+    theme,
+    themeData
+  }), [theme, themeData]);
 
   return (
-    <StoreThemeContext.Provider value={theme}>
+    <StoreThemeContext.Provider value={contextValue}>
       {children}
     </StoreThemeContext.Provider>
   );
-};
+}
+
+// ============================================================================
+// HOOK
+// ============================================================================
 
 /**
- * Hook para acceder al contexto del tema
+ * Hook para acceder al tema de la tienda desde el contexto
+ * 
+ * @throws {Error} Si se usa fuera de StoreThemeProvider
  */
-export const useStoreThemeContext = (): StoreTheme => {
+export function useStoreThemeContext(): StoreThemeContextValue {
   const context = useContext(StoreThemeContext);
   
   if (!context) {
-    throw new Error('useStoreThemeContext debe ser usado dentro de StoreThemeProvider');
+    throw new Error(
+      'useStoreThemeContext debe usarse dentro de un StoreThemeProvider'
+    );
   }
   
   return context;
-};
-
-/**
- * Componente wrapper que aplica estilos de fuente del tema
- */
-interface ThemeWrapperProps {
-  children: ReactNode;
-  className?: string;
-}
-
-export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({ 
-  children, 
-  className = '' 
-}) => {
-  const theme = useStoreThemeContext();
-  
-  const fontFamilyClass = {
-    'inter': 'font-inter',
-    'roboto': 'font-roboto',
-    'poppins': 'font-poppins',
-    'montserrat': 'font-montserrat',
-    'open-sans': 'font-open-sans',
-    'lato': 'font-lato',
-    'nunito': 'font-nunito',
-    'source-sans-pro': 'font-source-sans-pro'
-  }[theme.fontFamily] || 'font-inter';
-  
-  return (
-    <div className={`${fontFamilyClass} ${className}`}>
-      {children}
-    </div>
-  );
-};
-
-/**
- * HOC para envolver componentes con el tema
- */
-export function withStoreTheme<P extends object>(
-  Component: React.ComponentType<P>
-): React.ComponentType<P> {
-  const WrappedComponent = (props: P) => (
-    <StoreThemeProvider>
-      <Component {...props} />
-    </StoreThemeProvider>
-  );
-  
-  WrappedComponent.displayName = `withStoreTheme(${Component.displayName || Component.name})`;
-  
-  return WrappedComponent;
 }
 
 /**
- * Utilidad para aplicar CSS variables directamente a un elemento
+ * Hook opcional que no lanza error si no hay provider
+ * Útil para componentes que pueden usarse tanto dentro como fuera del provider
  */
-export const applyThemeVariables = (element: HTMLElement, theme: StoreTheme): void => {
-  Object.entries(theme.cssVariables).forEach(([property, value]) => {
-    element.style.setProperty(property, value);
-  });
-};
+export function useStoreThemeOptional(): StoreThemeContextValue | null {
+  return useContext(StoreThemeContext);
+}
 
-/**
- * Utilidad para remover CSS variables de un elemento
- */
-export const removeThemeVariables = (element: HTMLElement, theme: StoreTheme): void => {
-  Object.keys(theme.cssVariables).forEach((property) => {
-    element.style.removeProperty(property);
-  });
-};
+// ============================================================================
+// EXPORTS
+// ============================================================================
 
-export default StoreThemeProvider;
+export { StoreThemeContext };
+export type { StoreThemeProviderProps, StoreThemeContextValue };

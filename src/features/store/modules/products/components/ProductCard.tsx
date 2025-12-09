@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Loader2 } from "lucide-react";
 import { ProductCardProps } from '@/shared/types/store';
-import { useCartStore } from '@/features/store/api/cartStore';
+import { useCartStore } from '@/features/store/store/cart.store';
 import { useStoreToast } from '../../../components/ui/FeedbackToast';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { ProductTagList } from '../../../components/ui/ProductTagBadge';

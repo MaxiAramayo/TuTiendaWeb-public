@@ -54,8 +54,15 @@ export function eliminarDelCarrito(
  */
 export function calcularTotal(carrito: ProductInCart[]): number {
   return carrito.reduce((total, producto) => {
-    // El precio del producto ya incluye los tópicos si existen
-    const precioProducto = producto.price * producto.cantidad;
+    // Calcular precio base del producto
+    const precioBase = producto.price;
+    
+    // Sumar el precio de los tópicos/variantes
+    const precioTopics = producto.topics?.reduce((sum, topic) => sum + topic.price, 0) || 0;
+    
+    // Total del producto = (precio base + extras) * cantidad
+    const precioProducto = (precioBase + precioTopics) * producto.cantidad;
+    
     return total + precioProducto;
   }, 0);
 }

@@ -5,7 +5,7 @@
  */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -147,6 +147,22 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
       minute: '2-digit'
     }).format(date);
   };
+
+  // Abrir WhatsApp automáticamente al montar el componente
+  useEffect(() => {
+    if (whatsappNumber && whatsappMessage) {
+      const cleanNumber = whatsappNumber.replace(/\s+/g, '');
+      // Pequeño delay para asegurar que el componente se renderizó
+      const timer = setTimeout(() => {
+        window.open(
+          `https://wa.me/${cleanNumber}?text=${encodeURIComponent(whatsappMessage)}`,
+          '_blank'
+        );
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Solo ejecutar una vez al montar
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">

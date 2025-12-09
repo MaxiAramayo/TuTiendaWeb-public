@@ -16,10 +16,10 @@ import ProductSkeleton from './ProductSkeleton';
 import CartDrawer from '../../../components/cart/CartDrawer';
 import CartFloatingButton from '../../../components/cart/CartFloatingButton';
 import AdvancedProductFilters from '../../../components/filters/AdvancedProductFilters';
-import { applyAdvancedFilters } from '../utils/productFilterUtils';
-import { useFiltersStore } from '../../../api/filtersStore';
-import { useCartStore } from '../../../api/cartStore';
-import { useProductModalStore } from '../../../api/productModalStore';
+import { applyAdvancedFilters } from '../utils/product-filter.utils';
+import { useFiltersStore } from '../../../store/filters.store';
+import { useCartStore } from '../../../store/cart.store';
+import { useProductModalStore } from '../../../store/product-modal.store';
 import { Loader2 } from 'lucide-react';
 import { useThemeClasses, useThemeStyles } from '../../../hooks/useStoreTheme';
 

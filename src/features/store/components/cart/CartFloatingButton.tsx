@@ -8,7 +8,7 @@
 
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCartStore } from "@/features/store/api/cartStore";
+import { useCartStore } from "@/features/store/store/cart.store";
 import { formatPrice } from "@/features/products/utils/product.utils";
 import { Badge } from "@/components/ui/badge";
 import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";

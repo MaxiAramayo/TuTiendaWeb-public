@@ -279,21 +279,27 @@ export const WeeklyScheduleDisplay: React.FC<WeeklyScheduleDisplayProps> = ({
     return time.slice(0, 5); // HH:MM
   };
 
-  const getDayScheduleText = (daySchedule: DailySchedule) => {
+  const getDayScheduleText = (daySchedule: DailySchedule | any) => {
     if (!daySchedule.isOpen || !daySchedule.openTime || !daySchedule.closeTime) {
       return 'Cerrado';
     }
     
-    let text = `${formatTime(daySchedule.openTime)} - ${formatTime(daySchedule.closeTime)}`;
-    
+    // Si hay breaks, significa que hay múltiples períodos (turno mañana y tarde/noche)
     if (!compact && daySchedule.breaks && daySchedule.breaks.length > 0) {
-      const breaksText = daySchedule.breaks
-        .map(b => `${formatTime(b.startTime)}-${formatTime(b.endTime)}`)
-        .join(', ');
-      text += ` (Recesos: ${breaksText})`;
+      const periods: string[] = [];
+      
+      // Primer período: desde apertura hasta inicio del break
+      const firstBreak = daySchedule.breaks[0];
+      periods.push(`${formatTime(daySchedule.openTime)} - ${formatTime(firstBreak.startTime)}`);
+      
+      // Segundo período: desde fin del break hasta cierre
+      periods.push(`${formatTime(firstBreak.endTime)} - ${formatTime(daySchedule.closeTime)}`);
+      
+      return periods.join(' | ');
     }
     
-    return text;
+    // Un solo período
+    return `${formatTime(daySchedule.openTime)} - ${formatTime(daySchedule.closeTime)}`;
   };
 
   return (
