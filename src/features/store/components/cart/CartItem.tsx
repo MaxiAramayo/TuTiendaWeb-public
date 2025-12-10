@@ -77,73 +77,76 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
   };
 
   return (
-    <div className="flex items-center py-4 border-b">
+    <div className="flex items-center py-4 px-3 bg-white rounded-lg shadow-sm">
       {/* Información del producto */}
-      <div className="ml-4 flex flex-1 flex-col">
+      <div className="ml-2 flex flex-1 flex-col">
         <div>
-          <h3 className="sm:text-base font-medium text-gray-900 truncate">{name}</h3>
+          {/* Título en color de acento (gris oscuro) */}
+          <h3 className="sm:text-base font-semibold text-gray-800 truncate">{name}</h3>
           {/* Mostrar tópicos si existen */}
           {topics && topics.length > 0 && (
-            <ul className="text-xs text-gray-600 mt-1 mb-1">
+            <ul className="text-xs text-gray-500 mt-1 mb-1">
               {topics.map((topic) => (
                 <li key={topic.id} className="flex items-center gap-1">
                   <span>• {topic.name}</span>
                   {topic.price > 0 && (
-                    <span className={themeClasses.price.primary}>(+{formatPrice(topic.price)})</span>
+                    <span className="text-gray-400">(+{formatPrice(topic.price)})</span>
                   )}
                 </li>
               ))}
             </ul>
           )}
-          <p className="text-sm text-gray-500">
-            <span className={`font-medium ${themeClasses.price.primary}`}>
-              {formatPrice(price)}
-            </span>
-          </p>
+          {/* Precio unitario: solo mostrar si cantidad > 1, en gris pequeño */}
+          {cantidad > 1 && (
+            <p className="text-xs text-gray-400 mt-1">
+              {formatPrice(price)} c/u
+            </p>
+          )}
         </div>
 
         {/* Botón para editar tópicos solo si existen */}
         {topics && topics.length > 0 && (
           <button
-            className={`text-xs ${themeClasses.price.secondary} underline mt-1 mb-2 w-fit hover:opacity-80`}
+            className="text-xs text-gray-500 underline mt-1 mb-2 w-fit hover:text-gray-700"
             onClick={handleOpenModal}
           >
             Editar extras
           </button>
         )}
 
-        {/* Controles de cantidad */}
+        {/* Controles de cantidad - Estilo minimalista */}
         <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center bg-white rounded-full border border-gray-200 overflow-hidden">
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 rounded-full hover:bg-gray-100"
               onClick={() => onQuantityChange(id, "decrease")}
             >
-              <Minus className="h-4 w-4" />
+              <Minus className="h-4 w-4 text-gray-600" />
             </Button>
-            <span className="w-8 text-center">{cantidad}</span>
+            <span className="w-8 text-center font-medium text-gray-700">{cantidad}</span>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 rounded-full hover:bg-gray-100"
               onClick={() => onQuantityChange(id, "increase")}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 text-gray-600" />
             </Button>
           </div>
-          <p className={`font-medium ${themeClasses.price.primary}`}>
+          {/* Subtotal: negro/gris oscuro, no naranja */}
+          <p className="font-semibold text-gray-800">
             {formatPrice(calculateItemTotal())}
           </p>
         </div>
       </div>
 
-      {/* Botón de eliminar */}
+      {/* Botón de eliminar - Gris, rojo en hover */}
       <Button
         variant="ghost"
         size="icon"
-        className={`ml-4 h-8 w-8 ${themeClasses.status.error} hover:opacity-80`}
+        className="ml-4 h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
         onClick={() => onRemove(id)}
       >
         <span className="sr-only">Eliminar</span>

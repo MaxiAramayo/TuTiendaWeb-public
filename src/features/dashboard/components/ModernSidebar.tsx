@@ -225,7 +225,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
 
               {/* Indicador activo */}
               {isItemActive && (
-                <div className="absolute -left-3 sm:-left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full" />
+                <div className="absolute -left-3 sm:-left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-l-full" />
               )}
             </Link>
           );

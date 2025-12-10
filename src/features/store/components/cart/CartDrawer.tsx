@@ -125,12 +125,13 @@ const CartDrawer = () => {
       <div className="w-full flex flex-col gap-3">
         <div className="flex items-center justify-between text-base font-medium">
           <span>Total</span>
-          <span>{formatPrice(total)}</span>
+          <span style={{ color: 'var(--store-primary)' }}>{formatPrice(total)}</span>
         </div>
         <Button
-          className="w-full h-12 text-base font-medium"
+          className="w-full h-12 text-base font-medium text-white"
           size="lg"
           onClick={handleCheckout}
+          style={{ backgroundColor: 'var(--store-primary)' }}
         >
           Proceder al checkout
         </Button>
@@ -174,12 +175,13 @@ const CartDrawer = () => {
           <div className="w-full flex flex-col gap-3">
             <div className="flex items-center justify-between text-base font-medium">
               <span>Total</span>
-              <span>{formatPrice(total)}</span>
+              <span style={{ color: 'var(--store-primary)' }}>{formatPrice(total)}</span>
             </div>
             <Button
-              className="w-full h-12 text-base font-medium"
+              className="w-full h-12 text-base font-medium text-white"
               size="lg"
               onClick={handleCheckout}
+              style={{ backgroundColor: 'var(--store-primary)' }}
             >
               Proceder al checkout
             </Button>

@@ -95,7 +95,7 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
 
   // Renderizar filtros para versión escritorio
   const desktopFilters = (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8 mt-6">
+    <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-8 mt-6" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Barra de búsqueda - Ocupa ancho completo en móvil, 4 col en desktop */}
         <div className="md:col-span-12 lg:col-span-4">
@@ -233,8 +233,16 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
         {/* Botón para abrir panel de filtros */}
         <Sheet open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="relative h-11 w-11 bg-white border-gray-200 hover:bg-gray-50 hover:border-[var(--store-primary)] flex-shrink-0">
-              <SlidersHorizontal size={18} />
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative h-11 w-11 flex-shrink-0 border-[var(--store-primary)]"
+              style={{
+                backgroundColor: 'var(--store-secondary)',
+                borderColor: 'var(--store-primary)'
+              }}
+            >
+              <SlidersHorizontal size={18} style={{ color: 'var(--store-primary)' }} />
               {hasActiveFilters && (
                 <Badge
                   variant="destructive"

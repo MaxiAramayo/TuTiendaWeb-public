@@ -29,7 +29,7 @@ export default async function Tienda({
   params: Promise<{ url: string }>;
 }) {
   const { url } = await params;
-  
+
   // Usar las nuevas funciones optimizadas del servidor
   const storeData = await getStoreBySlug(url);
 
@@ -37,11 +37,11 @@ export default async function Tienda({
   if (!storeData) {
     return <ErrorNotFound />;
   }
-  
+
   // Verificar si la tienda está activa (compatible con ambas estructuras)
   const storeDataAny = storeData as any;
-  const isActive = storeDataAny.subscription?.active !== false && 
-                   storeDataAny.suscripcion !== false;
+  const isActive = storeDataAny.subscription?.active !== false &&
+    storeDataAny.suscripcion !== false;
   if (!isActive) {
     return <ErrorNotAvailable />;
   }
@@ -55,13 +55,13 @@ export default async function Tienda({
     siteName: storeDataAny.basicInfo?.slug || storeDataAny.siteName || "",
     name: storeDataAny.basicInfo?.name || storeDataAny.name || "",
     descripcion: storeDataAny.basicInfo?.description || storeDataAny.descripcion || "",
-    localaddress: storeDataAny.address ? 
-      `${storeDataAny.address.street}, ${storeDataAny.address.city}` : 
+    localaddress: storeDataAny.address ?
+      `${storeDataAny.address.street}, ${storeDataAny.address.city}` :
       storeDataAny.localaddress || "",
     whatsapp: storeDataAny.contactInfo?.whatsapp || storeDataAny.whatsapp || "",
     instagramlink: storeDataAny.socialLinks?.instagram || storeDataAny.instagramlink || "",
-    openinghours: storeDataAny.schedule ? 
-      "Lun-Dom: Ver horarios" : 
+    openinghours: storeDataAny.schedule ?
+      "Lun-Dom: Ver horarios" :
       storeDataAny.openinghours || "",
     urlProfile: storeDataAny.theme?.logoUrl || storeDataAny.urlProfile || "",
     urlPortada: storeDataAny.theme?.bannerUrl || storeDataAny.urlPortada || "",
@@ -75,13 +75,20 @@ export default async function Tienda({
   const themeData = {
     primaryColor: storeDataAny.theme?.primaryColor,
     secondaryColor: storeDataAny.theme?.secondaryColor,
+    accentColor: storeDataAny.theme?.accentColor,
     fontFamily: storeDataAny.theme?.fontFamily,
     buttonStyle: storeDataAny.theme?.buttonStyle
   };
 
   return (
     <StoreThemeProvider themeData={themeData}>
-      <div className="flex flex-col bg-gray-100 min-h-screen gap-6">
+      <div
+        className="flex flex-col min-h-screen gap-6"
+        style={{
+          backgroundColor: 'var(--store-secondary, #f3f4f6)',
+          fontFamily: 'var(--store-font-family, Inter), system-ui, sans-serif'
+        }}
+      >
         <HeaderWelcome store={mappedStoreData} />
         <ProductList
           products={products}

@@ -9,6 +9,7 @@
 
 import { getPublicStoreBySlug, getStoreSettings } from "@/features/store/services/public-store.service";
 import { CheckoutContainer } from "@/features/store/components/checkout/CheckoutContainer";
+import { StoreThemeProvider } from "@/features/store/components/ThemeProvider";
 import ErrorNotFound from "@/features/store/ui/ErrorNotFound";
 import ErrorNotAvailable from "@/features/store/ui/ErrorNotAvailable";
 
@@ -45,10 +46,23 @@ export default async function CheckoutPage({
     email: storeData.contactInfo?.email || storeData.email || '',
   };
 
+  // Extraer datos del tema para el ThemeProvider
+  // Casting a any para soportar propiedades extendidas que pueden existir en la base de datos
+  const theme = storeData.theme as Record<string, unknown> | undefined;
+  const themeData = {
+    primaryColor: theme?.primaryColor as string | undefined,
+    secondaryColor: theme?.secondaryColor as string | undefined,
+    accentColor: theme?.accentColor as string | undefined,
+    fontFamily: theme?.fontFamily as string | undefined,
+    buttonStyle: theme?.buttonStyle as string | undefined
+  };
+
   return (
-    <CheckoutContainer
-      storeInfo={storeInfo}
-      settings={settings}
-    />
+    <StoreThemeProvider themeData={themeData}>
+      <CheckoutContainer
+        storeInfo={storeInfo}
+        settings={settings}
+      />
+    </StoreThemeProvider>
   );
 }

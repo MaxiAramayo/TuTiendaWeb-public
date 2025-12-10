@@ -232,9 +232,10 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
             <div className="flex flex-wrap items-center gap-3 mt-4 justify-center lg:justify-start px-4 mb-2">
               {/* Botones de redes sociales rediseñados */}
               {/* Botones de redes sociales rediseñados - Ghost Style */}
+              {/* Botones de redes sociales - Ghost Style with Primary hover */}
               {store.whatsapp && (
                 <button
-                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
+                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/30 hover:bg-[var(--store-primary)] hover:border-[var(--store-primary)] text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
                   onClick={handleWhatsAppClick}
                   aria-label="Contactar por WhatsApp"
                 >
@@ -248,7 +249,7 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
 
               {store.instagramlink && (
                 <button
-                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
+                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/30 hover:bg-[var(--store-primary)] hover:border-[var(--store-primary)] text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
                   onClick={handleInstagramClick}
                   aria-label="Visitar Instagram"
                 >
@@ -262,8 +263,8 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
 
               {/* Badge de estado de la tienda */}
               <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium shadow-lg ${storeStatus.status?.isOpen
-                  ? 'bg-green-500/90 text-white'
-                  : 'bg-red-500/90 text-white'
+                ? 'bg-green-500/90 text-white'
+                : 'bg-red-500/90 text-white'
                 }`}>
                 <div className={`w-2.5 h-2.5 rounded-full ${storeStatus.status?.isOpen ? 'bg-white animate-pulse' : 'bg-white'
                   }`}></div>

@@ -109,8 +109,13 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
         {/* Contenido del producto a la derecha */}
         <div className="flex-grow p-3 flex flex-col justify-between">
           <div>
-            <h3 className="font-medium line-clamp-1 text-base pr-2">{product.name}</h3>
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+            <h3
+              className="font-semibold line-clamp-1 text-base pr-2"
+              style={{ color: 'var(--store-accent)' }}
+            >
+              {product.name}
+            </h3>
+            <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
               {product.description}
             </p>
 

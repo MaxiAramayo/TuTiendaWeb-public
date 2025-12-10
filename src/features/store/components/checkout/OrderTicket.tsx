@@ -12,14 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  CheckCircle2, 
-  MessageCircle, 
-  Copy, 
-  ArrowLeft, 
-  Clock, 
-  MapPin, 
-  CreditCard, 
+import {
+  CheckCircle2,
+  MessageCircle,
+  Copy,
+  ArrowLeft,
+  Clock,
+  MapPin,
+  CreditCard,
   Truck,
   Phone,
   Store,
@@ -49,9 +49,9 @@ interface OrderTicketProps {
   onBackToStore: () => void;
 }
 
-export const OrderTicket: React.FC<OrderTicketProps> = ({ 
-  orderData, 
-  onBackToStore 
+export const OrderTicket: React.FC<OrderTicketProps> = ({
+  orderData,
+  onBackToStore
 }) => {
   const router = useRouter();
   const themeClasses = useThemeClasses();
@@ -77,16 +77,16 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
     storeName = 'Mi Tienda',
     date = new Date()
   } = orderData || {};
-  
+
   // Asegurar que products sea un array válido
   const items = Array.isArray(products) ? products : [];
-  
+
   // Normalizar deliveryMethod y paymentMethod
-  const normalizedDeliveryMethod = typeof deliveryMethod === 'string' 
-    ? { name: deliveryMethod } 
+  const normalizedDeliveryMethod = typeof deliveryMethod === 'string'
+    ? { name: deliveryMethod }
     : deliveryMethod;
-  const normalizedPaymentMethod = typeof paymentMethod === 'string' 
-    ? { name: paymentMethod } 
+  const normalizedPaymentMethod = typeof paymentMethod === 'string'
+    ? { name: paymentMethod }
     : paymentMethod;
 
   const handleResendWhatsApp = async () => {
@@ -101,7 +101,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
           `https://wa.me/${cleanNumber}?text=${encodeURIComponent(whatsappMessage)}`
         );
       }
-      
+
       showOrder("Mensaje reenviado a WhatsApp", {
         duration: 3000
       });
@@ -159,20 +159,26 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
           '_blank'
         );
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, []); // Solo ejecutar una vez al montar
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div
+      className="min-h-screen py-8 px-4"
+      style={{
+        backgroundColor: 'var(--store-secondary, #f9fafb)',
+        fontFamily: 'var(--store-font-family, Inter), system-ui, sans-serif'
+      }}
+    >
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header de confirmación */}
         <Card className="text-center">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center space-y-4">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center`}
-                   style={themeStyles.background.primary}>
+                style={themeStyles.background.primary}>
                 <CheckCircle2 className="w-8 h-8 text-white" />
               </div>
               <div>
@@ -207,7 +213,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
                   {storeName}
                 </p>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Clock className={`w-4 h-4 ${themeClasses.accent.primary}`} />
@@ -301,9 +307,9 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
                   </p>
                 </div>
               ))}
-              
+
               <Separator />
-              
+
               {/* Totales */}
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -333,11 +339,11 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
               <Alert>
                 <Phone className="h-4 w-4" />
                 <AlertDescription>
-                  Tu pedido ha sido enviado por WhatsApp. Si no recibiste el mensaje o necesitas reenviarlo, 
+                  Tu pedido ha sido enviado por WhatsApp. Si no recibiste el mensaje o necesitas reenviarlo,
                   puedes usar los botones de abajo.
                 </AlertDescription>
               </Alert>
-              
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={handleResendWhatsApp}
@@ -354,7 +360,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
                     </>
                   )}
                 </Button>
-                
+
                 <Button
                   onClick={handleCopyMessage}
                   variant="outline"
@@ -364,7 +370,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
                   {hasCopied ? 'Copiado!' : 'Copiar mensaje'}
                 </Button>
               </div>
-              
+
               <Button
                 onClick={handleBackToStore}
                 variant="ghost"

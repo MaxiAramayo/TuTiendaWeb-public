@@ -229,44 +229,49 @@ export function ProductModal() {
           placeholder="Ej: Sin cebolla, bien cocido, etc."
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="resize-none"
+          className="resize-none border-gray-200 focus:border-[var(--store-primary)] focus:ring-[var(--store-primary)] transition-colors"
           rows={2}
           maxLength={200}
         />
       </div>
+    </div>
+  );
 
-      {/* Controles de cantidad y botón de agregar al carrito */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={decreaseQuantity}
-            disabled={quantity <= 1 || !product.available}
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
-          <span className="w-8 text-center">{quantity}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={increaseQuantity}
-            disabled={!product.available}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
+  // Barra de acciones (cantidad + agregar al carrito)
+  const actionBar = (
+    <div className="flex items-center justify-between gap-3">
+      {/* Selector de cantidad - Estilo Pill */}
+      <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-sm overflow-hidden">
         <Button
-          onClick={handleAddToCart}
-          disabled={!product.available}
-          className={`gap-2 ${themeClasses.background.primary} hover:opacity-90 text-white`}
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full hover:bg-gray-100"
+          onClick={decreaseQuantity}
+          disabled={quantity <= 1 || !product.available}
         >
-          <ShoppingCart className="h-4 w-4" />
-          {selectedTopics.length > 0
-            ? `Añadir ${formatPrice(calculateTotalPrice())}`
-            : "Añadir al carrito"}
+          <Minus className="h-4 w-4" style={{ color: 'var(--store-primary)' }} />
+        </Button>
+        <span className="w-10 text-center font-semibold text-gray-800">{quantity}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full hover:bg-gray-100"
+          onClick={increaseQuantity}
+          disabled={!product.available}
+        >
+          <Plus className="h-4 w-4" style={{ color: 'var(--store-primary)' }} />
         </Button>
       </div>
+      <Button
+        onClick={handleAddToCart}
+        disabled={!product.available}
+        className={`flex-1 gap-2 ${themeClasses.background.primary} hover:opacity-90 text-white`}
+      >
+        <ShoppingCart className="h-4 w-4" />
+        {selectedTopics.length > 0
+          ? `Añadir ${formatPrice(calculateTotalPrice())}`
+          : "Añadir al carrito"}
+      </Button>
     </div>
   );
 
@@ -282,10 +287,8 @@ export function ProductModal() {
             </DialogDescription>
           </DialogHeader>
           {productContent}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cerrar</Button>
-            </DialogClose>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {actionBar}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -294,20 +297,18 @@ export function ProductModal() {
 
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DrawerContent>
-        <DrawerHeader>
+      <DrawerContent className="max-h-[90vh] flex flex-col">
+        <DrawerHeader className="flex-shrink-0">
           <DrawerTitle>Detalles del producto</DrawerTitle>
           <DrawerDescription>
             Información detallada sobre el producto seleccionado
           </DrawerDescription>
         </DrawerHeader>
-        <div className="px-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
           {productContent}
         </div>
-        <DrawerFooter>
-          <DrawerClose asChild>
-            <Button variant="outline">Cerrar</Button>
-          </DrawerClose>
+        <DrawerFooter className="flex-shrink-0 pt-4 pb-6 border-t bg-white">
+          {actionBar}
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

@@ -173,7 +173,7 @@ const ProductList = ({
                 <h2
                   id={`category-${category}`}
                   className={`text-xl font-bold mb-4 border-l-4 ${themeClasses.border.primary} pl-3`}
-                  style={{ color: 'var(--store-primary)' }}
+                  style={{ color: 'var(--store-accent)' }}
                 >
                   {category}
                 </h2>
