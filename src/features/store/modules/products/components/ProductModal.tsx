@@ -31,13 +31,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/store/store/cart.store";
 import { useProductModalStore } from "@/features/store/store/product-modal.store";
 import { Product, Topics } from "@/shared/types/store";
+import { useThemeClasses, useThemeStyles } from "@/features/store/hooks/useStoreTheme";
 
-/**
- * Componente modal para visualizar y agregar productos al carrito
- * 
- * @returns {JSX.Element | null} Componente del modal o null si no está montado
- */
+// ... inside component
 export function ProductModal() {
+  // ... existing hooks
+
+  // Hooks del tema
+  const themeClasses = useThemeClasses();
+  const themeStyles = useThemeStyles();
+
+  // ... rest of code
+
   // Estados locales
   const [quantity, setQuantity] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState<Topics[]>([]);
@@ -170,7 +175,7 @@ export function ProductModal() {
           <h2 className="text-xl font-semibold">{product.name}</h2>
           {product.category && <Badge variant="outline">{product.category}</Badge>}
         </div>
-        <p className="text-lg font-bold text-primary mt-1">
+        <p className={`text-lg font-bold mt-1 ${themeClasses.price.primary}`}>
           {formatPrice(product.price)}
         </p>
       </div>
@@ -204,7 +209,7 @@ export function ProductModal() {
                   <label htmlFor={topic.id} className="text-gray-600 cursor-pointer">
                     {topic.name}
                   </label>
-                  <span className="font-bold text-primary">
+                  <span className={`font-bold ${themeClasses.price.primary}`}>
                     {formatPrice(topic.price)}
                   </span>
                 </div>
@@ -254,7 +259,7 @@ export function ProductModal() {
         <Button
           onClick={handleAddToCart}
           disabled={!product.available}
-          className="gap-2"
+          className={`gap-2 ${themeClasses.background.primary} hover:opacity-90 text-white`}
         >
           <ShoppingCart className="h-4 w-4" />
           {selectedTopics.length > 0

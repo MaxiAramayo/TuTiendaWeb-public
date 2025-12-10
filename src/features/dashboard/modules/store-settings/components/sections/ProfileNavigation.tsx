@@ -189,7 +189,6 @@ export function ProfileNavigation({
               >
                 <span className="text-sm sm:text-base">{section.icon}</span>
                 <span className="whitespace-nowrap truncate max-w-[80px] sm:max-w-none">{section.title}</span>
-                {!isActive && renderStatusIcon(section.id, 'sm')}
               </motion.button>
             );
           })}
@@ -230,9 +229,8 @@ export function ProfileNavigation({
                 {/* Icono y estado */}
                 <div className="flex-shrink-0 flex items-center space-x-1 sm:space-x-2">
                   <span className="text-base sm:text-lg">{section.icon}</span>
-                  {renderStatusIcon(section.id, 'sm')}
                 </div>
-                
+
                 {/* Contenido */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -252,7 +250,7 @@ export function ProfileNavigation({
                       />
                     )}
                   </div>
-                  
+
                   <p className={cn(
                     'text-xs mt-1 truncate',
                     isActive ? 'text-blue-700' : 'text-gray-500'

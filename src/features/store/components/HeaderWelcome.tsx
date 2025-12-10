@@ -33,7 +33,7 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
   // Memoizar el horario semanal para evitar recreaciones innecesarias
   const weeklySchedule = useMemo(() => {
     if (store.weeklySchedule) return store.weeklySchedule;
-    
+
     // Generar horario por defecto
     const defaultDay = {
       isOpen: true,
@@ -41,7 +41,7 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
       closeTime: "22:00",
       breaks: []
     };
-    
+
     return {
       monday: defaultDay,
       tuesday: defaultDay,
@@ -52,21 +52,21 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
       sunday: defaultDay
     };
   }, [store.weeklySchedule]);
-  
+
   // Hook para estado de la tienda con horarios dinámicos
   const storeStatus = useStoreStatus(weeklySchedule);
   const todaySchedule = useTodaySchedule(weeklySchedule);
-  
+
   // Estado para manejar errores de imagen
   const [profileImageError, setProfileImageError] = useState(false);
-  
+
   // Hook para obtener el tema de la tienda
   const themeContext = useTheme();
-  
+
   // Hooks del tema
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
-  
+
   // Color primario del tema para los iconos
   const iconColor = themeContext.theme.colors.primary || '#3b82f6';
 
@@ -75,19 +75,19 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
    */
   const handleWhatsAppClick = () => {
     if (!store.whatsapp) return;
-    
+
     const message = encodeURIComponent(
       `¡Hola! Me gustaría hacerles una consulta desde la tienda online de ${store.name}`
     );
-    
+
     // Limpiar el número y asegurar que tenga el formato correcto
     let phoneNumber = store.whatsapp.replace(/\D/g, ''); // Eliminar todo excepto dígitos
-    
+
     // Si no comienza con código de país, agregar el de Argentina
     if (!phoneNumber.startsWith('54')) {
       phoneNumber = '54' + phoneNumber;
     }
-    
+
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
@@ -102,15 +102,15 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
   // Estilo para el fondo con o sin imagen de portada
   const backgroundStyle = store.urlPortada
     ? {
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(${store.urlPortada})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }
+      backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(${store.urlPortada})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }
     : {
-        backgroundColor: "#212134",
-      };
-  
+      backgroundColor: "#212134",
+    };
+
   return (
     <header className="relative">
       <div
@@ -122,12 +122,12 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
           <p className="text-white text-sm">
             Creado con <span className="font-bold">TuTiendaWeb</span>
           </p>
-          <Image 
-            src="/favicon.ico" 
-            alt="Logo TuTiendaWeb" 
-            width={20} 
-            height={20} 
-            className="ml-1" 
+          <Image
+            src="/favicon.ico"
+            alt="Logo TuTiendaWeb"
+            width={20}
+            height={20}
+            className="ml-1"
           />
         </Link>
 
@@ -171,7 +171,7 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
             </div>
 
             <hr className="border-white/20 border-1" />
-            
+
             {/* Descripción */}
             <p className="text-white/90 text-md text-justify px-4">
               {store.descripcion}
@@ -215,7 +215,7 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
                   </DialogContent>
                 </Dialog>
               )}
-              
+
               {store.openinghours && !store.weeklySchedule && (
                 <div className="flex items-center gap-2">
                   <Clock
@@ -231,46 +231,43 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
             {/* Botones de contacto y badge de estado */}
             <div className="flex flex-wrap items-center gap-3 mt-4 justify-center lg:justify-start px-4 mb-2">
               {/* Botones de redes sociales rediseñados */}
+              {/* Botones de redes sociales rediseñados - Ghost Style */}
               {store.whatsapp && (
                 <button
-                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium text-sm overflow-hidden"
+                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
                   onClick={handleWhatsAppClick}
                   aria-label="Contactar por WhatsApp"
                 >
-                  <MessageCircle 
-                    size={18} 
-                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10" 
+                  <MessageCircle
+                    size={18}
+                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
                   />
                   <span className="relative z-10">WhatsApp</span>
-                  <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </button>
               )}
-              
+
               {store.instagramlink && (
                 <button
-                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium text-sm overflow-hidden"
+                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
                   onClick={handleInstagramClick}
                   aria-label="Visitar Instagram"
                 >
-                  <Instagram 
-                    size={18} 
-                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10" 
+                  <Instagram
+                    size={18}
+                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
                   />
                   <span className="relative z-10">Instagram</span>
-                  <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </button>
               )}
-              
+
               {/* Badge de estado de la tienda */}
-              <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium shadow-lg ${
-                 storeStatus.status?.isOpen 
-                   ? 'bg-green-500/90 text-white'
-                   : 'bg-red-500/90 text-white'
-               }`}>
-                 <div className={`w-2.5 h-2.5 rounded-full ${
-                   storeStatus.status?.isOpen ? 'bg-white animate-pulse' : 'bg-white'
-                 }`}></div>
-                 {storeStatus.status?.isOpen ? 'Abierto' : 'Cerrado'}
+              <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium shadow-lg ${storeStatus.status?.isOpen
+                  ? 'bg-green-500/90 text-white'
+                  : 'bg-red-500/90 text-white'
+                }`}>
+                <div className={`w-2.5 h-2.5 rounded-full ${storeStatus.status?.isOpen ? 'bg-white animate-pulse' : 'bg-white'
+                  }`}></div>
+                {storeStatus.status?.isOpen ? 'Abierto' : 'Cerrado'}
               </div>
             </div>
           </div>

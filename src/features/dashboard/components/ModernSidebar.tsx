@@ -135,7 +135,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
           <Link href="/dashboard" className="flex items-center space-x-2 sm:space-x-3">
             <Store className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
             <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-              TuTienda
+              TuTiendaWeb
             </span>
           </Link>
         )}
@@ -188,7 +188,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
               }}
               className={cn(
                 "flex items-center rounded-lg transition-all duration-200 group relative",
-                isCollapsed ? "justify-center p-2 sm:p-3" : "p-2 sm:p-3 space-x-2 sm:space-x-3",
+                isCollapsed ? "justify-center p-3 sm:p-4" : "p-3 sm:p-4 space-x-3 sm:space-x-4",
                 isItemActive
                   ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -199,16 +199,16 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
                 isItemActive
                   ? "text-blue-600 dark:text-blue-400"
                   : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300",
-                isCollapsed ? "w-5 h-5 sm:w-6 sm:h-6" : "w-4 h-4 sm:w-5 sm:h-5"
+                isCollapsed ? "w-6 h-6 sm:w-7 sm:h-7" : "w-5 h-5 sm:w-6 sm:h-6"
               )} />
 
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 text-xs sm:text-sm font-medium">
+                  <span className="flex-1 text-sm sm:text-base font-medium">
                     {item.title}
                   </span>
                   {item.badge && (
-                    <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                    <Badge variant="secondary" className="text-xs sm:text-sm px-2 py-0.5">
                       {item.badge}
                     </Badge>
                   )}
@@ -225,7 +225,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
 
               {/* Indicador activo */}
               {isItemActive && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full" />
+                <div className="absolute -left-3 sm:-left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full" />
               )}
             </Link>
           );
@@ -238,20 +238,20 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
           href={storeSlug ? `/${storeSlug}` : '#'}
           target="_blank"
           className={cn(
-            "flex items-center rounded-lg p-2 sm:p-3 transition-all duration-200 group relative",
-            isCollapsed ? "justify-center" : "space-x-2 sm:space-x-3",
+            "flex items-center rounded-lg p-3 sm:p-4 transition-all duration-200 group relative",
+            isCollapsed ? "justify-center" : "space-x-3 sm:space-x-4",
             "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
           )}
         >
           <Store className={cn(
             "flex-shrink-0 text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors",
-            isCollapsed ? "w-5 h-5 sm:w-6 sm:h-6" : "w-4 h-4 sm:w-5 sm:h-5"
+            isCollapsed ? "w-6 h-6 sm:w-7 sm:h-7" : "w-5 h-5 sm:w-6 sm:h-6"
           )} />
-          
+
           {!isCollapsed && (
             <div className="flex-1">
-              <p className="text-xs sm:text-sm font-medium">Ver mi tienda</p>
-              <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-sm sm:text-base font-medium">Ver mi tienda</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 {storeSlug || 'Configura tu tienda'}
               </p>
             </div>
@@ -282,8 +282,8 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Sidebar Desktop */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
-          isCollapsed ? "w-20" : "w-72"
+          "hidden lg:flex flex-col flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
+          isCollapsed ? "w-20" : "w-96"
         )}
       >
         <SidebarContent />
@@ -292,7 +292,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Sidebar Mobile */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:hidden",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
