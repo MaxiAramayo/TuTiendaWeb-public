@@ -60,45 +60,41 @@ interface ImageUpload {
 }
 
 /**
- * Colores predefinidos para el color primario (colores fuertes)
+ * Sets de Colores Recomendados (Paletas Inteligentes)
  */
-const PRIMARY_COLORS = [
-  { name: 'Azul Fuerte', value: '#1E40AF' },
-  { name: 'Verde Fuerte', value: '#059669' },
-  { name: 'Púrpura Fuerte', value: '#7C3AED' },
-  { name: 'Rosa Fuerte', value: '#DB2777' },
-  { name: 'Naranja Fuerte', value: '#EA580C' },
-  { name: 'Rojo Fuerte', value: '#DC2626' },
-  { name: 'Índigo Fuerte', value: '#4338CA' },
-  { name: 'Teal Fuerte', value: '#0F766E' },
-];
-
-/**
- * Colores predefinidos para el color secundario (colores pasteles)
- */
-const SECONDARY_COLORS = [
-  { name: 'Azul Pastel', value: '#DBEAFE' },
-  { name: 'Verde Pastel', value: '#D1FAE5' },
-  { name: 'Púrpura Pastel', value: '#EDE9FE' },
-  { name: 'Rosa Pastel', value: '#FCE7F3' },
-  { name: 'Naranja Pastel', value: '#FED7AA' },
-  { name: 'Rojo Pastel', value: '#FEE2E2' },
-  { name: 'Índigo Pastel', value: '#E0E7FF' },
-  { name: 'Teal Pastel', value: '#CCFBF1' },
-];
-
-/**
- * Colores predefinidos para el color de acento (grises y negros)
- */
-const ACCENT_COLORS = [
-  { name: 'Negro', value: '#000000' },
-  { name: 'Gris Muy Oscuro', value: '#1F2937' },
-  { name: 'Gris Oscuro', value: '#374151' },
-  { name: 'Gris Medio', value: '#4B5563' },
-  { name: 'Gris Carbón', value: '#111827' },
-  { name: 'Gris Pizarra', value: '#334155' },
-  { name: 'Gris Zinc', value: '#3F3F46' },
-  { name: 'Gris Neutro', value: '#404040' },
+const THEME_PRESETS = [
+  {
+    id: 'gastronomic',
+    name: 'Gastronómico & Cálido',
+    description: 'Ideal para restaurantes y comida.',
+    primary: '#EA580C',
+    secondary: '#FFF7ED',
+    accent: '#1F2937'
+  },
+  {
+    id: 'eco',
+    name: 'Eco & Fresco',
+    description: 'Para productos naturales y salud.',
+    primary: '#059669',
+    secondary: '#ECFDF5',
+    accent: '#064E3B'
+  },
+  {
+    id: 'tech',
+    name: 'Tech & Moderno',
+    description: 'Electrónica y servicios digitales.',
+    primary: '#2563EB',
+    secondary: '#F3F4F6',
+    accent: '#111827'
+  },
+  {
+    id: 'luxury',
+    name: 'Lujo & Minimal',
+    description: 'Joyería, moda y alta gama.',
+    primary: '#171717',
+    secondary: '#F5F5F4',
+    accent: '#CA8A04'
+  }
 ];
 
 /**
@@ -151,18 +147,18 @@ export function ThemeSection({
 
   // Obtener valores actuales del tema con fallbacks seguros
   const currentTheme = formData.theme || {};
-  
+
   // Validar que style sea un valor permitido
   const validStyles = ['modern', 'classic', 'minimal', 'colorful'] as const;
   const validButtonStyles = ['rounded', 'square', 'pill'] as const;
-  
+
   const themeConfig: ThemeConfig = {
     primaryColor: currentTheme.primaryColor || '#6366f1',
     secondaryColor: currentTheme.secondaryColor || '#8b5cf6',
     accentColor: currentTheme.accentColor || '#8B5CF6',
     fontFamily: currentTheme.fontFamily || 'Inter, sans-serif',
-    style: validStyles.includes(currentTheme.style as typeof validStyles[number]) 
-      ? currentTheme.style 
+    style: validStyles.includes(currentTheme.style as typeof validStyles[number])
+      ? currentTheme.style
       : 'modern',
     buttonStyle: validButtonStyles.includes(currentTheme.buttonStyle as typeof validButtonStyles[number])
       ? currentTheme.buttonStyle
@@ -183,7 +179,7 @@ export function ThemeSection({
       // Asegurar que style y buttonStyle tengan valores válidos
       const validStyles = ['modern', 'classic', 'minimal', 'colorful'] as const;
       const validButtonStyles = ['rounded', 'square', 'pill'] as const;
-      
+
       const themeData = {
         logoUrl: themeConfig.logoUrl || '',
         bannerUrl: themeConfig.bannerUrl || '',
@@ -191,8 +187,8 @@ export function ThemeSection({
         secondaryColor: themeConfig.secondaryColor || '#8b5cf6',
         accentColor: themeConfig.accentColor || '#8B5CF6',
         fontFamily: themeConfig.fontFamily || 'Inter, sans-serif',
-        style: (validStyles.includes(themeConfig.style as typeof validStyles[number]) 
-          ? themeConfig.style 
+        style: (validStyles.includes(themeConfig.style as typeof validStyles[number])
+          ? themeConfig.style
           : 'modern') as 'modern' | 'classic' | 'minimal' | 'colorful',
         buttonStyle: (validButtonStyles.includes(themeConfig.buttonStyle as typeof validButtonStyles[number])
           ? themeConfig.buttonStyle
@@ -201,7 +197,7 @@ export function ThemeSection({
 
       console.log('Saving theme data:', themeData);
       const result = await updateThemeAction(themeData);
-      
+
       if (result.success) {
         // Refrescar el perfil desde el servidor para actualizar el store
         const refreshResult = await getProfileAction();
@@ -211,8 +207,8 @@ export function ThemeSection({
         }
         success('Tema guardado correctamente');
       } else {
-        const errorMsg = result.errors._form?.[0] || 
-          Object.values(result.errors).flat()[0] || 
+        const errorMsg = result.errors._form?.[0] ||
+          Object.values(result.errors).flat()[0] ||
           'Error al guardar el tema. Inténtalo de nuevo.';
         error(errorMsg);
         console.error('Validation errors:', result.errors);
@@ -270,8 +266,8 @@ export function ThemeSection({
 
         // Subir nueva imagen usando el servicio cliente
         const imageUrl = await profileClientService.uploadImage(
-          profile?.id || user.uid, 
-          file, 
+          profile?.id || user.uid,
+          file,
           type === 'logo' ? 'logo' : 'banner'
         );
 
@@ -296,7 +292,7 @@ export function ThemeSection({
         };
 
         const saveResult = await updateThemeAction(themeDataToSave);
-        
+
         if (saveResult.success) {
           // Refrescar el store
           const refreshResult = await getProfileAction();
@@ -365,7 +361,7 @@ export function ThemeSection({
         };
 
         const saveResult = await updateThemeAction(themeDataToSave);
-        
+
         if (saveResult.success) {
           // Refrescar el store
           const refreshResult = await getProfileAction();
@@ -471,7 +467,7 @@ export function ThemeSection({
             />
 
             {themeConfig.logoUrl ? (
-              <div className='relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden'>
+              <div className='relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-full overflow-hidden'>
                 <img
                   src={themeConfig.logoUrl}
                   alt='Logo de la tienda'
@@ -484,7 +480,7 @@ export function ThemeSection({
                 )}
               </div>
             ) : (
-              <div className='w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500'>
+              <div className='w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-500'>
                 <div className='text-center'>
                   <ImageIcon className='w-8 h-8 mx-auto mb-2' />
                   <p className='text-xs'>Sin logo</p>
@@ -570,142 +566,145 @@ export function ThemeSection({
             Esquema de Colores
           </CardTitle>
         </CardHeader>
-        <CardContent className='space-y-6'>
-          {/* Color Primario */}
-          <div className='space-y-3'>
-            <Label className='text-sm font-medium'>Color Primario</Label>
-            <div className='flex items-center gap-3'>
-              <Input
-                type='color'
-                value={themeConfig.primaryColor}
-                onChange={(e) =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    primaryColor: e.target.value,
-                  })
-                }
-                className='w-16 h-10 p-1 border rounded'
-              />
-              <Input
-                type='text'
-                value={themeConfig.primaryColor}
-                onChange={(e) =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    primaryColor: e.target.value,
-                  })
-                }
-                className='flex-1'
-                placeholder='#6366f1'
-              />
-            </div>
-            <div className='flex flex-wrap gap-2'>
-              {PRIMARY_COLORS.map((color) => (
+        <CardContent className='space-y-8'>
+          {/* Paletas Recomendadas */}
+          <div className='space-y-4'>
+            <Label className='text-base font-semibold'>Paletas Recomendadas</Label>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+              {THEME_PRESETS.map((preset) => (
                 <button
-                  key={color.value}
+                  key={preset.id}
                   onClick={() =>
                     handleFieldChange('theme', {
                       ...currentTheme,
-                      primaryColor: color.value,
+                      primaryColor: preset.primary,
+                      secondaryColor: preset.secondary,
+                      accentColor: preset.accent,
                     })
                   }
-                  className='w-8 h-8 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors'
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
+                  className='flex flex-col items-start p-4 border rounded-xl hover:border-blue-500 hover:bg-blue-50/10 transition-all text-left group'
+                >
+                  <div className='flex items-center gap-2 mb-2'>
+                    <div className='w-6 h-6 rounded-full border border-black/10' style={{ backgroundColor: preset.primary }} />
+                    <div className='w-6 h-6 rounded-full border border-black/10' style={{ backgroundColor: preset.secondary }} />
+                    <div className='w-6 h-6 rounded-full border border-black/10' style={{ backgroundColor: preset.accent }} />
+                  </div>
+                  <span className='font-medium text-gray-900 group-hover:text-blue-700'>
+                    {preset.name}
+                  </span>
+                  <span className='text-xs text-gray-500 mt-1'>
+                    {preset.description}
+                  </span>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Color Secundario */}
-          <div className='space-y-3'>
-            <Label className='text-sm font-medium'>Color Secundario</Label>
-            <div className='flex items-center gap-3'>
-              <Input
-                type='color'
-                value={themeConfig.secondaryColor}
-                onChange={(e) =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    secondaryColor: e.target.value,
-                  })
-                }
-                className='w-16 h-10 p-1 border rounded'
-              />
-              <Input
-                type='text'
-                value={themeConfig.secondaryColor}
-                onChange={(e) =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    secondaryColor: e.target.value,
-                  })
-                }
-                className='flex-1'
-                placeholder='#8b5cf6'
-              />
-            </div>
-            <div className='flex flex-wrap gap-2'>
-              {SECONDARY_COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() =>
-                    handleFieldChange('theme', {
-                      ...currentTheme,
-                      secondaryColor: color.value,
-                    })
-                  }
-                  className='w-8 h-8 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors'
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </div>
+          <div className="border-t border-gray-200" />
 
-          {/* Color de Acento */}
-          <div className='space-y-3'>
-            <Label className='text-sm font-medium'>Color de Acento</Label>
-            <div className='flex items-center gap-3'>
-              <Input
-                type='color'
-                value={themeConfig.accentColor}
-                onChange={(e) =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    accentColor: e.target.value,
-                  })
-                }
-                className='w-16 h-10 p-1 border rounded'
-              />
-              <Input
-                type='text'
-                value={themeConfig.accentColor}
-                onChange={(e) =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    accentColor: e.target.value,
-                  })
-                }
-                className='flex-1'
-                placeholder='#8B5CF6'
-              />
-            </div>
-            <div className='flex flex-wrap gap-2'>
-              {ACCENT_COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() =>
-                    handleFieldChange('theme', {
-                      ...currentTheme,
-                      accentColor: color.value,
-                    })
-                  }
-                  className='w-8 h-8 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors'
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
+          {/* Ajustes Manuales */}
+          <div className='space-y-6'>
+            <Label className='text-base font-semibold'>Ajustes Manuales</Label>
+
+            <div className='grid gap-6 sm:grid-cols-3'>
+              {/* Color Primario */}
+              <div className='space-y-3'>
+                <Label className='text-sm font-medium'>Color Primario</Label>
+                <div className='flex items-center gap-3'>
+                  <Input
+                    type='color'
+                    value={themeConfig.primaryColor}
+                    onChange={(e) =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        primaryColor: e.target.value,
+                      })
+                    }
+                    className='w-12 h-12 p-1 border rounded-lg cursor-pointer'
+                  />
+                  <div className='flex-1'>
+                    <Input
+                      type='text'
+                      value={themeConfig.primaryColor}
+                      onChange={(e) =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          primaryColor: e.target.value,
+                        })
+                      }
+                      className='font-mono text-sm uppercase'
+                      placeholder='#000000'
+                    />
+                    <p className='text-xs text-gray-500 mt-1'>Color de marca</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Secundario */}
+              <div className='space-y-3'>
+                <Label className='text-sm font-medium'>Color Secundario</Label>
+                <div className='flex items-center gap-3'>
+                  <Input
+                    type='color'
+                    value={themeConfig.secondaryColor}
+                    onChange={(e) =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        secondaryColor: e.target.value,
+                      })
+                    }
+                    className='w-12 h-12 p-1 border rounded-lg cursor-pointer'
+                  />
+                  <div className='flex-1'>
+                    <Input
+                      type='text'
+                      value={themeConfig.secondaryColor}
+                      onChange={(e) =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          secondaryColor: e.target.value,
+                        })
+                      }
+                      className='font-mono text-sm uppercase'
+                      placeholder='#000000'
+                    />
+                    <p className='text-xs text-gray-500 mt-1'>Fondos suaves</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Color de Acento */}
+              <div className='space-y-3'>
+                <Label className='text-sm font-medium'>Color de Acento</Label>
+                <div className='flex items-center gap-3'>
+                  <Input
+                    type='color'
+                    value={themeConfig.accentColor}
+                    onChange={(e) =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        accentColor: e.target.value,
+                      })
+                    }
+                    className='w-12 h-12 p-1 border rounded-lg cursor-pointer'
+                  />
+                  <div className='flex-1'>
+                    <Input
+                      type='text'
+                      value={themeConfig.accentColor}
+                      onChange={(e) =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          accentColor: e.target.value,
+                        })
+                      }
+                      className='font-mono text-sm uppercase'
+                      placeholder='#000000'
+                    />
+                    <p className='text-xs text-gray-500 mt-1'>Textos y detalles</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -748,45 +747,50 @@ export function ThemeSection({
           <div className='space-y-3'>
             <Label className='text-sm font-medium'>Previsualización</Label>
             <div
-              className='p-4 border rounded-lg bg-gray-50'
-              style={{ fontFamily: themeConfig.fontFamily }}
+              className='p-6 border rounded-xl shadow-sm transition-colors duration-300'
+              style={{
+                fontFamily: themeConfig.fontFamily,
+                backgroundColor: themeConfig.secondaryColor
+              }}
             >
-              <h1 className='text-2xl font-bold mb-2' style={{ color: themeConfig.primaryColor }}>
-                Mi Tienda Online
-              </h1>
-              <h2 className='text-lg font-semibold mb-2' style={{ color: themeConfig.secondaryColor }}>
-                Productos Destacados
-              </h2>
-              <p className='text-base mb-3' style={{ color: themeConfig.accentColor }}>
-                Descubre nuestra amplia selección de productos de alta calidad.
-                Ofrecemos las mejores marcas al mejor precio.
-              </p>
-              <div className='flex gap-2'>
-                <button
-                  className={`px-4 py-2 text-white text-sm font-medium transition-colors ${themeConfig.buttonStyle === 'rounded'
-                    ? 'rounded-md'
-                    : themeConfig.buttonStyle === 'square'
-                      ? 'rounded-none'
-                      : 'rounded-full'
-                    }`}
-                  style={{ backgroundColor: themeConfig.primaryColor }}
-                >
-                  Comprar Ahora
-                </button>
-                <button
-                  className={`px-4 py-2 border text-sm font-medium transition-colors ${themeConfig.buttonStyle === 'rounded'
-                    ? 'rounded-md'
-                    : themeConfig.buttonStyle === 'square'
-                      ? 'rounded-none'
-                      : 'rounded-full'
-                    }`}
-                  style={{
-                    borderColor: themeConfig.accentColor,
-                    color: themeConfig.accentColor
-                  }}
-                >
-                  Ver Más
-                </button>
+              <div className="bg-white/50 p-4 rounded-lg backdrop-blur-sm">
+                <h1 className='text-3xl font-bold mb-2' style={{ color: themeConfig.primaryColor }}>
+                  Mi Tienda Online
+                </h1>
+                <h2 className='text-xl font-semibold mb-3' style={{ color: themeConfig.accentColor }}>
+                  Productos Destacados
+                </h2>
+                <p className='text-base mb-6 max-w-lg leading-relaxed' style={{ color: themeConfig.accentColor }}>
+                  Descubre nuestra amplia selección de productos de alta calidad.
+                  Ofrecemos las mejores marcas con el mejor diseño.
+                </p>
+                <div className='flex gap-3'>
+                  <button
+                    className={`px-6 py-2.5 text-white font-medium shadow-sm transition-all hover:opacity-90 active:scale-95 ${themeConfig.buttonStyle === 'rounded'
+                      ? 'rounded-md'
+                      : themeConfig.buttonStyle === 'square'
+                        ? 'rounded-none'
+                        : 'rounded-full'
+                      }`}
+                    style={{ backgroundColor: themeConfig.primaryColor }}
+                  >
+                    Comprar Ahora
+                  </button>
+                  <button
+                    className={`px-6 py-2.5 border-2 font-medium transition-all hover:bg-black/5 active:scale-95 ${themeConfig.buttonStyle === 'rounded'
+                      ? 'rounded-md'
+                      : themeConfig.buttonStyle === 'square'
+                        ? 'rounded-none'
+                        : 'rounded-full'
+                      }`}
+                    style={{
+                      borderColor: themeConfig.accentColor,
+                      color: themeConfig.accentColor
+                    }}
+                  >
+                    Ver Más
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -799,37 +803,48 @@ export function ThemeSection({
           <CardTitle>Estilo de Botones</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className='grid grid-cols-3 gap-4'>
-            {BUTTON_STYLES.map((style) => (
-              <button
-                key={style.value}
-                onClick={() =>
-                  handleFieldChange('theme', {
-                    ...currentTheme,
-                    buttonStyle: style.value as
-                      | 'rounded'
-                      | 'square'
-                      | 'pill',
-                  })
-                }
-                className={`p-4 border-2 rounded-lg text-center transition-colors ${themeConfig.buttonStyle === style.value
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400'
-                  }`}
-              >
-                <div
-                  className={`w-full h-8 bg-blue-500 text-white text-xs flex items-center justify-center ${style.value === 'rounded'
-                    ? 'rounded-md'
-                    : style.value === 'square'
-                      ? 'rounded-none'
-                      : 'rounded-full'
+          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+            {BUTTON_STYLES.map((style) => {
+              const isSelected = themeConfig.buttonStyle === style.value;
+              return (
+                <button
+                  key={style.value}
+                  onClick={() =>
+                    handleFieldChange('theme', {
+                      ...currentTheme,
+                      buttonStyle: style.value as
+                        | 'rounded'
+                        | 'square'
+                        | 'pill',
+                    })
+                  }
+                  className={`p-6 border-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center gap-3 group ${isSelected ? 'shadow-md ring-1' : 'border-gray-200 hover:border-gray-300'
                     }`}
+                  style={{
+                    borderColor: isSelected ? themeConfig.primaryColor : undefined,
+                    backgroundColor: isSelected ? `${themeConfig.primaryColor}10` : 'transparent', // 10 = alpha 10%
+                    boxShadow: isSelected ? `0 0 0 1px ${themeConfig.primaryColor}` : undefined
+                  }}
                 >
-                  Botón
-                </div>
-                <p className='text-sm mt-2'>{style.name}</p>
-              </button>
-            ))}
+                  <div
+                    className={`w-full max-w-[120px] h-10 text-white text-sm font-medium flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 ${style.value === 'rounded'
+                        ? 'rounded-md'
+                        : style.value === 'square'
+                          ? 'rounded-none'
+                          : 'rounded-full'
+                      }`}
+                    style={{ backgroundColor: themeConfig.primaryColor }}
+                  >
+                    Botón
+                  </div>
+                  <span className={`text-sm font-medium ${isSelected ? '' : 'text-gray-600'}`}
+                    style={{ color: isSelected ? themeConfig.primaryColor : undefined }}
+                  >
+                    {style.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

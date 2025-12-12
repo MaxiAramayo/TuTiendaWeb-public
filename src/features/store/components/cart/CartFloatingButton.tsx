@@ -28,7 +28,7 @@ const CartFloatingButton = () => {
       <div className="relative">
         <ShoppingCart className="h-5 w-5" />
         <span className="absolute -top-2 -right-2">
-          <Badge className="h-5 w-5 p-0 flex items-center justify-center text-xs font-bold rounded-full bg-[var(--store-secondary)] text-white border-[var(--store-secondary)]">
+          <Badge className="h-5 w-5 p-0 flex items-center justify-center text-xs font-bold rounded-full bg-white text-[var(--store-primary)] border-2 border-[var(--store-primary)] shadow-sm">
             {items.length}
           </Badge>
         </span>

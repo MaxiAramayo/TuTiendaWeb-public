@@ -58,8 +58,8 @@ const Checkout = ({
   // Si el pedido está completado, mostrar el ticket
   if (orderCompleted && orderData) {
     return (
-      <OrderTicket 
-        orderData={orderData} 
+      <OrderTicket
+        orderData={orderData}
         onBackToStore={handleBackToStore}
       />
     );
@@ -67,7 +67,13 @@ const Checkout = ({
 
   // Mostrar el checkout normal
   return (
-    <div className="max-w-2xl mx-auto p-4 bg-gray-50 min-h-screen flex flex-col gap-6">
+    <div
+      className="max-w-2xl mx-auto p-4 min-h-screen flex flex-col gap-6"
+      style={{
+        backgroundColor: 'var(--store-secondary, #f9fafb)',
+        fontFamily: 'var(--store-font-family, Inter), system-ui, sans-serif'
+      }}
+    >
       <div className="flex items-center mb-2">
         <button
           onClick={onBackToCart}
@@ -78,7 +84,12 @@ const Checkout = ({
           <ArrowLeft className="h-6 w-6 text-gray-700" />
         </button>
       </div>
-      <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">Resumen de tu pedido</h1>
+      <h1
+        className="text-2xl font-bold text-center mb-2"
+        style={{ color: 'var(--store-accent)' }}
+      >
+        Resumen de tu pedido
+      </h1>
       <OrderList carrito={carrito} total={total} />
       <CheckoutForm
         carrito={carrito}

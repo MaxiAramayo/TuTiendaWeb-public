@@ -181,10 +181,13 @@ export const CheckoutForm = ({
   return (
     <div className="mb-5 flex flex-col gap-3 mt-5 w-full p-2 md:p-4 bg-white rounded-lg max-w-2xl mx-auto">
       <div className="text-center mb-6">
-        <h1 className={`text-2xl font-bold ${themeClasses.price.primary}`}>
+        <h1
+          className="text-2xl font-bold"
+          style={{ color: 'var(--store-accent, #1F2937)' }}
+        >
           Finalizar Pedido
         </h1>
-        <p className="text-sm text-gray-600 mt-2">
+        <p className="text-sm text-gray-500 mt-2">
           Completa los datos para confirmar tu pedido
         </p>
       </div>
@@ -193,8 +196,8 @@ export const CheckoutForm = ({
         {/* Campo de nombre */}
         <div className="sm:col-span-4">
           <div className="flex items-center gap-2 mb-3">
-            <User className={`h-5 w-5 ${themeClasses.accent.primary}`} />
-            <label htmlFor="nombre" className={`block text-sm font-medium ${themeClasses.price.secondary}`}>
+            <User className="h-5 w-5 text-gray-700" />
+            <label htmlFor="nombre" className="block text-sm font-medium text-gray-800">
               Nombre completo
             </label>
           </div>
@@ -215,8 +218,8 @@ export const CheckoutForm = ({
         {/* Campo de forma de consumo */}
         <div className="sm:col-span-4">
           <div className="flex items-center gap-2 mb-3">
-            <Truck className={`h-5 w-5 ${themeClasses.accent.primary}`} />
-            <label htmlFor="formaDeConsumir" className={`block text-sm font-medium ${themeClasses.price.secondary}`}>
+            <Truck className="h-5 w-5 text-gray-700" />
+            <label htmlFor="formaDeConsumir" className="block text-sm font-medium text-gray-800">
               Forma de entrega
             </label>
           </div>
@@ -253,8 +256,8 @@ export const CheckoutForm = ({
         {formaDeConsumir === "delivery" && (
           <div className="sm:col-span-4">
             <div className="flex items-center gap-2 mb-3">
-              <MapPin className={`h-5 w-5 ${themeClasses.accent.primary}`} />
-              <label htmlFor="direccion" className={`block text-sm font-medium ${themeClasses.price.secondary}`}>
+              <MapPin className="h-5 w-5 text-gray-700" />
+              <label htmlFor="direccion" className="block text-sm font-medium text-gray-800">
                 Dirección de entrega
               </label>
             </div>
@@ -275,8 +278,8 @@ export const CheckoutForm = ({
         {/* Campo de forma de pago */}
         <div className="sm:col-span-4">
           <div className="flex items-center gap-2 mb-3">
-            <CreditCard className={`h-5 w-5 ${themeClasses.accent.primary}`} />
-            <label htmlFor="formaDePago" className={`block text-sm font-medium ${themeClasses.price.secondary}`}>
+            <CreditCard className="h-5 w-5 text-gray-700" />
+            <label htmlFor="formaDePago" className="block text-sm font-medium text-gray-800">
               Forma de Pago
             </label>
           </div>
@@ -321,8 +324,8 @@ export const CheckoutForm = ({
         {/* Campo de aclaraciones */}
         <div className="sm:col-span-4">
           <div className="flex items-center gap-2 mb-3">
-            <MessageSquare className={`h-5 w-5 ${themeClasses.accent.primary}`} />
-            <label htmlFor="aclaracion" className={`block text-sm font-medium ${themeClasses.price.secondary}`}>
+            <MessageSquare className="h-5 w-5 text-gray-700" />
+            <label htmlFor="aclaracion" className="block text-sm font-medium text-gray-800">
               Aclaración sobre el pedido
             </label>
           </div>
@@ -334,37 +337,40 @@ export const CheckoutForm = ({
           />
         </div>
 
-        {/* Resumen del pedido */}
-        <div className={`p-4 rounded-lg border ${themeClasses.background.secondary}`}>
-          <h4 className={`text-lg font-semibold ${themeClasses.price.secondary} mb-3`}>
+        {/* Resumen del pedido - Fondo elegante */}
+        <div
+          className="p-4 rounded-lg"
+          style={{ backgroundColor: 'var(--store-accent, #1F2937)' }}
+        >
+          <h4 className="text-lg font-semibold text-white mb-3">
             Resumen del pedido
           </h4>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal:</span>
-              <span className={themeClasses.price.primary}>${total}</span>
+              <span className="text-gray-300">Subtotal:</span>
+              <span className="text-white">${total}</span>
             </div>
             {deliveryPrice > 0 && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Envío:</span>
-                <span className={themeClasses.price.primary}>${deliveryPrice}</span>
+                <span className="text-gray-300">Envío:</span>
+                <span className="text-white">${deliveryPrice}</span>
               </div>
             )}
-            <div className="border-t border-gray-200 pt-2 mt-2">
+            <div className="border-t border-gray-600 pt-2 mt-2">
               <div className="flex justify-between text-lg font-semibold">
-                <span className={themeClasses.price.secondary}>Total:</span>
-                <span className={themeClasses.price.primary}>${finalTotal}</span>
+                <span className="text-white">Total:</span>
+                <span style={{ color: 'var(--store-primary, #EA580C)' }}>${finalTotal}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Botón de envío */}
+        {/* Botón de envío - Color primario */}
         <button
           type="submit"
           disabled={isPending || enabledPaymentMethods.length === 0 || enabledDeliveryMethods.length === 0}
-          className={`${themeClasses.button.primary.base} font-semibold px-4 py-3 rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors w-full flex items-center justify-center gap-2`}
-          style={themeStyles.button.primary}
+          className="font-semibold px-4 py-4 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors w-full flex items-center justify-center gap-2 text-white text-lg shadow-md hover:opacity-90"
+          style={{ backgroundColor: 'var(--store-primary, #EA580C)' }}
         >
           {isPending ? (
             <>

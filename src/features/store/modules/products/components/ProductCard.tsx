@@ -30,15 +30,15 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
   // Estado para controlar errores y carga de imágenes
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  
+
   // Acceder al estado del carrito
   const { addToCart, openCart } = useCartStore();
   const { showCart, messages } = useStoreToast();
-  
+
   // Hooks del tema
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
-  
+
   /**
    * Maneja la adición rápida al carrito
    * 
@@ -51,7 +51,7 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
     const productWithoutTopics = { ...product };
     delete productWithoutTopics.topics;
     addToCart(productWithoutTopics, 1);
-    
+
     showCart(messages.PRODUCT_ADDED, {
       action: {
         label: 'Ver carrito',
@@ -64,7 +64,7 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
   const imageUrl = product.imageUrl || product.image;
 
   return (
-    <Card 
+    <Card
       className="w-full overflow-hidden cursor-pointer transition-all duration-300 bg-white border-gray-200 hover:border-[var(--store-secondary)] hover:shadow-lg"
       onClick={() => onOpenModal(product)}
     >
@@ -83,9 +83,8 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
                 src={imageUrl as string}
                 alt={product.name}
                 fill
-                className={`object-cover transition-opacity duration-300 ${
-                  imageLoading ? 'opacity-0' : 'opacity-100'
-                }`}
+                className={`object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
+                  }`}
                 loading="lazy"
                 onLoad={() => setImageLoading(false)}
                 onError={() => {
@@ -106,15 +105,20 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
             </div>
           )}
         </div>
-        
+
         {/* Contenido del producto a la derecha */}
         <div className="flex-grow p-3 flex flex-col justify-between">
           <div>
-            <h3 className="font-medium line-clamp-1 text-base pr-2">{product.name}</h3>
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+            <h3
+              className="font-semibold line-clamp-1 text-base pr-2"
+              style={{ color: 'var(--store-accent)' }}
+            >
+              {product.name}
+            </h3>
+            <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
               {product.description}
             </p>
-            
+
             {/* Tags del producto */}
             {product.productTags && product.productTags.length > 0 && (
               <div className="mt-1.5">
@@ -129,15 +133,15 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-between items-center mt-1">
             <p className={`font-bold text-base ${themeClasses.price.primary}`}>
               ${product.price}
             </p>
-            <Button 
+            <Button
               size="sm"
               variant="ghost"
-              className={`p-1 h-8 w-8 rounded-full ${themeClasses.background.secondary} hover:bg-[var(--store-secondary)]/80 transition-all duration-300 hover:scale-110 shadow-sm`}
+              className={`p-1 h-8 w-8 rounded-full ${themeClasses.background.primary} hover:bg-[var(--store-primary)]/90 transition-all duration-300 hover:scale-110 shadow-sm`}
               disabled={product.available === false}
               onClick={handleQuickAddToCart}
               title="Añadir al carrito"

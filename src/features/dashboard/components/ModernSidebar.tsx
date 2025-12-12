@@ -14,7 +14,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -27,12 +27,10 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Menu,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User } from "@/features/user/user.types";
 import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 
 /**
@@ -130,25 +128,25 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Header */}
       <div className={cn(
         "flex items-center border-b border-gray-200 dark:border-gray-700",
-        isCollapsed ? "justify-center p-3 sm:p-4" : "justify-between p-4 sm:p-6"
+        isCollapsed ? "justify-center p-3 sm:p-4" : "justify-between p-3 sm:p-4"
       )}>
+        {/* Logo/Título */}
         {!isCollapsed && (
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Store className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                Tu<span className="text-blue-600">TiendaWeb</span>
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px] sm:max-w-[150px]">
-                {user?.displayName || "Mi Tienda"}
-              </p>
-            </div>
-          </div>
+          <Link href="/dashboard" className="flex items-center space-x-2 sm:space-x-3">
+            <Store className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+            <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+              TuTiendaWeb
+            </span>
+          </Link>
         )}
 
-        {/* Toggle collapse button - Solo en desktop */}
+        {isCollapsed && (
+          <Link href="/dashboard" className="flex items-center">
+            <Store className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+          </Link>
+        )}
+
+        {/* Collapse button - Solo en desktop */}
         <Button
           variant="ghost"
           size="sm"
@@ -190,7 +188,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
               }}
               className={cn(
                 "flex items-center rounded-lg transition-all duration-200 group relative",
-                isCollapsed ? "justify-center p-2 sm:p-3" : "p-2 sm:p-3 space-x-2 sm:space-x-3",
+                isCollapsed ? "justify-center p-3 sm:p-4" : "p-3 sm:p-4 space-x-3 sm:space-x-4",
                 isItemActive
                   ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -201,30 +199,23 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
                 isItemActive
                   ? "text-blue-600 dark:text-blue-400"
                   : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300",
-                isCollapsed ? "w-5 h-5 sm:w-6 sm:h-6" : "w-4 h-4 sm:w-5 sm:h-5"
+                isCollapsed ? "w-6 h-6 sm:w-7 sm:h-7" : "w-5 h-5 sm:w-6 sm:h-6"
               )} />
 
               {!isCollapsed && (
                 <>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-1 sm:space-x-2">
-                      <span className="text-sm sm:text-base font-medium truncate">
-                        {item.title}
-                      </span>
-                      {item.badge && (
-                        <Badge variant="secondary" className="text-xs">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {item.description}
-                    </p>
-                  </div>
+                  <span className="flex-1 text-sm sm:text-base font-medium">
+                    {item.title}
+                  </span>
+                  {item.badge && (
+                    <Badge variant="secondary" className="text-xs sm:text-sm px-2 py-0.5">
+                      {item.badge}
+                    </Badge>
+                  )}
                 </>
               )}
 
-              {/* Tooltip para modo collapsed */}
+              {/* Tooltip en modo colapsado */}
               {isCollapsed && (
                 <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
                   {item.title}
@@ -234,7 +225,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
 
               {/* Indicador activo */}
               {isItemActive && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full" />
+                <div className="absolute -left-3 sm:-left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-l-full" />
               )}
             </Link>
           );
@@ -247,24 +238,26 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
           href={storeSlug ? `/${storeSlug}` : '#'}
           target="_blank"
           className={cn(
-            "flex items-center rounded-lg p-2 sm:p-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group",
-            isCollapsed ? "justify-center" : "space-x-2 sm:space-x-3",
-            !storeSlug && "opacity-50 pointer-events-none"
+            "flex items-center rounded-lg p-3 sm:p-4 transition-all duration-200 group relative",
+            isCollapsed ? "justify-center" : "space-x-3 sm:space-x-4",
+            "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
           )}
         >
-          <Store className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <Store className={cn(
+            "flex-shrink-0 text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors",
+            isCollapsed ? "w-6 h-6 sm:w-7 sm:h-7" : "w-5 h-5 sm:w-6 sm:h-6"
+          )} />
+
           {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <span className="text-sm sm:text-base font-medium truncate block">
-                Visitar tienda
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 truncate block">
-                Ver como cliente
-              </span>
+            <div className="flex-1">
+              <p className="text-sm sm:text-base font-medium">Ver mi tienda</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                {storeSlug || 'Configura tu tienda'}
+              </p>
             </div>
           )}
 
-          {/* Tooltip para modo collapsed */}
+          {/* Tooltip en modo colapsado */}
           {isCollapsed && (
             <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
               Visitar tienda
@@ -289,8 +282,8 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Sidebar Desktop */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
-          isCollapsed ? "w-20" : "w-72"
+          "hidden lg:flex flex-col flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
+          isCollapsed ? "w-20" : "w-96"
         )}
       >
         <SidebarContent />
@@ -299,7 +292,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Sidebar Mobile */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:hidden",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

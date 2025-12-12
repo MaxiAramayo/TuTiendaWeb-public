@@ -21,6 +21,7 @@ import { useMemo } from 'react';
 export interface StoreThemeColors {
   primary: string;
   secondary: string;
+  accent: string;
   success: string;
   error: string;
   warning: string;
@@ -43,6 +44,7 @@ export interface StoreTheme {
 export interface StoreThemeData {
   primaryColor?: string;
   secondaryColor?: string;
+  accentColor?: string;
   fontFamily?: string;
   buttonStyle?: string;
 }
@@ -67,13 +69,13 @@ export class ColorUtils {
   static getLuminance(hex: string): number {
     const rgb = this.hexToRgb(hex);
     if (!rgb) return 0;
-    
+
     const { r, g, b } = rgb;
     const [rs, gs, bs] = [r, g, b].map(c => {
       c = c / 255;
       return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     });
-    
+
     return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
   }
 
@@ -88,24 +90,24 @@ export class ColorUtils {
   static darkenColor(hex: string, amount: number = 0.2): string {
     const rgb = this.hexToRgb(hex);
     if (!rgb) return hex;
-    
+
     const { r, g, b } = rgb;
     const newR = Math.max(0, Math.round(r * (1 - amount)));
     const newG = Math.max(0, Math.round(g * (1 - amount)));
     const newB = Math.max(0, Math.round(b * (1 - amount)));
-    
+
     return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
   }
 
   static lightenColor(hex: string, amount: number = 0.2): string {
     const rgb = this.hexToRgb(hex);
     if (!rgb) return hex;
-    
+
     const { r, g, b } = rgb;
     const newR = Math.min(255, Math.round(r + (255 - r) * amount));
     const newG = Math.min(255, Math.round(g + (255 - g) * amount));
     const newB = Math.min(255, Math.round(b + (255 - b) * amount));
-    
+
     return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
   }
 }
@@ -116,6 +118,7 @@ export class ColorUtils {
 
 const DEFAULT_PRIMARY = '#3B82F6';
 const DEFAULT_SECONDARY = '#64748B';
+const DEFAULT_ACCENT = '#1F2937';
 
 /**
  * Genera un tema basado en los datos proporcionados
@@ -123,12 +126,14 @@ const DEFAULT_SECONDARY = '#64748B';
 export function generateTheme(themeData?: StoreThemeData): StoreTheme {
   const primaryColor = themeData?.primaryColor || DEFAULT_PRIMARY;
   const secondaryColor = themeData?.secondaryColor || DEFAULT_SECONDARY;
+  const accentColor = themeData?.accentColor || DEFAULT_ACCENT;
   const fontFamily = themeData?.fontFamily || 'inter';
   const buttonStyle = (themeData?.buttonStyle as 'rounded' | 'square' | 'pill') || 'rounded';
 
   const colors: StoreThemeColors = {
     primary: primaryColor,
     secondary: secondaryColor,
+    accent: accentColor,
     success: '#10B981',
     error: '#EF4444',
     warning: '#F59E0B',
@@ -144,6 +149,8 @@ export function generateTheme(themeData?: StoreThemeData): StoreTheme {
     '--store-secondary-dark': ColorUtils.darkenColor(secondaryColor, 0.1),
     '--store-secondary-light': ColorUtils.lightenColor(secondaryColor, 0.1),
     '--store-secondary-contrast': ColorUtils.getContrastColor(secondaryColor),
+    '--store-accent': accentColor,
+    '--store-accent-light': ColorUtils.lightenColor(accentColor, 0.3),
     '--store-success': colors.success,
     '--store-error': colors.error,
     '--store-warning': colors.warning,
@@ -213,7 +220,7 @@ export const useThemeClasses = () => {
  */
 export const useThemeStyles = () => {
   const theme = useStoreTheme();
-  
+
   return useMemo(() => ({
     price: {
       primary: { color: theme.colors.primary },
