@@ -45,6 +45,17 @@ export default async function CheckoutPage({
     email: storeData.contactInfo?.email || '',
   };
 
+  // Extraer datos del tema para el ThemeProvider
+  // Casting a any para soportar propiedades extendidas que pueden existir en la base de datos
+  const theme = storeData.theme as Record<string, unknown> | undefined;
+  const themeData = {
+    primaryColor: theme?.primaryColor as string | undefined,
+    secondaryColor: theme?.secondaryColor as string | undefined,
+    accentColor: theme?.accentColor as string | undefined,
+    fontFamily: theme?.fontFamily as string | undefined,
+    buttonStyle: theme?.buttonStyle as string | undefined
+  };
+
   return (
     <StoreThemeProvider themeData={storeData.theme}>
       <CheckoutContainer
