@@ -41,9 +41,12 @@ const Cart = ({
   onEditTopics,
 }: CartProps) => {
   return (
-    <div className="flex flex-col h-full bg-gray-100 max-h-[50vh]">
+    <div
+      className="flex flex-col h-full max-h-[50vh] rounded-lg"
+      style={{ backgroundColor: 'var(--store-secondary, #f9fafb)' }}
+    >
       {/* Área scrolleable de productos */}
-      <ScrollArea className="h-80 rounded-md border">
+      <ScrollArea className="h-80 rounded-md">
         <div className="p-4 space-y-4">
           {items.map((item) => (
             <CartItem

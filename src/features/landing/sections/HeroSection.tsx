@@ -147,12 +147,12 @@ const HeroSection = () => {
               </div>
               
               {/* Elementos decorativos */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-100 rounded-full opacity-50 z-0"></div>
-              <div className="absolute -bottom-10 -left-10 w-52 h-52 bg-blue-100 rounded-full opacity-50 z-0"></div>
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-100 rounded-full opacity-50 z-0 hidden md:block"></div>
+              <div className="absolute -bottom-10 -left-10 w-52 h-52 bg-blue-100 rounded-full opacity-50 z-0 hidden md:block"></div>
               
               {/* Tarjeta flotante */}
               <motion.div
-                className="absolute -left-12 top-1/4 bg-white p-4 rounded-lg shadow-xl z-20"
+                className="absolute -left-4 md:-left-12 top-1/4 bg-white p-4 rounded-lg shadow-xl z-20 hidden sm:block"
                 initial={{ x: -30, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
@@ -172,7 +172,7 @@ const HeroSection = () => {
               
               {/* Tarjeta flotante */}
               <motion.div
-                className="absolute -right-12 bottom-1/4 bg-white p-4 rounded-lg shadow-xl z-20"
+                className="absolute -right-4 md:-right-12 bottom-1/4 bg-white p-4 rounded-lg shadow-xl z-20 hidden sm:block"
                 initial={{ x: 30, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.8, duration: 0.5 }}

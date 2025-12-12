@@ -20,11 +20,10 @@ import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
  */
 const navLinks = [
   { href: "#inicio", label: "Inicio" },
-  { href: "#caracteristicas", label: "Características" },
   { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#qr-menu", label: "Menú QR" },
+  { href: "#caracteristicas", label: "Características" },
+  { href: "#qr-demo", label: "Menú QR" },
   { href: "#precios", label: "Precios" },
-  { href: "#testimonios", label: "Testimonios" },
 ];
 
 /**
@@ -169,14 +168,14 @@ const Navbar = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            className="fixed inset-0 bg-white z-40 md:hidden pt-20"
+            className="fixed inset-0 top-16 bg-white z-40 md:hidden overflow-y-auto"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="container mx-auto px-4 py-6 flex flex-col h-full">
-              <nav className="flex flex-col space-y-4">
+            <div className="container mx-auto px-4 py-6 flex flex-col min-h-full">
+              <nav className="flex flex-col space-y-1">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}

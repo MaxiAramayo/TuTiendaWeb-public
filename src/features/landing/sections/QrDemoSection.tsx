@@ -65,7 +65,7 @@ const steps = [
 
 const QrDemoSection = () => {
   return (
-    <section id="como-funciona" className="py-20 bg-gray-50">
+    <section id="qr-demo" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
         <motion.div
           className="text-center max-w-3xl mx-auto mb-16"
