@@ -37,13 +37,12 @@ export default async function CheckoutPage({
   const settings = await getStoreSettings(storeData.id);
 
   // Preparar datos para el componente cliente
-  // Soportar ambas estructuras: nueva (basicInfo, contactInfo) y legacy (name, whatsapp)
   const storeInfo = {
     id: storeData.id,
-    name: storeData.basicInfo?.name || storeData.name || '',
-    slug: storeData.basicInfo?.slug || storeData.siteName || url,
-    whatsapp: storeData.contactInfo?.whatsapp || storeData.whatsapp || '',
-    email: storeData.contactInfo?.email || storeData.email || '',
+    name: storeData.basicInfo?.name || '',
+    slug: storeData.basicInfo?.slug || url,
+    whatsapp: storeData.contactInfo?.whatsapp || '',
+    email: storeData.contactInfo?.email || '',
   };
 
   // Extraer datos del tema para el ThemeProvider
@@ -58,7 +57,7 @@ export default async function CheckoutPage({
   };
 
   return (
-    <StoreThemeProvider themeData={themeData}>
+    <StoreThemeProvider themeData={storeData.theme}>
       <CheckoutContainer
         storeInfo={storeInfo}
         settings={settings}

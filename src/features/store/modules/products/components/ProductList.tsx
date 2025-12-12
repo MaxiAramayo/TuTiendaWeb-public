@@ -25,10 +25,6 @@ import { useThemeClasses, useThemeStyles } from '../../../hooks/useStoreTheme';
 
 interface ProductListProps {
   products: Product[];
-  name?: string;
-  whatsapp?: string;
-  menu?: any;
-  uid?: string;
   isLoading?: boolean;
 }
 
@@ -37,10 +33,6 @@ interface ProductListProps {
  */
 const ProductList = ({
   products,
-  name,
-  whatsapp,
-  menu,
-  uid,
   isLoading = false
 }: ProductListProps) => {
   // Store de filtros

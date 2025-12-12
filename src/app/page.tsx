@@ -35,7 +35,7 @@ export default function Page() {
     <>
       <Navbar />
       
-      <main className="flex flex-col">
+      <main className="flex flex-col overflow-x-hidden">
         <HeroSection />
         <StepsSection />
         <FeaturesSection />
