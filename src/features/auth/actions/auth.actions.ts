@@ -318,6 +318,7 @@ export async function completeRegistrationAction(
             phone: formData.get('phone'),
             storeName: formData.get('storeName'),
             storeType: formData.get('storeType'),
+            slug: formData.get('slug'),
             address: formData.get('address'),
         };
 
@@ -331,12 +332,13 @@ export async function completeRegistrationAction(
             };
         }
 
-        const { storeName, storeType, address, phone } = validation.data;
+        const { storeName, storeType, slug, address, phone } = validation.data;
 
         // 4. CREATE STORE
         const store = await createStore({
             storeName,
             storeType: storeType as StoreType,
+            slug,
             address,
             phone,
             ownerId: userId,
