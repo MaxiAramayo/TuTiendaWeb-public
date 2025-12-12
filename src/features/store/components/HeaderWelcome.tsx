@@ -11,7 +11,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { MapPin, Clock, MessageCircle, Instagram } from 'lucide-react';
+import { MapPin, Clock, MessageCircle, Instagram, Facebook } from 'lucide-react';
 import { PublicStoreData } from "@/features/store/types/store.types";
 import { WeeklySchedule } from "@/features/store/types/store.types";
 import { useStoreStatus, useTodaySchedule } from "@/features/store/hooks/useStoreStatus";
@@ -25,7 +25,7 @@ interface HeaderWelcomeProps {
   store: PublicStoreData;
 }
 
-export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
+export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
   store
 }) => {
   // Memoizar el horario semanal para evitar recreaciones innecesarias
@@ -97,6 +97,15 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
     const instagram = store.socialLinks?.instagram;
     if (!instagram) return;
     window.open(instagram, '_blank');
+  };
+
+  /**
+   * Maneja el clic en el botón de Facebook
+   */
+  const handleFacebookClick = () => {
+    const facebook = store.socialLinks?.facebook;
+    if (!facebook) return;
+    window.open(facebook, '_blank');
   };
 
   // Estilo para el fondo con o sin imagen de portada
@@ -250,6 +259,20 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
                     className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
                   />
                   <span className="relative z-10">Instagram</span>
+                </button>
+              )}
+
+              {store.socialLinks?.facebook && (
+                <button
+                  className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/30 hover:bg-[var(--store-primary)] hover:border-[var(--store-primary)] text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
+                  onClick={handleFacebookClick}
+                  aria-label="Visitar Facebook"
+                >
+                  <Facebook
+                    size={18}
+                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
+                  />
+                  <span className="relative z-10">Facebook</span>
                 </button>
               )}
 

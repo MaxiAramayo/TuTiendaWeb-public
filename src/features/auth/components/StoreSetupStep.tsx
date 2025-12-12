@@ -114,6 +114,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
         formData.append('phone', data.whatsappNumber);
         formData.append('storeName', data.name);
         formData.append('storeType', data.storeType);
+        formData.append('slug', data.slug);
         formData.append('address', ''); // Address is optional/empty for now
 
         const result = await completeRegistrationAction(null, formData);
@@ -149,6 +150,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
         completeFormData.append('phone', data.whatsappNumber);
         completeFormData.append('storeName', data.name);
         completeFormData.append('storeType', data.storeType);
+        completeFormData.append('slug', data.slug);
         completeFormData.append('address', '');
 
         const completeResult = await completeRegistrationAction(null, completeFormData);
@@ -270,7 +272,7 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
             <Label htmlFor="slug">Nombre del sitio</Label>
             <div className="flex">
               <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                tutienda.com/
+                tutiendaweb.com.ar/
               </span>
               <Input
                 id="slug"
