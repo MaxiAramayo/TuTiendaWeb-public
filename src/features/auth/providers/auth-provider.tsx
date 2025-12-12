@@ -16,8 +16,8 @@
 import { useEffect, useRef } from 'react';
 import { onIdTokenChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
-import { syncTokenAction, logoutAction } from '../actions/auth.actions';
-import { useRouter } from 'next/navigation';
+import { syncTokenAction, clearSessionAction } from '../actions/auth.actions';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from './auth-store-provider';
 
 // ============================================================================
@@ -46,6 +46,7 @@ import { useAuthStore } from './auth-store-provider';
  */
 export function AuthSyncProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const pathname = usePathname();
     const isLoggingOut = useRef(false);
 
     // Zustand actions (no causan re-render porque son estables)
@@ -92,22 +93,27 @@ export function AuthSyncProvider({ children }: { children: React.ReactNode }) {
                     // 2. Limpiar sesión del servidor
                     try {
                         isLoggingOut.current = true;
-                        await logoutAction();
-                        console.log('[AuthSyncProvider] Logged out');
+                        await clearSessionAction(); // Usar clearSessionAction en vez de logoutAction
+                        console.log('[AuthSyncProvider] Session cleared');
                     } catch (error) {
-                        console.error('[AuthSyncProvider] Error logging out:', error);
+                        console.error('[AuthSyncProvider] Error clearing session:', error);
                     } finally {
                         isLoggingOut.current = false;
                     }
 
-                    // 3. Refrescar router para actualizar Server Components
-                    router.refresh();
+                    // 3. Refrescar router solo si estamos en rutas protegidas
+                    const isProtectedRoute = pathname.startsWith('/dashboard') || 
+                                           pathname.startsWith('/complete-profile');
+                    
+                    if (isProtectedRoute) {
+                        router.refresh();
+                    }
                 }
             }
         );
 
         return () => unsubscribe();
-    }, [router, setUser, reset]);
+    }, [router, pathname, setUser, reset]);
 
     return <>{children}</>;
 }

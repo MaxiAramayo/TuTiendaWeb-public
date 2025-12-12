@@ -401,6 +401,22 @@ export async function logoutAction(): Promise<void> {
     redirect('/');
 }
 
+/**
+ * Clear Session Action - Limpiar sesión sin redirección
+ * 
+ * Usado por AuthSyncProvider para limpiar la sesión sin redirigir
+ * (útil cuando el usuario ya está en una página pública)
+ */
+export async function clearSessionAction(): Promise<void> {
+    try {
+        await deleteSessionCookie();
+        console.log('[ClearSessionAction] Session cookie deleted');
+        revalidatePath('/');
+    } catch (error) {
+        console.error('[ClearSessionAction] Error:', error);
+    }
+}
+
 // ============================================================================
 // RESET PASSWORD ACTION
 // ============================================================================

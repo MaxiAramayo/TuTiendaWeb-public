@@ -322,7 +322,7 @@ export interface PublicStoreData {
     primaryColor?: string;
     secondaryColor?: string;
   };
-  schedule?: Record<string, unknown>;
+  schedule?: WeeklySchedule;
   settings?: {
     paymentMethods?: PaymentMethod[];
     deliveryMethods?: DeliveryMethod[];

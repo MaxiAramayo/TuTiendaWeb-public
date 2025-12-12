@@ -37,28 +37,16 @@ export default async function CheckoutPage({
   const settings = await getStoreSettings(storeData.id);
 
   // Preparar datos para el componente cliente
-  // Soportar ambas estructuras: nueva (basicInfo, contactInfo) y legacy (name, whatsapp)
   const storeInfo = {
     id: storeData.id,
-    name: storeData.basicInfo?.name || storeData.name || '',
-    slug: storeData.basicInfo?.slug || storeData.siteName || url,
-    whatsapp: storeData.contactInfo?.whatsapp || storeData.whatsapp || '',
-    email: storeData.contactInfo?.email || storeData.email || '',
-  };
-
-  // Extraer datos del tema para el ThemeProvider
-  // Casting a any para soportar propiedades extendidas que pueden existir en la base de datos
-  const theme = storeData.theme as Record<string, unknown> | undefined;
-  const themeData = {
-    primaryColor: theme?.primaryColor as string | undefined,
-    secondaryColor: theme?.secondaryColor as string | undefined,
-    accentColor: theme?.accentColor as string | undefined,
-    fontFamily: theme?.fontFamily as string | undefined,
-    buttonStyle: theme?.buttonStyle as string | undefined
+    name: storeData.basicInfo?.name || '',
+    slug: storeData.basicInfo?.slug || url,
+    whatsapp: storeData.contactInfo?.whatsapp || '',
+    email: storeData.contactInfo?.email || '',
   };
 
   return (
-    <StoreThemeProvider themeData={themeData}>
+    <StoreThemeProvider themeData={storeData.theme}>
       <CheckoutContainer
         storeInfo={storeInfo}
         settings={settings}
