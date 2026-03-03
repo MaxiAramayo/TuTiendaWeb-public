@@ -16,7 +16,6 @@ functions/
 functions/node_modules/
 functions/lib/
 functions/.runtimeconfig.json
-
 # testing
 /coverage
 
