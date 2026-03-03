@@ -6,17 +6,17 @@
 
 'use client';
 
-import React, { useCallback, useTransition, useState } from 'react';
+import React, { useCallback, useTransition, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '@/lib/firebase/client';
 import { useAuth } from '@/features/auth/providers/auth-store-provider';
-import { ProfileFormData, FormState, SubscriptionInfo } from '../../types/store.type';
-import { getProfileAction } from '../../actions/profile.actions';
-import { useProfileStore } from '../../stores/profile.store';
+import { ProfileFormData, FormState } from '../../types/store.type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -34,6 +34,8 @@ import {
   Palette,
   Package,
   HeadphonesIcon,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface SubscriptionSectionProps {
@@ -62,6 +64,18 @@ const PRO_PLAN = {
   ],
 };
 
+/** Mapea paymentStatus a texto legible */
+function getPaymentStatusLabel(status?: string): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
+  switch (status) {
+    case 'authorized': return { label: 'Activo', variant: 'default' };
+    case 'pending':    return { label: 'Pago pendiente', variant: 'secondary' };
+    case 'paused':     return { label: 'Pausado', variant: 'secondary' };
+    case 'cancelled':  return { label: 'Cancelado', variant: 'destructive' };
+    case 'expired':    return { label: 'Vencido', variant: 'destructive' };
+    default:           return { label: 'Activo', variant: 'default' };
+  }
+}
+
 export function SubscriptionSection({
   formData,
   userEmail,
@@ -72,10 +86,12 @@ export function SubscriptionSection({
   updateField,
 }: SubscriptionSectionProps) {
   const [processingPayment, setProcessingPayment] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const searchParams = useSearchParams();
 
   const { user } = useAuth();
-  const setProfile = useProfileStore((state) => state.setProfile);
+
+  // Detectar si MP redirigió de vuelta con un preapproval_id
+  const returnedPreapprovalId = searchParams.get('preapproval_id');
 
   const subscription = formData.subscription || {
     active: false,
@@ -87,6 +103,9 @@ export function SubscriptionSection({
 
   const isPro = subscription.plan === 'pro' && subscription.active;
   const isOnTrial = subscription.plan === 'trial' && subscription.active;
+  // Tiene plan pro iniciado pero el webhook aún no confirmó el pago
+  const isPendingConfirmation =
+    subscription.plan === 'pro' && subscription.paymentStatus === 'pending';
 
   const endDateMs = subscription.endDate
     ? (subscription.endDate as any).toDate
@@ -105,6 +124,8 @@ export function SubscriptionSection({
         year: 'numeric',
       })
     : null;
+
+  const paymentStatusInfo = getPaymentStatusLabel(subscription.paymentStatus);
 
   /** Genera el link de MercadoPago y abre en nueva pestaña */
   const handleSubscribe = async () => {
@@ -172,6 +193,28 @@ export function SubscriptionSection({
         <p className="text-sm text-gray-500 mt-0.5">Gestioná tu plan y facturación</p>
       </div>
 
+      {/* Banner de retorno desde MercadoPago */}
+      {returnedPreapprovalId && isPendingConfirmation && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <RefreshCw className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Pago recibido — confirmación en proceso.</strong>{' '}
+            MercadoPago está verificando tu pago. Esto puede demorar unos minutos.
+            Recargá la página en un momento para ver el estado actualizado.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Banner si ya está autorizado */}
+      {returnedPreapprovalId && isPro && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>¡Suscripción activa!</strong> Tu plan Profesional fue confirmado correctamente.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Estado actual */}
       <Card>
         <CardHeader className="pb-4">
@@ -189,32 +232,36 @@ export function SubscriptionSection({
                 'text-lg font-bold',
                 isPro ? 'text-purple-600' : 'text-gray-700'
               )}>
-                {isPro ? 'Profesional' : isOnTrial ? 'Período de prueba' : 'Gratuito'}
+                {isPro || isPendingConfirmation ? 'Profesional' : isOnTrial ? 'Período de prueba' : 'Gratuito'}
               </p>
             </div>
 
             {/* Estado */}
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Estado</p>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <span className={cn(
-                  'w-2 h-2 rounded-full',
+                  'w-2 h-2 rounded-full flex-shrink-0',
                   subscription.active ? 'bg-green-500' : 'bg-gray-400'
                 )} />
-                <p className={cn(
-                  'text-lg font-bold',
-                  subscription.active ? 'text-green-600' : 'text-gray-500'
-                )}>
-                  {subscription.active ? 'Activo' : 'Inactivo'}
-                </p>
+                <Badge
+                  variant={paymentStatusInfo.variant}
+                  className={cn(
+                    'text-xs font-medium',
+                    paymentStatusInfo.variant === 'default' && 'bg-green-100 text-green-800 hover:bg-green-100',
+                    paymentStatusInfo.variant === 'secondary' && 'bg-orange-100 text-orange-800 hover:bg-orange-100',
+                  )}
+                >
+                  {subscription.paymentStatus === 'pending' ? 'Confirmando...' : paymentStatusInfo.label}
+                </Badge>
               </div>
             </div>
 
             {/* Próximo pago / vencimiento */}
-            {nextPaymentDate && (
+            {nextPaymentDate && (isPro || isPendingConfirmation) && (
               <div className="flex flex-col gap-1">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  {isPro ? 'Próximo pago' : 'Vence el'}
+                  Próximo pago
                 </p>
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-gray-400" />
@@ -234,11 +281,22 @@ export function SubscriptionSection({
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Alerta pago pendiente (sin preapproval_id en URL) */}
+          {isPendingConfirmation && !returnedPreapprovalId && (
+            <Alert className="mt-4 border-orange-200 bg-orange-50">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+              <AlertDescription className="text-orange-700">
+                Tu pago está pendiente de confirmación por MercadoPago.
+                Si ya completaste el pago, recargá la página en unos minutos.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
-      {/* Card del plan Pro */}
-      {!isPro && (
+      {/* Card del plan Pro — solo si no es Pro ni está pendiente */}
+      {!isPro && !isPendingConfirmation && (
         <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white overflow-hidden">
           <CardHeader>
             <div className="flex items-start justify-between">
@@ -300,6 +358,35 @@ export function SubscriptionSection({
               <p className="text-xs text-gray-500">
                 Pago seguro vía MercadoPago. Podés cancelar en cualquier momento.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pendiente de confirmación: card informativa */}
+      {isPendingConfirmation && (
+        <Card className="border-orange-200 bg-orange-50/40">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <RefreshCw className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0 animate-spin" />
+              <div>
+                <p className="font-semibold text-orange-800">Confirmando tu suscripción</p>
+                <p className="text-sm text-orange-700 mt-1">
+                  Tu pago fue enviado a MercadoPago y está siendo procesado.
+                  Una vez confirmado, tu plan Profesional quedará activo automáticamente.
+                  Este proceso puede demorar algunos minutos.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 border-orange-300 text-orange-700 hover:bg-orange-100"
+                  onClick={() => window.location.reload()}
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  Verificar estado
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
