@@ -72,8 +72,11 @@ export async function getServerSession(): Promise<ServerSession | null> {
     if (!sessionToken) return null;
 
     try {
-        // Verificar token y chequear revocación
-        const decodedToken = await adminAuth.verifyIdToken(sessionToken, true);
+        // Verificar token (sin checkRevoked para tolerar tokens de hasta 1h de antigüedad)
+        // checkRevoked=true rechaza tokens válidos si el usuario cerró sesión en otro dispositivo,
+        // pero también falla con tokens recién expirados que el cliente aún no renovó.
+        // Firebase renueva automáticamente el token cada ~55 min en el cliente.
+        const decodedToken = await adminAuth.verifyIdToken(sessionToken, false);
 
         // Obtener datos frescos del usuario para displayName y photoURL
         const user = await adminAuth.getUser(decodedToken.uid);
