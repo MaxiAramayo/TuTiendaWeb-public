@@ -19,15 +19,13 @@ import { useStoreThemeContext as useTheme } from "@/features/store/components/Th
 import { WeeklyScheduleDisplay } from "@/features/store/components/ui/StoreScheduleDisplay";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useThemeClasses, useThemeStyles } from "@/features/store/hooks/useStoreTheme";
-
+import { ImageWithLoader } from "./ui/ImageWithLoader";
 
 interface HeaderWelcomeProps {
   store: PublicStoreData;
 }
 
-export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
-  store
-}) => {
+export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({ store }) => {
   // Memoizar el horario semanal para evitar recreaciones innecesarias
   const weeklySchedule = useMemo<WeeklySchedule>(() => {
     if (store.schedule) return store.schedule;
@@ -55,15 +53,8 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
   const storeStatus = useStoreStatus(weeklySchedule);
   const todaySchedule = useTodaySchedule(weeklySchedule);
 
-  // Estado para manejar errores de imagen
-  const [profileImageError, setProfileImageError] = useState(false);
-
   // Hook para obtener el tema de la tienda
   const themeContext = useTheme();
-
-  // Hooks del tema
-  const themeClasses = useThemeClasses();
-  const themeStyles = useThemeStyles();
 
   // Color primario del tema para los iconos
   const iconColor = themeContext.theme.colors.primary || '#3b82f6';
@@ -79,10 +70,8 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
       `¡Hola! Me gustaría hacerles una consulta desde la tienda online de ${store.basicInfo?.name || ''}`
     );
 
-    // Limpiar el número y asegurar que tenga el formato correcto
-    let phoneNumber = whatsapp.replace(/\D/g, ''); // Eliminar todo excepto dígitos
+    let phoneNumber = whatsapp.replace(/\D/g, '');
 
-    // Si no comienza con código de país, agregar el de Argentina
     if (!phoneNumber.startsWith('54')) {
       phoneNumber = '54' + phoneNumber;
     }
@@ -90,45 +79,44 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
-  /**
-   * Maneja el clic en el botón de Instagram
-   */
   const handleInstagramClick = () => {
     const instagram = store.socialLinks?.instagram;
     if (!instagram) return;
     window.open(instagram, '_blank');
   };
 
-  /**
-   * Maneja el clic en el botón de Facebook
-   */
   const handleFacebookClick = () => {
     const facebook = store.socialLinks?.facebook;
     if (!facebook) return;
     window.open(facebook, '_blank');
   };
 
-  // Estilo para el fondo con o sin imagen de portada
-  const backgroundStyle = store.theme?.bannerUrl
-    ? {
-      backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(${store.theme.bannerUrl})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-    }
-    : {
-      backgroundColor: "#212134",
-    };
-
   return (
-    <header className="relative">
-      <div
-        className="flex flex-col lg:justify-between rounded-b-3xl shadow-lg py-5 px-5 overflow-hidden gap-3 xl:w-[85%] xl:mx-auto"
-        style={backgroundStyle}
-      >
+    <header className="relative xl:w-[85%] xl:mx-auto">
+      <div className="relative flex flex-col lg:justify-between rounded-b-3xl shadow-lg py-5 px-5 overflow-hidden gap-3 min-h-[350px]">
+        
+        {/* Banner de Fondo con Skeleton */}
+        {store.theme?.bannerUrl ? (
+          <>
+            <ImageWithLoader
+              src={store.theme.bannerUrl}
+              alt="Banner de la tienda"
+              fill
+              className="object-cover"
+              containerClassName="absolute inset-0 z-0"
+              useSkeletonBg={true}
+              loaderSize="md"
+            />
+            {/* Overlay oscuro para legibilidad */}
+            <div className="absolute inset-0 bg-black/60 z-0"></div>
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-[#212134] z-0"></div>
+        )}
+
         {/* Banner TuTiendaWeb */}
         <Link className="flex justify-center items-center z-10" href="/">
-          <p className="text-white text-sm">
+          <p className="text-white text-sm drop-shadow-md">
             Creado con <span className="font-bold">TuTiendaWeb</span>
           </p>
           <Image
@@ -136,45 +124,45 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
             alt="Logo TuTiendaWeb"
             width={20}
             height={20}
-            className="ml-1"
+            className="ml-1 drop-shadow-md"
           />
         </Link>
 
-        <div className="lg:flex lg:flex-row-reverse lg:justify-between">
+        <div className="lg:flex lg:flex-row-reverse lg:justify-between z-10">
           {/* Logo/Imagen del negocio */}
-          <div className="items-center justify-center flex mt-5 mb-6 relative lg:w-[400px] z-10">
+          <div className="items-center justify-center flex mt-5 mb-6 relative lg:w-[400px]">
             {/* Círculos decorativos */}
             <div className="bg-white w-[290px] h-[290px] absolute rounded-full opacity-[0.06]"></div>
             <div className="bg-white w-[360px] h-[360px] absolute rounded-full opacity-[0.05]"></div>
             <div className="bg-white w-[440px] h-[440px] absolute rounded-full opacity-[0.04]"></div>
 
-            {/* Imagen de perfil */}
-            <div className="w-[220px] h-[220px] rounded-full relative flex items-center justify-center overflow-hidden z-10 border-4 border-white/10">
-              {store.theme?.logoUrl && !profileImageError ? (
-                <Image
+            {/* Imagen de perfil con Skeleton */}
+            <div className="w-[220px] h-[220px] rounded-full relative flex items-center justify-center overflow-hidden border-4 border-white/10 shadow-xl bg-white/5 backdrop-blur-sm">
+              {store.theme?.logoUrl ? (
+                <ImageWithLoader
                   src={store.theme.logoUrl}
                   alt={`Logo de ${store.basicInfo?.name || 'tienda'}`}
-                  width={220}
-                  height={220}
-                  className="object-cover w-full h-full"
-                  onError={() => setProfileImageError(true)}
+                  fill
+                  className="object-cover"
+                  containerClassName="w-full h-full"
+                  useSkeletonBg={true}
+                  loaderSize="md"
                 />
               ) : (
                 <Image
                   src="/images/store/modern-store-logo.svg"
                   alt="Logo de tienda moderno"
-                  width={220}
-                  height={220}
-                  className="object-cover w-full h-full bg-gray-200"
+                  fill
+                  className="object-cover bg-gray-200"
                 />
               )}
             </div>
           </div>
 
           {/* Información del negocio */}
-          <div className="flex flex-col gap-3 lg:py-5 lg:px-3 lg:mt-10 z-10 lg:max-w-2xl">
+          <div className="flex flex-col gap-3 lg:py-5 lg:px-3 lg:mt-10 lg:max-w-2xl">
             <div className="px-4">
-              <h1 className="text-white font-light text-2xl md:text-3xl">
+              <h1 className="text-white font-light text-2xl md:text-3xl drop-shadow-md">
                 Bienvenido a <span className="font-bold">{store.basicInfo?.name || ''}</span>
               </h1>
             </div>
@@ -182,14 +170,14 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
             <hr className="border-white/20 border-1" />
 
             {/* Descripción */}
-            <p className="text-white/90 text-md text-justify px-4">
+            <p className="text-white/90 text-md text-justify px-4 drop-shadow-md">
               {store.basicInfo?.description || ''}
             </p>
 
             {/* Dirección y horario */}
             <div className="flex flex-row gap-4 px-4 flex-wrap">
               {store.address?.street && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 drop-shadow-md">
                   <MapPin
                     size={24}
                     style={{ color: iconColor }}
@@ -205,7 +193,7 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
               {store.schedule && (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity drop-shadow-md">
                       <Clock
                         size={24}
                         style={{ color: iconColor }}
@@ -231,19 +219,13 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
 
             {/* Botones de contacto y badge de estado */}
             <div className="flex flex-wrap items-center gap-3 mt-4 justify-center lg:justify-start px-4 mb-2">
-              {/* Botones de redes sociales rediseñados */}
-              {/* Botones de redes sociales rediseñados - Ghost Style */}
-              {/* Botones de redes sociales - Ghost Style with Primary hover */}
               {store.contactInfo?.whatsapp && (
                 <button
                   className="group relative flex items-center gap-2 px-4 py-2.5 bg-black/20 backdrop-blur-md border border-white/30 hover:bg-[var(--store-primary)] hover:border-[var(--store-primary)] text-white rounded-full transition-all duration-300 font-medium text-sm overflow-hidden"
                   onClick={handleWhatsAppClick}
                   aria-label="Contactar por WhatsApp"
                 >
-                  <MessageCircle
-                    size={18}
-                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
-                  />
+                  <MessageCircle size={18} className="group-hover:rotate-12 transition-transform duration-300 relative z-10" />
                   <span className="relative z-10">WhatsApp</span>
                 </button>
               )}
@@ -254,10 +236,7 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
                   onClick={handleInstagramClick}
                   aria-label="Visitar Instagram"
                 >
-                  <Instagram
-                    size={18}
-                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
-                  />
+                  <Instagram size={18} className="group-hover:rotate-12 transition-transform duration-300 relative z-10" />
                   <span className="relative z-10">Instagram</span>
                 </button>
               )}
@@ -268,10 +247,7 @@ export const  HeaderWelcome: React.FC<HeaderWelcomeProps> = ({
                   onClick={handleFacebookClick}
                   aria-label="Visitar Facebook"
                 >
-                  <Facebook
-                    size={18}
-                    className="group-hover:rotate-12 transition-transform duration-300 relative z-10"
-                  />
+                  <Facebook size={18} className="group-hover:rotate-12 transition-transform duration-300 relative z-10" />
                   <span className="relative z-10">Facebook</span>
                 </button>
               )}

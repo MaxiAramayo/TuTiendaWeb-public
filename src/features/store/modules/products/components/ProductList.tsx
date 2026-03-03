@@ -49,11 +49,13 @@ const ProductList = ({
   const themeStyles = useThemeStyles();
 
   // Estado para manejar los productos filtrados
+  // isFiltering starts true to avoid flashing the "no results" state before the
+  // first useEffect run populates filteredProductData.
   const [filteredProductData, setFilteredProductData] = useState({
     groupedProducts: {} as Record<string, Product[]>,
     hasProducts: false,
   });
-  const [isFiltering, setIsFiltering] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(true);
 
   // Acceder al store del modal de producto
   const openProductModal = useProductModalStore((state: any) => state.openModal);
@@ -66,29 +68,25 @@ const ProductList = ({
   useEffect(() => {
     if (!products || !products.length) {
       setFilteredProductData({ groupedProducts: {}, hasProducts: false });
+      setIsFiltering(false);
       return;
     }
 
     setIsFiltering(true);
 
-    // Usar setTimeout para simular procesamiento asíncrono y mostrar loading
-    const timeoutId = setTimeout(() => {
-      const filterResult = applyAdvancedFilters(products, {
-        searchTerm,
-        selectedCategory,
-        priceRange,
-        sortBy,
-        onlyAvailable
-      });
+    const filterResult = applyAdvancedFilters(products, {
+      searchTerm,
+      selectedCategory,
+      priceRange,
+      sortBy,
+      onlyAvailable
+    });
 
-      setFilteredProductData({
-        groupedProducts: filterResult.groupedProducts,
-        hasProducts: filterResult.hasProducts
-      });
-      setIsFiltering(false);
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
+    setFilteredProductData({
+      groupedProducts: filterResult.groupedProducts,
+      hasProducts: filterResult.hasProducts
+    });
+    setIsFiltering(false);
   }, [products, searchTerm, selectedCategory, priceRange, sortBy, onlyAvailable]);
 
   /**

@@ -1,12 +1,3 @@
-/**
- * Sección de redes sociales del perfil
- * 
- * Maneja la configuración de enlaces a redes sociales
- * con validaciones y vista previa
- * 
- * @module features/dashboard/modules/profile/components/sections
- */
-
 'use client';
 
 import React, { useState, useCallback } from 'react';
@@ -17,7 +8,7 @@ import { useProfileStore } from '../../stores/profile.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { 
@@ -27,19 +18,16 @@ import {
   AlertCircle, 
   CheckCircle,
   Copy,
-  Eye,
   Trash2,
   Save,
-  Loader2
+  Loader2,
+  Share2
 } from 'lucide-react';
 import { 
   validateInstagramUrl, 
   validateFacebookUrl
 } from '../../schemas/profile.schema';
 
-/**
- * Props del componente
- */
 interface SocialLinksSectionProps {
   formData: ProfileFormData;
   formState: FormState;
@@ -49,9 +37,6 @@ interface SocialLinksSectionProps {
   isSaving?: boolean;
 }
 
-/**
- * Configuración de redes sociales
- */
 const SOCIAL_NETWORKS = {
   instagram: {
     name: 'Instagram',
@@ -75,9 +60,6 @@ const SOCIAL_NETWORKS = {
   }
 };
 
-/**
- * Componente de sección de redes sociales
- */
 export function SocialLinksSection({
   formData,
   formState,
@@ -86,12 +68,10 @@ export function SocialLinksSection({
   onSave,
   isSaving: externalIsSaving = false,
 }: SocialLinksSectionProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
   const { setProfile } = useProfileStore();
 
-  // Handler propio para guardar y actualizar el store
   const handleSectionSave = useCallback(async () => {
     if (!profile?.id) {
       toast.error('No se encontró el perfil');
@@ -108,7 +88,6 @@ export function SocialLinksSection({
       const result = await updateSocialLinksAction(socialData);
 
       if (result.success) {
-        // Refrescar el store con los datos actualizados
         const refreshResult = await getProfileAction();
         if (refreshResult.success && refreshResult.data) {
           setProfile(refreshResult.data as StoreProfile);
@@ -118,7 +97,6 @@ export function SocialLinksSection({
         toast.error(result.errors?._form?.[0] || 'Error al guardar las redes sociales');
       }
     } catch (error) {
-      console.error('Error saving social links:', error);
       toast.error('Error al guardar las redes sociales');
     } finally {
       setIsSaving(false);
@@ -127,17 +105,13 @@ export function SocialLinksSection({
 
   const isCurrentlySaving = isSaving || externalIsSaving;
 
-  // Obtener enlaces sociales actuales
   const currentSocialLinks = {
     instagram: formData.instagram || '',
     facebook: formData.facebook || ''
   };
 
-  // Actualizar enlace social
   const updateSocialLink = (platform: keyof SocialLinks, url: string) => {
     updateField(platform as keyof ProfileFormData, url);
-    
-    // Validar URL
     const network = SOCIAL_NETWORKS[platform];
     if (network) {
       const isValid = network.validate(url);
@@ -148,330 +122,207 @@ export function SocialLinksSection({
     }
   };
 
-  // Limpiar enlace social
   const clearSocialLink = (platform: keyof SocialLinks) => {
     updateSocialLink(platform, '');
   };
 
-  // Copiar enlace al portapapeles
   const copyLink = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      // Aquí podrías mostrar un toast de éxito
+      toast.success('Enlace copiado al portapapeles');
     } catch (error) {
-      console.error('Error al copiar:', error);
+      toast.error('Error al copiar el enlace');
     }
   };
 
-  // Abrir enlace en nueva pestaña
   const openLink = (url: string) => {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  // Obtener enlaces configurados
   const configuredLinks = Object.entries(currentSocialLinks)
     .filter(([_, url]) => url && url.trim() !== '')
     .map(([platform, url]) => ({ platform: platform as keyof SocialLinks, url }));
 
-  // Obtener enlaces válidos
   const validLinks = configuredLinks.filter(({ platform, url }) => {
     const network = SOCIAL_NETWORKS[platform];
     return network && network.validate(url);
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header con título y botón de guardar */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <Instagram className="w-5 h-5" />
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Redes sociales</h2>
-            <p className="text-sm text-gray-500">Conecta tus redes sociales para mayor alcance</p>
-          </div>
+    <div className="space-y-8 pb-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900">Redes Sociales</h3>
+          <p className="text-sm text-gray-500 mt-1">Conecta tus redes sociales para mayor alcance</p>
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={isCurrentlySaving}
-          className="flex items-center space-x-2"
+          disabled={isCurrentlySaving || !formState.isDirty}
+          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]"
         >
           {isCurrentlySaving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Save className="w-4 h-4" />
           )}
-          <span>{isCurrentlySaving ? 'Guardando...' : 'Guardar'}</span>
+          <span>{isCurrentlySaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
-      {/* Resumen de enlaces configurados */}
-      {configuredLinks.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-green-50 border border-green-200 rounded-lg p-4"
-        >
-          <div className="flex items-center space-x-2 mb-3">
-            <CheckCircle className="w-4 h-4 text-green-600" />
-            <h4 className="text-sm font-medium text-green-900">
-              {validLinks.length} de {configuredLinks.length} enlaces configurados correctamente
-            </h4>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {configuredLinks.map(({ platform, url }) => {
-              const network = SOCIAL_NETWORKS[platform];
-              const isValid = network.validate(url);
-              
-              return (
-                <Badge
-                  key={platform}
-                  variant={isValid ? 'default' : 'destructive'}
-                  className="flex items-center space-x-1"
-                >
-                  <network.icon className="w-3 h-3" />
-                  <span>{network.name}</span>
-                  {isValid && <CheckCircle className="w-3 h-3" />}
-                  {!isValid && <AlertCircle className="w-3 h-3" />}
-                </Badge>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Configuración de redes sociales */}
-      <div className="space-y-4">
-        {Object.entries(SOCIAL_NETWORKS).map(([platform, network], index) => {
-          const currentUrl = currentSocialLinks[platform as keyof SocialLinks];
-          const isValid = validationResults[platform] ?? network.validate(currentUrl);
-          const hasUrl = currentUrl && currentUrl.trim() !== '';
-          
-          return (
-            <motion.div
-              key={platform}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={cn(
-                'border rounded-lg p-4 transition-all',
-                hasUrl 
-                  ? isValid 
-                    ? `${network.bgColor} ${network.borderColor}` 
-                    : 'bg-red-50 border-red-200'
-                  : 'border-gray-200 bg-gray-50'
-              )}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className={cn(
-                    'p-2 rounded-lg',
-                    hasUrl && isValid ? network.bgColor : 'bg-gray-100'
-                  )}>
-                    <network.icon className={cn(
-                      'w-4 h-4',
-                      hasUrl && isValid ? network.color : 'text-gray-500'
-                    )} />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium">{network.name}</Label>
-                    <p className="text-xs text-gray-500">{network.description}</p>
-                  </div>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-6">
+          <Card className="border shadow-sm">
+            <CardHeader className="bg-gray-50/50 border-b pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Share2 className="w-5 h-5 text-indigo-500" />
+                Enlaces a Perfiles
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {Object.entries(SOCIAL_NETWORKS).map(([platform, network], index) => {
+                const currentUrl = currentSocialLinks[platform as keyof SocialLinks];
+                const isValid = validationResults[platform] ?? network.validate(currentUrl);
+                const hasUrl = currentUrl && currentUrl.trim() !== '';
                 
-                {hasUrl && (
-                  <div className="flex items-center space-x-1">
-                    {isValid && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyLink(currentUrl)}
-                          className="p-1 h-auto"
-                          title="Copiar enlace"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                        
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openLink(currentUrl)}
-                          className="p-1 h-auto"
-                          title="Abrir enlace"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </Button>
-                      </>
+                return (
+                  <div
+                    key={platform}
+                    className={cn(
+                      'border rounded-xl p-5 transition-all',
+                      hasUrl 
+                        ? isValid 
+                          ? `${network.bgColor} ${network.borderColor} shadow-sm` 
+                          : 'bg-red-50/50 border-red-200'
+                        : 'border-gray-200 bg-gray-50/30'
                     )}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={cn(
+                          'p-2.5 rounded-lg shadow-sm',
+                          hasUrl && isValid ? 'bg-white' : 'bg-white border'
+                        )}>
+                          <network.icon className={cn(
+                            'w-5 h-5',
+                            hasUrl && isValid ? network.color : 'text-gray-400'
+                          )} />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-bold text-gray-900">{network.name}</Label>
+                          <p className="text-xs text-gray-500">{network.description}</p>
+                        </div>
+                      </div>
+                      
+                      {hasUrl && (
+                        <div className="flex items-center bg-white border rounded-md shadow-sm">
+                          {isValid && (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyLink(currentUrl)}
+                                className="h-8 px-3 rounded-none rounded-l-md border-r hover:bg-gray-50"
+                                title="Copiar enlace"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openLink(currentUrl)}
+                                className="h-8 px-3 rounded-none border-r hover:bg-gray-50"
+                                title="Abrir enlace"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => clearSocialLink(platform as keyof SocialLinks)}
+                            className="h-8 px-3 rounded-none rounded-r-md text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Eliminar enlace"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                     
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => clearSocialLink(platform as keyof SocialLinks)}
-                      className="p-1 h-auto text-red-600 hover:text-red-700"
-                      title="Eliminar enlace"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                    <div className="space-y-2">
+                      <Input
+                        value={currentUrl}
+                        onChange={(e) => updateSocialLink(platform as keyof SocialLinks, e.target.value)}
+                        placeholder={network.placeholder}
+                        className={cn(
+                          'bg-white',
+                          hasUrl && !isValid && 'border-red-500 focus-visible:ring-red-500'
+                        )}
+                      />
+                      
+                      {hasUrl && !isValid && (
+                        <div className="flex items-center space-x-1 text-red-600 mt-1.5">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-xs font-medium">
+                            URL no válida para {network.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar Info */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="border shadow-sm bg-indigo-50/50">
+            <CardHeader className="pb-3 border-b border-indigo-100">
+              <CardTitle className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                 Estadísticas de Enlaces
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100 shadow-sm">
+                 <span className="text-sm text-gray-600">Configurados</span>
+                 <span className="text-lg font-bold text-gray-900">{configuredLinks.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100 shadow-sm">
+                 <span className="text-sm text-gray-600">Válidos listos</span>
+                 <span className="text-lg font-bold text-green-600">{validLinks.length}</span>
               </div>
               
-              <div className="space-y-2">
-                <Input
-                  value={currentUrl}
-                  onChange={(e) => updateSocialLink(platform as keyof SocialLinks, e.target.value)}
-                  placeholder={network.placeholder}
-                  className={cn(
-                    hasUrl && !isValid && 'border-red-500 focus:border-red-500'
-                  )}
-                />
-                
-                {hasUrl && !isValid && (
-                  <div className="flex items-center space-x-1 text-red-600">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm">
-                      URL no válida para {network.name}
-                    </span>
-                  </div>
-                )}
-                
-                {hasUrl && isValid && (
-                  <div className="flex items-center space-x-1 text-green-600">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">
-                      Enlace válido de {network.name}
-                    </span>
-                  </div>
-                )}
+              <div className="pt-4 border-t border-indigo-100">
+                 <h4 className="text-xs font-bold text-indigo-900 mb-2">Consejos</h4>
+                 <ul className="text-xs text-indigo-700/80 space-y-2">
+                   <li>• Usa URLs completas (incluye https://)</li>
+                   <li>• Verifica que los enlaces funcionen antes de guardar</li>
+                   <li>• Publica regularmente para atraer a tu audiencia</li>
+                 </ul>
               </div>
-            </motion.div>
-          );
-        })}
+            </CardContent>
+          </Card>
+
+          {formState.errors.socialLinks && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center space-x-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+                <h4 className="text-sm font-bold text-red-900">Error</h4>
+              </div>
+              <p className="text-sm text-red-800">{formState.errors.socialLinks}</p>
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* Vista previa de enlaces */}
-      {validLinks.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="border rounded-lg p-4 bg-white"
-        >
-          <h4 className="text-sm font-medium mb-3 flex items-center space-x-2">
-            <Eye className="w-4 h-4" />
-            <span>Vista previa en tu tienda</span>
-          </h4>
-          
-          <div className="flex flex-wrap gap-3">
-            {validLinks.map(({ platform, url }) => {
-              const network = SOCIAL_NETWORKS[platform];
-              
-              return (
-                <Button
-                  key={platform}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openLink(url)}
-                  className={cn(
-                    'flex items-center space-x-2 transition-all hover:scale-105',
-                    network.color
-                  )}
-                >
-                  <network.icon className="w-4 h-4" />
-                  <span>{network.name}</span>
-                  <ExternalLink className="w-3 h-3" />
-                </Button>
-              );
-            })}
-          </div>
-          
-          <p className="text-xs text-gray-500 mt-2">
-            Así se verán los enlaces en tu tienda online
-          </p>
-        </motion.div>
-      )}
-
-      {/* Consejos */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
-      >
-        <h4 className="text-sm font-medium text-blue-900 mb-2">
-          📱 Consejos para redes sociales
-        </h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Usa URLs completas (incluye https://)</li>
-          <li>• Verifica que los enlaces funcionen correctamente</li>
-          <li>• Mantén tus perfiles actualizados</li>
-          <li>• Usa las mismas imágenes de perfil en todas las redes</li>
-          <li>• Publica contenido regularmente</li>
-          <li>• Responde a los comentarios y mensajes</li>
-        </ul>
-      </motion.div>
-
-      {/* Estadísticas */}
-      {configuredLinks.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-4"
-        >
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-lg font-semibold text-gray-900">
-              {configuredLinks.length}
-            </div>
-            <div className="text-xs text-gray-500">Enlaces configurados</div>
-          </div>
-          
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <div className="text-lg font-semibold text-green-900">
-              {validLinks.length}
-            </div>
-            <div className="text-xs text-green-600">Enlaces válidos</div>
-          </div>
-          
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <div className="text-lg font-semibold text-blue-900">
-              {Math.round((validLinks.length / Object.keys(SOCIAL_NETWORKS).length) * 100)}%
-            </div>
-            <div className="text-xs text-blue-600">Completitud</div>
-          </div>
-          
-          <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <div className="text-lg font-semibold text-purple-900">
-              {Object.keys(SOCIAL_NETWORKS).length - configuredLinks.length}
-            </div>
-            <div className="text-xs text-purple-600">Por configurar</div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Errores de validación */}
-      {formState.errors.socialLinks && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 border border-red-200 rounded-lg p-4"
-        >
-          <div className="flex items-center space-x-2 mb-2">
-            <AlertCircle className="w-4 h-4 text-red-600" />
-            <h4 className="text-sm font-medium text-red-900">Errores en redes sociales</h4>
-          </div>
-          <p className="text-sm text-red-800">{formState.errors.socialLinks}</p>
-        </motion.div>
-      )}
     </div>
   );
 }

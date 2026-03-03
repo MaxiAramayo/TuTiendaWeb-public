@@ -99,6 +99,8 @@ interface ProfileFormProps {
   showTips?: boolean;
   /** Datos iniciales del perfil (desde Server Component) */
   initialProfile?: StoreProfile | null;
+  /** Email del usuario autenticado (desde Firebase Auth) */
+  userEmail?: string;
 }
 
 /**
@@ -110,6 +112,7 @@ export function ProfileForm({
   showStats = true,
   showTips = true,
   initialProfile,
+  userEmail,
 }: ProfileFormProps) {
   const [activeSection, setActiveSection] = useState<ProfileSection>('basic');
   const [isMobile, setIsMobile] = useState(false);
@@ -203,7 +206,7 @@ export function ProfileForm({
         return <PaymentDeliverySection {...sectionProps} />;
 
       case 'subscription':
-        return <SubscriptionSection {...sectionProps} />;
+        return <SubscriptionSection {...sectionProps} userEmail={userEmail} />;
       default:
         return <BasicInfoSection {...sectionProps} />;
     }

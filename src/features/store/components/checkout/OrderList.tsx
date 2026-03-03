@@ -6,12 +6,12 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import type { ProductInCart } from "@/shared/types/store";
 import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingBag, ShoppingCart } from "lucide-react";
+import { ImageWithLoader } from "../../components/ui/ImageWithLoader";
 
 interface OrderListProps {
   carrito: ProductInCart[];
@@ -49,20 +49,14 @@ export const OrderList = ({ carrito, total }: OrderListProps) => {
               {/* Imagen del producto */}
               <div className="relative w-14 h-14 flex-shrink-0">
                 {item.image ? (
-                  <Image
+                  <ImageWithLoader
                     src={item.image}
                     alt={item.name}
                     fill
                     className="object-cover rounded-md"
+                    containerClassName="w-full h-full rounded-md"
+                    loaderSize="sm"
                     sizes="56px"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = '<div class="w-full h-full bg-gray-100 flex items-center justify-center rounded-md"><svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path></svg></div>';
-                      }
-                    }}
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center rounded-md">

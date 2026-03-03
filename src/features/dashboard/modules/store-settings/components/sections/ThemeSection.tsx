@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 import { useProfile } from '../../hooks/useProfile';
 import { updateThemeAction, getProfileAction } from '../../actions/profile.actions';
@@ -28,7 +28,6 @@ import {
   Palette,
   Type,
   Upload,
-  X,
   Save,
   Loader2,
   Image as ImageIcon,
@@ -36,18 +35,44 @@ import {
 } from 'lucide-react';
 
 /**
+ * Componente interno para mostrar imagen con skeleton mientras carga
+ */
+function ImageWithSkeleton({
+  src,
+  alt,
+  className,
+  imageClassName,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  imageClassName?: string;
+}) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div className={`relative ${className || ''}`}>
+      {!isLoaded && <Skeleton className="absolute inset-0 w-full h-full" />}
+      <img
+        src={src}
+        alt={alt}
+        className={`w-full h-full transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        } ${imageClassName || ''}`}
+        onLoad={() => setIsLoaded(true)}
+      />
+    </div>
+  );
+}
+
+/**
  * Props para el componente ThemeSection
  */
 interface ThemeSectionProps {
-  /** Datos del formulario */
   formData: ProfileFormData;
-  /** Estado del formulario */
   formState?: FormState;
-  /** Función para actualizar campos */
   updateField: (field: keyof ProfileFormData, value: any) => void;
-  /** Función de guardado */
   onSave?: () => Promise<void>;
-  /** Estado de guardado */
   isSaving?: boolean;
 }
 
@@ -118,9 +143,6 @@ const BUTTON_STYLES = [
   { name: 'Píldora', value: 'pill' },
 ];
 
-/**
- * Componente para la configuración del tema y branding
- */
 export function ThemeSection({
   formData,
   formState,
@@ -137,9 +159,6 @@ export function ThemeSection({
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
 
-  // Estados locales para las imágenes
-  const [logoUpload, setLogoUpload] = useState<ImageUpload | null>(null);
-  const [bannerUpload, setBannerUpload] = useState<ImageUpload | null>(null);
   const [isLoadingLogo, setIsLoadingLogo] = useState(false);
   const [isLoadingBanner, setIsLoadingBanner] = useState(false);
   const [isDeletingLogo, setIsDeletingLogo] = useState(false);
@@ -147,8 +166,6 @@ export function ThemeSection({
 
   // Obtener valores actuales del tema con fallbacks seguros
   const currentTheme = formData.theme || {};
-
-  // Validar que style sea un valor permitido
   const validStyles = ['modern', 'classic', 'minimal', 'colorful'] as const;
   const validButtonStyles = ['rounded', 'square', 'pill'] as const;
 
@@ -167,7 +184,6 @@ export function ThemeSection({
     bannerUrl: currentTheme.bannerUrl,
   };
 
-  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
     if (!user?.uid) {
       error('No se pudo identificar al usuario');
@@ -176,10 +192,6 @@ export function ThemeSection({
 
     setIsSectionSaving(true);
     try {
-      // Asegurar que style y buttonStyle tengan valores válidos
-      const validStyles = ['modern', 'classic', 'minimal', 'colorful'] as const;
-      const validButtonStyles = ['rounded', 'square', 'pill'] as const;
-
       const themeData = {
         logoUrl: themeConfig.logoUrl || '',
         bannerUrl: themeConfig.bannerUrl || '',
@@ -187,22 +199,15 @@ export function ThemeSection({
         secondaryColor: themeConfig.secondaryColor || '#8b5cf6',
         accentColor: themeConfig.accentColor || '#8B5CF6',
         fontFamily: themeConfig.fontFamily || 'Inter, sans-serif',
-        style: (validStyles.includes(themeConfig.style as typeof validStyles[number])
-          ? themeConfig.style
-          : 'modern') as 'modern' | 'classic' | 'minimal' | 'colorful',
-        buttonStyle: (validButtonStyles.includes(themeConfig.buttonStyle as typeof validButtonStyles[number])
-          ? themeConfig.buttonStyle
-          : 'rounded') as 'rounded' | 'square' | 'pill',
+        style: themeConfig.style as 'modern' | 'classic' | 'minimal' | 'colorful',
+        buttonStyle: themeConfig.buttonStyle as 'rounded' | 'square' | 'pill',
       };
 
-      console.log('Saving theme data:', themeData);
       const result = await updateThemeAction(themeData);
 
       if (result.success) {
-        // Refrescar el perfil desde el servidor para actualizar el store
         const refreshResult = await getProfileAction();
         if (refreshResult.success && refreshResult.data) {
-          // Cast al tipo del store (son compatibles pero definidos separadamente)
           setProfile(refreshResult.data as unknown as import('../../types/store.type').StoreProfile);
         }
         success('Tema guardado correctamente');
@@ -211,67 +216,52 @@ export function ThemeSection({
           Object.values(result.errors).flat()[0] ||
           'Error al guardar el tema. Inténtalo de nuevo.';
         error(errorMsg);
-        console.error('Validation errors:', result.errors);
       }
     } catch (err) {
-      console.error('Error al guardar tema:', err);
       error('Error al guardar el tema. Inténtalo de nuevo.');
     } finally {
       setIsSectionSaving(false);
     }
   }, [user?.uid, themeConfig, setProfile, success, error]);
 
-  // Función para actualizar campos
   const handleFieldChange = (field: keyof ProfileFormData, value: any) => {
     updateField(field, value);
   };
 
-  /**
-   * Maneja la selección de archivos de imagen con subida inmediata
-   */
   const handleImageSelect = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
       const file = event.target.files?.[0];
       if (!file || !user?.uid) return;
 
-      // Validar tipo de archivo
       if (!file.type.startsWith('image/')) {
         error('Por favor selecciona un archivo de imagen válido');
         return;
       }
 
-      // Validar tamaño (5MB máximo)
       if (file.size > 5 * 1024 * 1024) {
         error('La imagen debe ser menor a 5MB');
         return;
       }
 
       try {
-        if (type === 'logo') {
-          setIsLoadingLogo(true);
-        } else {
-          setIsLoadingBanner(true);
-        }
+        if (type === 'logo') setIsLoadingLogo(true);
+        else setIsLoadingBanner(true);
 
-        // Eliminar imagen anterior si existe
         const currentImageUrl = type === 'logo' ? currentTheme.logoUrl : currentTheme.bannerUrl;
         if (currentImageUrl) {
           try {
             await profileClientService.deleteImage(profile?.id || user.uid, currentImageUrl, type);
           } catch (deleteErr) {
-            // Si falla la eliminación, continuamos con la subida de la nueva imagen
             console.warn(`No se pudo eliminar la imagen anterior de ${type}:`, deleteErr);
           }
         }
 
-        // Subir nueva imagen usando el servicio cliente
         const imageUrl = await profileClientService.uploadImage(
           profile?.id || user.uid,
           file,
-          type === 'logo' ? 'logo' : 'banner'
+          type
         );
 
-        // Actualizar el tema con la nueva URL
         const updatedTheme = {
           ...currentTheme,
           [type === 'logo' ? 'logoUrl' : 'bannerUrl']: imageUrl,
@@ -279,7 +269,6 @@ export function ThemeSection({
 
         handleFieldChange('theme', updatedTheme);
 
-        // Guardar automáticamente en la base de datos
         const themeDataToSave = {
           logoUrl: type === 'logo' ? imageUrl : (currentTheme.logoUrl || ''),
           bannerUrl: type === 'banner' ? imageUrl : (currentTheme.bannerUrl || ''),
@@ -294,7 +283,6 @@ export function ThemeSection({
         const saveResult = await updateThemeAction(themeDataToSave);
 
         if (saveResult.success) {
-          // Refrescar el store
           const refreshResult = await getProfileAction();
           if (refreshResult.success && refreshResult.data) {
             setProfile(refreshResult.data as any);
@@ -304,25 +292,17 @@ export function ThemeSection({
           error(`Error al guardar ${type === 'logo' ? 'logo' : 'banner'} en la base de datos`);
         }
 
-        // Limpiar el input
         event.target.value = '';
       } catch (err) {
-        console.error(`Error al subir ${type}:`, err);
         error(`Error al subir ${type === 'logo' ? 'logo' : 'banner'}. Inténtalo de nuevo.`);
       } finally {
-        if (type === 'logo') {
-          setIsLoadingLogo(false);
-        } else {
-          setIsLoadingBanner(false);
-        }
+        if (type === 'logo') setIsLoadingLogo(false);
+        else setIsLoadingBanner(false);
       }
     },
     [currentTheme, handleFieldChange, profile?.id, user?.uid, success, error, setProfile]
   );
 
-  /**
-   * Elimina una imagen del tema
-   */
   const removeImage = useCallback(
     async (type: 'logo' | 'banner') => {
       if (!user?.uid) return;
@@ -331,16 +311,11 @@ export function ThemeSection({
       if (!imageUrl) return;
 
       try {
-        if (type === 'logo') {
-          setIsDeletingLogo(true);
-        } else {
-          setIsDeletingBanner(true);
-        }
+        if (type === 'logo') setIsDeletingLogo(true);
+        else setIsDeletingBanner(true);
 
-        // Eliminar imagen del storage usando el servicio cliente
         await profileClientService.deleteImage(profile?.id || user.uid, imageUrl, type);
 
-        // Actualizar el tema removiendo la URL
         const updatedTheme = {
           ...currentTheme,
           [type === 'logo' ? 'logoUrl' : 'bannerUrl']: '',
@@ -348,7 +323,6 @@ export function ThemeSection({
 
         handleFieldChange('theme', updatedTheme);
 
-        // Guardar automáticamente en la base de datos
         const themeDataToSave = {
           logoUrl: type === 'logo' ? '' : (currentTheme.logoUrl || ''),
           bannerUrl: type === 'banner' ? '' : (currentTheme.bannerUrl || ''),
@@ -363,7 +337,6 @@ export function ThemeSection({
         const saveResult = await updateThemeAction(themeDataToSave);
 
         if (saveResult.success) {
-          // Refrescar el store
           const refreshResult = await getProfileAction();
           if (refreshResult.success && refreshResult.data) {
             setProfile(refreshResult.data as any);
@@ -373,59 +346,54 @@ export function ThemeSection({
           error(`Error al eliminar ${type === 'logo' ? 'logo' : 'banner'} de la base de datos`);
         }
       } catch (err) {
-        console.error(`Error al eliminar ${type}:`, err);
         error(`Error al eliminar ${type === 'logo' ? 'logo' : 'banner'}. Inténtalo de nuevo.`);
       } finally {
-        if (type === 'logo') {
-          setIsDeletingLogo(false);
-        } else {
-          setIsDeletingBanner(false);
-        }
+        if (type === 'logo') setIsDeletingLogo(false);
+        else setIsDeletingBanner(false);
       }
     },
     [themeConfig.logoUrl, themeConfig.bannerUrl, currentTheme, handleFieldChange, profile?.id, user?.uid, success, error, setProfile]
   );
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-8 pb-8'>
       {/* Header */}
-      <div className='flex items-center justify-between'>
+      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
         <div>
-          <h3 className='text-lg font-semibold text-gray-900'>
+          <h3 className='text-xl font-bold text-gray-900'>
             Tema y Branding
           </h3>
-          <p className='text-sm text-gray-500'>
-            Personaliza la apariencia visual de tu tienda
+          <p className='text-sm text-gray-500 mt-1'>
+            Personaliza la apariencia visual de tu tienda y la marca.
           </p>
         </div>
         <Button
           onClick={handleSectionSave}
           disabled={isSectionSaving || !formState?.isDirty}
-          className='flex items-center justify-center space-x-2 w-full sm:w-auto'
-          size='sm'
+          className='flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]'
         >
           {isSectionSaving ? (
-            <Loader2 className='w-3 h-3 sm:w-4 sm:h-4 animate-spin' />
+            <Loader2 className='w-4 h-4 animate-spin' />
           ) : (
-            <Save className='w-3 h-3 sm:w-4 sm:h-4' />
+            <Save className='w-4 h-4' />
           )}
-          <span className='text-xs sm:text-sm'>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
       {/* Sección de Imágenes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className='flex items-center gap-2'>
-            <ImageIcon className='w-5 h-5' />
+      <Card className="border shadow-sm">
+        <CardHeader className="bg-gray-50/50 border-b pb-4">
+          <CardTitle className='flex items-center gap-2 text-lg'>
+            <ImageIcon className='w-5 h-5 text-blue-600' />
             Imágenes de Marca
           </CardTitle>
         </CardHeader>
-        <CardContent className='space-y-6'>
+        <CardContent className='pt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12'>
           {/* Logo */}
-          <div className='space-y-4'>
+          <div className='space-y-4 lg:col-span-4'>
             <div className='flex items-center justify-between'>
-              <Label className='text-sm font-medium'>Logo de la Tienda</Label>
+              <Label className='text-sm font-semibold text-gray-700'>Logo de la Tienda</Label>
               <div className='flex items-center gap-2'>
                 <Button
                   variant='outline'
@@ -438,7 +406,7 @@ export function ThemeSection({
                   ) : (
                     <Upload className='w-4 h-4' />
                   )}
-                  <span className='ml-2'>Subir Logo</span>
+                  <span className='ml-2'>Subir</span>
                 </Button>
                 {themeConfig.logoUrl && (
                   <Button
@@ -446,7 +414,7 @@ export function ThemeSection({
                     size='sm'
                     onClick={() => removeImage('logo')}
                     disabled={isDeletingLogo}
-                    className='text-red-600 hover:text-red-700'
+                    className='text-red-600 hover:text-red-700 hover:bg-red-50'
                   >
                     {isDeletingLogo ? (
                       <Loader2 className='w-4 h-4 animate-spin' />
@@ -467,32 +435,34 @@ export function ThemeSection({
             />
 
             {themeConfig.logoUrl ? (
-              <div className='relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-full overflow-hidden'>
-                <img
+              <div className='relative w-32 h-32 border-2 border-dashed border-gray-200 rounded-full overflow-hidden shadow-sm'>
+                <ImageWithSkeleton
                   src={themeConfig.logoUrl}
                   alt='Logo de la tienda'
-                  className='w-full h-full object-contain'
+                  className="w-full h-full"
+                  imageClassName="object-contain bg-white"
                 />
                 {(isLoadingLogo || isDeletingLogo) && (
-                  <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
+                  <div className='absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm'>
                     <Loader2 className='w-6 h-6 text-white animate-spin' />
                   </div>
                 )}
               </div>
             ) : (
-              <div className='w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-500'>
+              <div className='w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 bg-gray-50'>
                 <div className='text-center'>
-                  <ImageIcon className='w-8 h-8 mx-auto mb-2' />
-                  <p className='text-xs'>Sin logo</p>
+                  <ImageIcon className='w-8 h-8 mx-auto mb-1 opacity-50' />
+                  <p className='text-xs font-medium'>Sin logo</p>
                 </div>
               </div>
             )}
+            <p className="text-xs text-gray-500">Recomendado: 512x512px, formato PNG o JPG.</p>
           </div>
 
           {/* Banner */}
-          <div className='space-y-4'>
+          <div className='space-y-4 lg:col-span-8'>
             <div className='flex items-center justify-between'>
-              <Label className='text-sm font-medium'>Banner de la Tienda</Label>
+              <Label className='text-sm font-semibold text-gray-700'>Banner de la Tienda</Label>
               <div className='flex items-center gap-2'>
                 <Button
                   variant='outline'
@@ -505,7 +475,7 @@ export function ThemeSection({
                   ) : (
                     <Upload className='w-4 h-4' />
                   )}
-                  <span className='ml-2'>Subir Banner</span>
+                  <span className='ml-2'>Subir</span>
                 </Button>
                 {themeConfig.bannerUrl && (
                   <Button
@@ -513,7 +483,7 @@ export function ThemeSection({
                     size='sm'
                     onClick={() => removeImage('banner')}
                     disabled={isDeletingBanner}
-                    className='text-red-600 hover:text-red-700'
+                    className='text-red-600 hover:text-red-700 hover:bg-red-50'
                   >
                     {isDeletingBanner ? (
                       <Loader2 className='w-4 h-4 animate-spin' />
@@ -534,43 +504,45 @@ export function ThemeSection({
             />
 
             {themeConfig.bannerUrl ? (
-              <div className='relative w-full h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden'>
-                <img
+              <div className='relative w-full h-32 sm:h-40 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden shadow-sm'>
+                <ImageWithSkeleton
                   src={themeConfig.bannerUrl}
                   alt='Banner de la tienda'
-                  className='w-full h-full object-cover'
+                  className="w-full h-full"
+                  imageClassName="object-cover bg-gray-100"
                 />
                 {(isLoadingBanner || isDeletingBanner) && (
-                  <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
+                  <div className='absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm'>
                     <Loader2 className='w-6 h-6 text-white animate-spin' />
                   </div>
                 )}
               </div>
             ) : (
-              <div className='w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500'>
+              <div className='w-full h-32 sm:h-40 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 bg-gray-50'>
                 <div className='text-center'>
-                  <ImageIcon className='w-8 h-8 mx-auto mb-2' />
-                  <p className='text-xs'>Sin banner</p>
+                  <ImageIcon className='w-8 h-8 mx-auto mb-2 opacity-50' />
+                  <p className='text-sm font-medium'>Sin banner</p>
                 </div>
               </div>
             )}
+            <p className="text-xs text-gray-500">Recomendado: 1200x400px, formato JPG o WEBP.</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Sección de Colores */}
-      <Card>
-        <CardHeader>
-          <CardTitle className='flex items-center gap-2'>
-            <Palette className='w-5 h-5' />
+      <Card className="border shadow-sm">
+        <CardHeader className="bg-gray-50/50 border-b pb-4">
+          <CardTitle className='flex items-center gap-2 text-lg'>
+            <Palette className='w-5 h-5 text-pink-500' />
             Esquema de Colores
           </CardTitle>
         </CardHeader>
-        <CardContent className='space-y-8'>
+        <CardContent className='pt-6 space-y-8'>
           {/* Paletas Recomendadas */}
           <div className='space-y-4'>
-            <Label className='text-base font-semibold'>Paletas Recomendadas</Label>
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <Label className='text-sm font-semibold text-gray-700'>Paletas Recomendadas</Label>
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
               {THEME_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
@@ -582,17 +554,17 @@ export function ThemeSection({
                       accentColor: preset.accent,
                     })
                   }
-                  className='flex flex-col items-start p-4 border rounded-xl hover:border-blue-500 hover:bg-blue-50/10 transition-all text-left group'
+                  className='flex flex-col items-start p-4 border rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-left group bg-white'
                 >
-                  <div className='flex items-center gap-2 mb-2'>
-                    <div className='w-6 h-6 rounded-full border border-black/10' style={{ backgroundColor: preset.primary }} />
-                    <div className='w-6 h-6 rounded-full border border-black/10' style={{ backgroundColor: preset.secondary }} />
-                    <div className='w-6 h-6 rounded-full border border-black/10' style={{ backgroundColor: preset.accent }} />
+                  <div className='flex items-center gap-1.5 mb-3 w-full'>
+                    <div className='flex-1 h-8 rounded-l-md border border-black/5' style={{ backgroundColor: preset.primary }} />
+                    <div className='flex-1 h-8 border-y border-black/5' style={{ backgroundColor: preset.secondary }} />
+                    <div className='flex-1 h-8 rounded-r-md border border-black/5' style={{ backgroundColor: preset.accent }} />
                   </div>
-                  <span className='font-medium text-gray-900 group-hover:text-blue-700'>
+                  <span className='font-semibold text-sm text-gray-900 group-hover:text-blue-700 transition-colors'>
                     {preset.name}
                   </span>
-                  <span className='text-xs text-gray-500 mt-1'>
+                  <span className='text-xs text-gray-500 mt-1 line-clamp-2'>
                     {preset.description}
                   </span>
                 </button>
@@ -600,28 +572,29 @@ export function ThemeSection({
             </div>
           </div>
 
-          <div className="border-t border-gray-200" />
+          <div className="border-t border-gray-100" />
 
           {/* Ajustes Manuales */}
-          <div className='space-y-6'>
-            <Label className='text-base font-semibold'>Ajustes Manuales</Label>
-
+          <div className='space-y-4'>
+            <Label className='text-sm font-semibold text-gray-700'>Ajustes Manuales</Label>
             <div className='grid gap-6 sm:grid-cols-3'>
               {/* Color Primario */}
-              <div className='space-y-3'>
-                <Label className='text-sm font-medium'>Color Primario</Label>
+              <div className='space-y-3 p-4 border rounded-xl bg-gray-50/50'>
+                <Label className='text-xs font-semibold text-gray-600 uppercase tracking-wider'>Principal</Label>
                 <div className='flex items-center gap-3'>
-                  <Input
-                    type='color'
-                    value={themeConfig.primaryColor}
-                    onChange={(e) =>
-                      handleFieldChange('theme', {
-                        ...currentTheme,
-                        primaryColor: e.target.value,
-                      })
-                    }
-                    className='w-12 h-12 p-1 border rounded-lg cursor-pointer'
-                  />
+                  <div className="relative w-12 h-12 rounded-lg border shadow-sm overflow-hidden flex-shrink-0">
+                    <Input
+                      type='color'
+                      value={themeConfig.primaryColor}
+                      onChange={(e) =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          primaryColor: e.target.value,
+                        })
+                      }
+                      className='absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-0'
+                    />
+                  </div>
                   <div className='flex-1'>
                     <Input
                       type='text'
@@ -632,29 +605,31 @@ export function ThemeSection({
                           primaryColor: e.target.value,
                         })
                       }
-                      className='font-mono text-sm uppercase'
+                      className='font-mono text-sm uppercase h-9'
                       placeholder='#000000'
                     />
-                    <p className='text-xs text-gray-500 mt-1'>Color de marca</p>
+                    <p className='text-[11px] text-gray-500 mt-1'>Botones y marca</p>
                   </div>
                 </div>
               </div>
 
               {/* Color Secundario */}
-              <div className='space-y-3'>
-                <Label className='text-sm font-medium'>Color Secundario</Label>
+              <div className='space-y-3 p-4 border rounded-xl bg-gray-50/50'>
+                <Label className='text-xs font-semibold text-gray-600 uppercase tracking-wider'>Fondo / Secundario</Label>
                 <div className='flex items-center gap-3'>
-                  <Input
-                    type='color'
-                    value={themeConfig.secondaryColor}
-                    onChange={(e) =>
-                      handleFieldChange('theme', {
-                        ...currentTheme,
-                        secondaryColor: e.target.value,
-                      })
-                    }
-                    className='w-12 h-12 p-1 border rounded-lg cursor-pointer'
-                  />
+                  <div className="relative w-12 h-12 rounded-lg border shadow-sm overflow-hidden flex-shrink-0">
+                    <Input
+                      type='color'
+                      value={themeConfig.secondaryColor}
+                      onChange={(e) =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          secondaryColor: e.target.value,
+                        })
+                      }
+                      className='absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-0'
+                    />
+                  </div>
                   <div className='flex-1'>
                     <Input
                       type='text'
@@ -665,29 +640,31 @@ export function ThemeSection({
                           secondaryColor: e.target.value,
                         })
                       }
-                      className='font-mono text-sm uppercase'
+                      className='font-mono text-sm uppercase h-9'
                       placeholder='#000000'
                     />
-                    <p className='text-xs text-gray-500 mt-1'>Fondos suaves</p>
+                    <p className='text-[11px] text-gray-500 mt-1'>Fondos suaves</p>
                   </div>
                 </div>
               </div>
 
               {/* Color de Acento */}
-              <div className='space-y-3'>
-                <Label className='text-sm font-medium'>Color de Acento</Label>
+              <div className='space-y-3 p-4 border rounded-xl bg-gray-50/50'>
+                <Label className='text-xs font-semibold text-gray-600 uppercase tracking-wider'>Acento / Texto</Label>
                 <div className='flex items-center gap-3'>
-                  <Input
-                    type='color'
-                    value={themeConfig.accentColor}
-                    onChange={(e) =>
-                      handleFieldChange('theme', {
-                        ...currentTheme,
-                        accentColor: e.target.value,
-                      })
-                    }
-                    className='w-12 h-12 p-1 border rounded-lg cursor-pointer'
-                  />
+                  <div className="relative w-12 h-12 rounded-lg border shadow-sm overflow-hidden flex-shrink-0">
+                    <Input
+                      type='color'
+                      value={themeConfig.accentColor}
+                      onChange={(e) =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          accentColor: e.target.value,
+                        })
+                      }
+                      className='absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-0'
+                    />
+                  </div>
                   <div className='flex-1'>
                     <Input
                       type='text'
@@ -698,10 +675,10 @@ export function ThemeSection({
                           accentColor: e.target.value,
                         })
                       }
-                      className='font-mono text-sm uppercase'
+                      className='font-mono text-sm uppercase h-9'
                       placeholder='#000000'
                     />
-                    <p className='text-xs text-gray-500 mt-1'>Textos y detalles</p>
+                    <p className='text-[11px] text-gray-500 mt-1'>Textos y detalles</p>
                   </div>
                 </div>
               </div>
@@ -710,144 +687,154 @@ export function ThemeSection({
         </CardContent>
       </Card>
 
-      {/* Sección de Tipografía */}
-      <Card>
-        <CardHeader>
-          <CardTitle className='flex items-center gap-2'>
-            <Type className='w-5 h-5' />
-            Tipografía
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-6'>
-          <div className='space-y-3'>
-            <Label className='text-sm font-medium'>Fuente Principal</Label>
-            <Select
-              value={themeConfig.fontFamily}
-              onValueChange={(value) =>
-                handleFieldChange('theme', {
-                  ...currentTheme,
-                  fontFamily: value,
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Selecciona una fuente' />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_OPTIONS.map((font) => (
-                  <SelectItem key={font.value} value={font.value}>
-                    <span style={{ fontFamily: font.value }}>{font.name}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Sección de Tipografía y Botones */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="border shadow-sm">
+          <CardHeader className="bg-gray-50/50 border-b pb-4">
+            <CardTitle className='flex items-center gap-2 text-lg'>
+              <Type className='w-5 h-5 text-indigo-500' />
+              Tipografía
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='pt-6 space-y-6'>
+            <div className='space-y-3'>
+              <Label className='text-sm font-semibold text-gray-700'>Fuente Principal</Label>
+              <Select
+                value={themeConfig.fontFamily}
+                onValueChange={(value) =>
+                  handleFieldChange('theme', {
+                    ...currentTheme,
+                    fontFamily: value,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder='Selecciona una fuente' />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map((font) => (
+                    <SelectItem key={font.value} value={font.value}>
+                      <span style={{ fontFamily: font.value }}>{font.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Previsualización de Tipografía */}
-          <div className='space-y-3'>
-            <Label className='text-sm font-medium'>Previsualización</Label>
+            <div className='space-y-3 pt-2'>
+              <Label className='text-sm font-semibold text-gray-700'>Estilo de Botones</Label>
+              <div className='grid grid-cols-3 gap-3'>
+                {BUTTON_STYLES.map((style) => {
+                  const isSelected = themeConfig.buttonStyle === style.value;
+                  return (
+                    <button
+                      key={style.value}
+                      onClick={() =>
+                        handleFieldChange('theme', {
+                          ...currentTheme,
+                          buttonStyle: style.value as
+                            | 'rounded'
+                            | 'square'
+                            | 'pill',
+                        })
+                      }
+                      className={`py-4 px-2 border-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center gap-3 group ${isSelected ? 'shadow-sm bg-blue-50/30' : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      style={{
+                        borderColor: isSelected ? themeConfig.primaryColor : undefined,
+                      }}
+                    >
+                      <div
+                        className={`w-full max-w-[80px] h-8 text-white text-xs font-medium flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 ${style.value === 'rounded'
+                            ? 'rounded-md'
+                            : style.value === 'square'
+                              ? 'rounded-none'
+                              : 'rounded-full'
+                          }`}
+                        style={{ backgroundColor: isSelected ? themeConfig.primaryColor : '#9CA3AF' }}
+                      >
+                        Botón
+                      </div>
+                      <span className={`text-xs font-medium ${isSelected ? '' : 'text-gray-500'}`}
+                        style={{ color: isSelected ? themeConfig.primaryColor : undefined }}
+                      >
+                        {style.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border shadow-sm">
+          <CardHeader className="bg-gray-50/50 border-b pb-4">
+            <CardTitle className='flex items-center gap-2 text-lg'>
+              <ImageIcon className='w-5 h-5 text-emerald-500' />
+              Vista Previa
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='pt-6'>
             <div
-              className='p-6 border rounded-xl shadow-sm transition-colors duration-300'
+              className='relative w-full h-[320px] rounded-xl border border-black/10 shadow-inner overflow-hidden flex flex-col transition-colors duration-500'
               style={{
                 fontFamily: themeConfig.fontFamily,
                 backgroundColor: themeConfig.secondaryColor
               }}
             >
-              <div className="bg-white/50 p-4 rounded-lg backdrop-blur-sm">
-                <h1 className='text-3xl font-bold mb-2' style={{ color: themeConfig.primaryColor }}>
-                  Mi Tienda Online
+              {/* Fake header */}
+              <div className="h-14 bg-white/60 backdrop-blur-md border-b border-black/5 flex items-center px-4 justify-between shrink-0">
+                 <div className="flex items-center gap-2">
+                   <div className="w-8 h-8 rounded-full shadow-sm" style={{ backgroundColor: themeConfig.primaryColor }} />
+                   <div className="h-3 w-20 rounded bg-black/10" />
+                 </div>
+                 <div className="flex gap-3">
+                   <div className="h-3 w-10 rounded bg-black/10" />
+                   <div className="h-3 w-10 rounded bg-black/10" />
+                 </div>
+              </div>
+
+              {/* Hero content */}
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 z-10">
+                <h1 className='text-3xl font-extrabold tracking-tight mb-3' style={{ color: themeConfig.primaryColor }}>
+                  Mi Tienda
                 </h1>
-                <h2 className='text-xl font-semibold mb-3' style={{ color: themeConfig.accentColor }}>
-                  Productos Destacados
-                </h2>
-                <p className='text-base mb-6 max-w-lg leading-relaxed' style={{ color: themeConfig.accentColor }}>
-                  Descubre nuestra amplia selección de productos de alta calidad.
-                  Ofrecemos las mejores marcas con el mejor diseño.
+                <p className='text-sm mb-6 max-w-[250px] mx-auto opacity-90' style={{ color: themeConfig.accentColor }}>
+                  Descubre los mejores productos con calidad garantizada.
                 </p>
-                <div className='flex gap-3'>
+                <div className='flex flex-col sm:flex-row justify-center gap-3 w-full max-w-[280px]'>
                   <button
-                    className={`px-6 py-2.5 text-white font-medium shadow-sm transition-all hover:opacity-90 active:scale-95 ${themeConfig.buttonStyle === 'rounded'
-                      ? 'rounded-md'
+                    className={`px-5 py-2.5 text-white text-sm font-medium shadow-md transition-all ${themeConfig.buttonStyle === 'rounded'
+                      ? 'rounded-lg'
                       : themeConfig.buttonStyle === 'square'
                         ? 'rounded-none'
                         : 'rounded-full'
                       }`}
                     style={{ backgroundColor: themeConfig.primaryColor }}
                   >
-                    Comprar Ahora
+                    Ver Catálogo
                   </button>
                   <button
-                    className={`px-6 py-2.5 border-2 font-medium transition-all hover:bg-black/5 active:scale-95 ${themeConfig.buttonStyle === 'rounded'
-                      ? 'rounded-md'
+                    className={`px-5 py-2.5 border-2 text-sm font-medium bg-white/30 backdrop-blur-sm transition-all ${themeConfig.buttonStyle === 'rounded'
+                      ? 'rounded-lg'
                       : themeConfig.buttonStyle === 'square'
                         ? 'rounded-none'
                         : 'rounded-full'
                       }`}
                     style={{
-                      borderColor: themeConfig.accentColor,
-                      color: themeConfig.accentColor
+                      borderColor: themeConfig.primaryColor,
+                      color: themeConfig.primaryColor
                     }}
                   >
-                    Ver Más
+                    Contactar
                   </button>
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sección de Estilo de Botones */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Estilo de Botones</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-            {BUTTON_STYLES.map((style) => {
-              const isSelected = themeConfig.buttonStyle === style.value;
-              return (
-                <button
-                  key={style.value}
-                  onClick={() =>
-                    handleFieldChange('theme', {
-                      ...currentTheme,
-                      buttonStyle: style.value as
-                        | 'rounded'
-                        | 'square'
-                        | 'pill',
-                    })
-                  }
-                  className={`p-6 border-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center gap-3 group ${isSelected ? 'shadow-md ring-1' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  style={{
-                    borderColor: isSelected ? themeConfig.primaryColor : undefined,
-                    backgroundColor: isSelected ? `${themeConfig.primaryColor}10` : 'transparent', // 10 = alpha 10%
-                    boxShadow: isSelected ? `0 0 0 1px ${themeConfig.primaryColor}` : undefined
-                  }}
-                >
-                  <div
-                    className={`w-full max-w-[120px] h-10 text-white text-sm font-medium flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 ${style.value === 'rounded'
-                        ? 'rounded-md'
-                        : style.value === 'square'
-                          ? 'rounded-none'
-                          : 'rounded-full'
-                      }`}
-                    style={{ backgroundColor: themeConfig.primaryColor }}
-                  >
-                    Botón
-                  </div>
-                  <span className={`text-sm font-medium ${isSelected ? '' : 'text-gray-600'}`}
-                    style={{ color: isSelected ? themeConfig.primaryColor : undefined }}
-                  >
-                    {style.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

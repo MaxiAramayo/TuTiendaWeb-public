@@ -107,8 +107,8 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center justify-between h-16 px-4 lg:px-6">
 
         {/* Lado izquierdo - Mobile menu + Breadcrumbs */}
         <div className="flex items-center space-x-2 sm:space-x-4">
