@@ -41,6 +41,7 @@ const ProfileForm = ({ initialProfile }: ProfileFormWrapperProps) => {
       showStats={true}
       showTips={true}
       initialProfile={initialProfile}
+      userEmail={user?.email ?? undefined}
     />
   );
 };

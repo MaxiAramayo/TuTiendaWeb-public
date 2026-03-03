@@ -1,15 +1,6 @@
-/**
- * Sección de dirección del perfil
- * 
- * Maneja la edición de la dirección física de la tienda
- * con validaciones y sugerencias de autocompletado
- * 
- * @module features/dashboard/modules/profile/components/sections
- */
-
 'use client';
 
-import React, { useState, useCallback, useTransition } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
 import { updateAddressAction, getProfileAction } from '../../actions/profile.actions';
@@ -18,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleSelect } from '@/components/ui/simple-select';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
   MapPin,
@@ -28,13 +19,11 @@ import {
   ExternalLink,
   Copy,
   Save,
-  Loader2
+  Loader2,
+  Map
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-/**
- * Props del componente
- */
 interface AddressSectionProps {
   formData: ProfileFormData;
   formState: FormState;
@@ -44,51 +33,21 @@ interface AddressSectionProps {
   isSaving?: boolean;
 }
 
-/**
- * Provincias de Argentina
- */
 const PROVINCES = [
-  'Buenos Aires',
-  'Catamarca',
-  'Chaco',
-  'Chubut',
-  'Córdoba',
-  'Corrientes',
-  'Entre Ríos',
-  'Formosa',
-  'Jujuy',
-  'La Pampa',
-  'La Rioja',
-  'Mendoza',
-  'Misiones',
-  'Neuquén',
-  'Río Negro',
-  'Salta',
-  'San Juan',
-  'San Luis',
-  'Santa Cruz',
-  'Santa Fe',
-  'Santiago del Estero',
-  'Tierra del Fuego',
-  'Tucumán',
-  'Ciudad Autónoma de Buenos Aires'
+  'Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes', 'Entre Ríos', 
+  'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 
+  'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe', 
+  'Santiago del Estero', 'Tierra del Fuego', 'Tucumán', 'Ciudad Autónoma de Buenos Aires'
 ];
 
-/**
- * Ciudades principales por provincia (muestra)
- */
 const CITIES_BY_PROVINCE: Record<string, string[]> = {
   'Buenos Aires': ['La Plata', 'Mar del Plata', 'Bahía Blanca', 'Tandil', 'Olavarría', 'Pergamino'],
   'Córdoba': ['Córdoba', 'Villa Carlos Paz', 'Río Cuarto', 'Villa María', 'San Francisco'],
   'Santa Fe': ['Santa Fe', 'Rosario', 'Rafaela', 'Venado Tuerto', 'Reconquista'],
   'Mendoza': ['Mendoza', 'San Rafael', 'Godoy Cruz', 'Maipú', 'Luján de Cuyo'],
   'Ciudad Autónoma de Buenos Aires': ['CABA'],
-  // Agregar más según necesidad
 };
 
-/**
- * Componente de sección de dirección
- */
 export function AddressSection({
   formData,
   formState,
@@ -97,10 +56,8 @@ export function AddressSection({
   onSave,
   isSaving = false,
 }: AddressSectionProps) {
-  const [isPending, startTransition] = useTransition();
   const [isSectionSaving, setIsSectionSaving] = useState(false);
   const { setProfile } = useProfileStore();
-  // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
 
@@ -109,7 +66,6 @@ export function AddressSection({
     missingFields: string[];
   }>({ isComplete: false, missingFields: [] });
 
-  // Validar completitud de la dirección
   const validateAddress = useCallback(() => {
     const requiredFields = [
       { field: 'street', label: 'Calle' },
@@ -123,22 +79,18 @@ export function AddressSection({
       .map(({ label }) => label);
 
     const isComplete = missingFields.length === 0;
-
     setAddressValidation({ isComplete, missingFields });
     return isComplete;
   }, [formData]);
 
-  // Efecto para validar cuando cambian los campos
-  React.useEffect(() => {
+  useEffect(() => {
     validateAddress();
   }, [validateAddress]);
 
-  // Obtener ciudades disponibles para la provincia seleccionada
   const availableCities = formData.province
     ? CITIES_BY_PROVINCE[formData.province] || []
     : [];
 
-  // Generar dirección completa
   const getFullAddress = useCallback(() => {
     const parts = [
       formData.street,
@@ -147,11 +99,9 @@ export function AddressSection({
       formData.country,
       formData.zipCode
     ].filter(Boolean);
-
     return parts.join(', ');
   }, [formData.street, formData.city, formData.province, formData.country, formData.zipCode]);
 
-  // Copiar dirección al portapapeles
   const copyAddress = useCallback(async () => {
     const fullAddress = getFullAddress();
     if (fullAddress) {
@@ -159,13 +109,11 @@ export function AddressSection({
         await navigator.clipboard.writeText(fullAddress);
         success('Dirección copiada al portapapeles');
       } catch (err) {
-        console.error('Error al copiar:', err);
         error('Error al copiar la dirección');
       }
     }
   }, [getFullAddress, success, error]);
 
-  // Abrir en Google Maps
   const openInMaps = useCallback(() => {
     const fullAddress = getFullAddress();
     if (fullAddress) {
@@ -175,7 +123,6 @@ export function AddressSection({
     }
   }, [getFullAddress]);
 
-  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
     if (!profile?.id) {
       error('No se encontró el perfil de la tienda');
@@ -195,7 +142,6 @@ export function AddressSection({
       const result = await updateAddressAction(addressData);
       
       if (result.success) {
-        // Refrescar el store para actualizar todos los componentes
         const refreshResult = await getProfileAction();
         if (refreshResult.success && refreshResult.data) {
           setProfile(refreshResult.data as StoreProfile);
@@ -206,353 +152,216 @@ export function AddressSection({
         error(errorMsg);
       }
     } catch (err) {
-      console.error('Error al guardar dirección:', err);
       error('Error al guardar la dirección. Inténtalo de nuevo.');
     } finally {
       setIsSectionSaving(false);
     }
-  }, [formData.street, formData.city, formData.province, formData.country, formData.zipCode, profile?.id, success, error, setProfile]);
+  }, [formData, profile?.id, success, error, setProfile]);
 
-  // Función para marcar la sección como dirty cuando cambian los campos
   const handleFieldChange = (field: keyof ProfileFormData, value: any) => {
     updateField(field, value);
-    // markSectionDirty('address'); // Removed to prevent infinite re-renders
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header con título y botón de guardar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+    <div className="space-y-8 pb-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Dirección</h2>
-          <p className="text-xs sm:text-sm text-gray-500">Configura la ubicación física de tu tienda</p>
+          <h3 className="text-xl font-bold text-gray-900">Ubicación</h3>
+          <p className="text-sm text-gray-500 mt-1">Configura la dirección física de tu tienda</p>
         </div>
         <Button
           onClick={handleSectionSave}
           disabled={isSectionSaving || !formState.isDirty}
-          className="flex items-center justify-center space-x-2 w-full sm:w-auto"
-          size="sm"
+          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]"
         >
           {isSectionSaving ? (
-            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Save className="w-4 h-4" />
           )}
-          <span className="text-xs sm:text-sm">{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
         </Button>
       </div>
 
-      {/* Calle y número */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="space-y-2"
-      >
-        <Label htmlFor="street" className="flex items-center space-x-2">
-          <Building className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="text-sm sm:text-base">Calle y número *</span>
-        </Label>
-        <Input
-          id="street"
-          value={formData.street}
-          onChange={(e) => handleFieldChange('street', e.target.value)}
-          placeholder="Ej: Av. Corrientes 1234"
-          className={cn(
-            'text-sm',
-            formState.errors.street && 'border-red-500 focus:border-red-500'
-          )}
-        />
-        {formState.errors.street && (
-          <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>{formState.errors.street}</span>
-          </p>
-        )}
-        <p className="text-xs sm:text-sm text-gray-500">
-          Dirección completa donde se encuentra tu tienda.
-        </p>
-      </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-6">
+          <Card className="border shadow-sm">
+            <CardHeader className="bg-gray-50/50 border-b pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <MapPin className="w-5 h-5 text-red-500" />
+                Dirección Principal
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* Calle y número */}
+              <div className="space-y-2">
+                <Label htmlFor="street" className="text-sm font-semibold text-gray-700">Calle y número *</Label>
+                <Input
+                  id="street"
+                  value={formData.street}
+                  onChange={(e) => handleFieldChange('street', e.target.value)}
+                  placeholder="Ej: Av. Corrientes 1234"
+                  className={cn(formState.errors.street && 'border-red-500 focus-visible:ring-red-500')}
+                />
+                {formState.errors.street && (
+                  <p className="text-sm text-red-600 flex items-center gap-1 mt-1">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{formState.errors.street}</span>
+                  </p>
+                )}
+              </div>
 
-      {/* Ciudad y Provincia */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        {/* Provincia */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-2"
-        >
-          <Label className="flex items-center space-x-2">
-            <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="text-sm sm:text-base">Provincia *</span>
-          </Label>
-          <SimpleSelect
-            value={formData.province || ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              handleFieldChange('province', value);
-              // Reset city when province changes
-              if (formData.city && !CITIES_BY_PROVINCE[value]?.includes(formData.city)) {
-                handleFieldChange('city', '');
-              }
-            }}
-            className={cn(
-              'text-sm',
-              formState.errors.province && 'border-red-500'
-            )}
-            placeholder="Selecciona tu provincia"
-            options={PROVINCES.map((province) => ({
-              value: province,
-              label: province
-            }))}
-          />
-          {formState.errors.province && (
-            <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>{formState.errors.province}</span>
-            </p>
-          )}
-        </motion.div>
-
-        {/* Ciudad */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="space-y-2"
-        >
-          <Label htmlFor="city" className="flex items-center space-x-2">
-            <Building className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="text-sm sm:text-base">Ciudad *</span>
-          </Label>
-
-          {availableCities.length > 0 ? (
-            <SimpleSelect
-              value={formData.city || ''}
-              onChange={(e) => handleFieldChange('city', e.target.value)}
-              className={cn(
-                'text-sm',
-                formState.errors.city && 'border-red-500'
-              )}
-              placeholder="Selecciona tu ciudad"
-              options={[
-                ...availableCities.map((city) => ({
-                  value: city,
-                  label: city
-                })),
-                {
-                  value: "other",
-                  label: "Otra ciudad..."
-                }
-              ]}
-            />
-          ) : (
-            <Input
-              id="city"
-              value={formData.city}
-              onChange={(e) => handleFieldChange('city', e.target.value)}
-              placeholder="Ingresa tu ciudad"
-              className={cn(
-                'text-sm',
-                formState.errors.city && 'border-red-500 focus:border-red-500'
-              )}
-            />
-          )}
-
-          {formState.errors.city && (
-            <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>{formState.errors.city}</span>
-            </p>
-          )}
-        </motion.div>
-      </div>
-
-      {/* Código postal y País */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        {/* Código postal */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="space-y-2"
-        >
-          <Label htmlFor="zipCode" className="text-sm sm:text-base">Código postal</Label>
-          <Input
-            id="zipCode"
-            value={formData.zipCode}
-            onChange={(e) => handleFieldChange('zipCode', e.target.value)}
-            placeholder="1234"
-            className={cn(
-              'text-sm',
-              formState.errors.zipCode && 'border-red-500 focus:border-red-500'
-            )}
-          />
-          {formState.errors.zipCode && (
-            <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
-              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>{formState.errors.zipCode}</span>
-            </p>
-          )}
-          <p className="text-xs sm:text-sm text-gray-500">
-            Opcional, pero ayuda con las entregas.
-          </p>
-        </motion.div>
-
-        {/* País */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="space-y-2"
-        >
-          <Label className="text-sm sm:text-base">País</Label>
-          <SimpleSelect
-            value={formData.country || ''}
-            onChange={(e) => handleFieldChange('country', e.target.value)}
-            placeholder="Selecciona el país"
-            className="text-sm"
-            options={[
-              { value: "Argentina", label: "🇦🇷 Argentina" },
-              { value: "Chile", label: "🇨🇱 Chile" },
-              { value: "Uruguay", label: "🇺🇾 Uruguay" },
-              { value: "Paraguay", label: "🇵🇾 Paraguay" },
-              { value: "Bolivia", label: "🇧🇴 Bolivia" },
-              { value: "Brasil", label: "🇧🇷 Brasil" }
-            ]}
-          />
-        </motion.div>
-      </div>
-
-      {/* Vista previa de la dirección */}
-      {(formData.street || formData.city || formData.province) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className={cn(
-            'border rounded-lg p-2 sm:p-3',
-            addressValidation.isComplete
-              ? 'bg-green-50/50 border-green-100'
-              : 'bg-yellow-50/50 border-yellow-100'
-          )}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
-            <div className="flex-1">
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 mb-2">
-                <div className="flex items-center space-x-2">
-                  <MapPin className={cn(
-                    'w-3 h-3',
-                    addressValidation.isComplete ? 'text-green-500' : 'text-yellow-500'
-                  )} />
-                  <h4 className={cn(
-                    'text-xs font-medium',
-                    addressValidation.isComplete ? 'text-green-700' : 'text-yellow-700'
-                  )}>
-                    Dirección de tu tienda
-                  </h4>
+              {/* País y Provincia */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">País</Label>
+                  <SimpleSelect
+                    value={formData.country || ''}
+                    onChange={(e) => handleFieldChange('country', e.target.value)}
+                    placeholder="Selecciona el país"
+                    options={[
+                      { value: "Argentina", label: "🇦🇷 Argentina" },
+                      { value: "Chile", label: "🇨🇱 Chile" },
+                      { value: "Uruguay", label: "🇺🇾 Uruguay" },
+                      { value: "Paraguay", label: "🇵🇾 Paraguay" },
+                      { value: "Bolivia", label: "🇧🇴 Bolivia" },
+                      { value: "Brasil", label: "🇧🇷 Brasil" }
+                    ]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">Provincia *</Label>
+                  <SimpleSelect
+                    value={formData.province || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleFieldChange('province', value);
+                      if (formData.city && !CITIES_BY_PROVINCE[value]?.includes(formData.city)) {
+                        handleFieldChange('city', '');
+                      }
+                    }}
+                    className={cn(formState.errors.province && 'border-red-500')}
+                    placeholder="Selecciona tu provincia"
+                    options={PROVINCES.map((province) => ({
+                      value: province,
+                      label: province
+                    }))}
+                  />
+                  {formState.errors.province && (
+                    <p className="text-sm text-red-600 flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{formState.errors.province}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <p className={cn(
-                'text-xs mb-2 break-all',
-                addressValidation.isComplete ? 'text-green-700' : 'text-yellow-700'
-              )}>
-                {getFullAddress() || 'Dirección incompleta'}
-              </p>
+              {/* Ciudad y Código Postal */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city" className="text-sm font-semibold text-gray-700">Ciudad *</Label>
+                  {availableCities.length > 0 ? (
+                    <SimpleSelect
+                      value={formData.city || ''}
+                      onChange={(e) => handleFieldChange('city', e.target.value)}
+                      className={cn(formState.errors.city && 'border-red-500')}
+                      placeholder="Selecciona tu ciudad"
+                      options={[
+                        ...availableCities.map((city) => ({
+                          value: city,
+                          label: city
+                        })),
+                        { value: "other", label: "Otra ciudad..." }
+                      ]}
+                    />
+                  ) : (
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => handleFieldChange('city', e.target.value)}
+                      placeholder="Ingresa tu ciudad"
+                      className={cn(formState.errors.city && 'border-red-500 focus-visible:ring-red-500')}
+                    />
+                  )}
+                  {formState.errors.city && (
+                    <p className="text-sm text-red-600 flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{formState.errors.city}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode" className="text-sm font-semibold text-gray-700">Código postal</Label>
+                  <Input
+                    id="zipCode"
+                    value={formData.zipCode}
+                    onChange={(e) => handleFieldChange('zipCode', e.target.value)}
+                    placeholder="Ej: 1234"
+                    className={cn(formState.errors.zipCode && 'border-red-500 focus-visible:ring-red-500')}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-              {!addressValidation.isComplete && (
-                <p className="text-xs text-yellow-600">
-                  Faltan: {addressValidation.missingFields.join(', ')}
+        {/* Sidebar Info */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="border shadow-sm overflow-hidden">
+             <div className="bg-gray-100 h-32 w-full relative flex items-center justify-center border-b">
+               {addressValidation.isComplete ? (
+                 <Map className="w-12 h-12 text-gray-300" />
+               ) : (
+                 <MapPin className="w-10 h-10 text-gray-300" />
+               )}
+               {addressValidation.isComplete && (
+                 <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center backdrop-blur-[1px]">
+                   <MapPin className="w-8 h-8 text-red-600 animate-bounce" />
+                 </div>
+               )}
+             </div>
+             <CardContent className="pt-4">
+                <h4 className="text-sm font-bold text-gray-900 mb-2">Vista Previa</h4>
+                <p className={cn(
+                  'text-sm min-h-[40px]',
+                  addressValidation.isComplete ? 'text-gray-700' : 'text-gray-400 italic'
+                )}>
+                  {getFullAddress() || 'Completa los campos para ver tu dirección.'}
                 </p>
-              )}
-            </div>
 
-            {addressValidation.isComplete && (
-              <div className="flex space-x-1 w-full sm:w-auto justify-center sm:justify-start">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={copyAddress}
-                  className="flex items-center space-x-1 flex-1 sm:flex-none"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span className="text-xs sm:hidden">Copiar</span>
-                </Button>
+                {!addressValidation.isComplete && formData.street && (
+                  <p className="text-xs text-amber-600 mt-2">
+                    Faltan: {addressValidation.missingFields.join(', ')}
+                  </p>
+                )}
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={openInMaps}
-                  className="flex items-center space-x-1 flex-1 sm:flex-none"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  <span className="text-xs sm:hidden">Mapas</span>
-                </Button>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Información adicional */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="bg-blue-50/50 border border-blue-100 rounded-lg p-3"
-      >
-        <h4 className="text-xs font-medium text-blue-700 mb-2">
-          📍 ¿Por qué es importante la dirección?
-        </h4>
-        <ul className="text-xs text-blue-600 space-y-1">
-          <li>• Los clientes pueden encontrar tu tienda física</li>
-          <li>• Permite calcular costos de delivery</li>
-          <li>• Mejora la confianza y credibilidad</li>
-          <li>• Facilita el retiro en local</li>
-          <li>• Ayuda con el SEO local</li>
-        </ul>
-      </motion.div>
-
-      {/* Consejos de ubicación */}
-      {addressValidation.isComplete && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="bg-green-50/50 border border-green-100 rounded-lg p-3"
-        >
-          <h4 className="text-xs font-medium text-green-700 mb-2">
-            ✅ Dirección configurada correctamente
-          </h4>
-          <div className="text-xs text-green-600 space-y-2">
-            <p>Tu dirección está completa y lista para:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="flex items-center space-x-2">
-                <Navigation className="w-3 h-3" />
-                <span>Cálculo de delivery</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Building className="w-3 h-3" />
-                <span>Retiro en local</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-3 h-3" />
-                <span>Búsquedas locales</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <ExternalLink className="w-3 h-3" />
-                <span>Integración con mapas</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-
+                {addressValidation.isComplete && (
+                  <div className="flex gap-2 mt-4 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyAddress}
+                      className="flex-1 text-xs"
+                    >
+                      <Copy className="w-3 h-3 mr-1.5" />
+                      Copiar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openInMaps}
+                      className="flex-1 text-xs"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-1.5" />
+                      Ver Mapa
+                    </Button>
+                  </div>
+                )}
+             </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

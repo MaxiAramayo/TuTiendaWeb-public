@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
@@ -18,12 +17,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { formatPrice } from "@/features/products/utils/product.utils";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
-import Image from "next/image";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -32,40 +29,25 @@ import { useCartStore } from "@/features/store/store/cart.store";
 import { useProductModalStore } from "@/features/store/store/product-modal.store";
 import { Product, Topics } from "@/shared/types/store";
 import { useThemeClasses, useThemeStyles } from "@/features/store/hooks/useStoreTheme";
+import { ImageWithLoader } from "../../../components/ui/ImageWithLoader";
 
-// ... inside component
 export function ProductModal() {
-  // ... existing hooks
-
-  // Hooks del tema
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
 
-  // ... rest of code
-
-  // Estados locales
   const [quantity, setQuantity] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState<Topics[]>([]);
   const [notes, setNotes] = useState("");
   const [mounted, setMounted] = useState(false);
 
-  // Hooks
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const { toast } = useToast();
 
-  // Acceder al estado del modal
   const { product, isOpen, closeModal } = useProductModalStore();
-
-  // Acceder al estado del carrito
   const { addToCart, openCart } = useCartStore();
 
-  /**
-   * Efecto para manejar el montaje y limpieza del componente
-   */
   useEffect(() => {
     setMounted(true);
-
-    // Reiniciar estado al cerrar el modal
     if (!isOpen) {
       setQuantity(1);
       setSelectedTopics([]);
@@ -73,9 +55,6 @@ export function ProductModal() {
     }
   }, [isOpen]);
 
-  /**
-   * Maneja el cierre del modal y reinicia los estados
-   */
   const handleClose = () => {
     setQuantity(1);
     setSelectedTopics([]);
@@ -83,14 +62,8 @@ export function ProductModal() {
     closeModal();
   };
 
-  /**
-   * Maneja el cambio de selección de tópicos
-   * 
-   * @param {string} topicId - ID del tópico seleccionado
-   */
   const handleTopicChange = (topicId: string) => {
     if (!product?.topics) return;
-
     const selectedTopic = product.topics.find(topic => topic.id === topicId);
     if (!selectedTopic) return;
 
@@ -103,26 +76,16 @@ export function ProductModal() {
     });
   };
 
-  /**
-   * Calcula el precio total incluyendo extras y cantidad
-   * 
-   * @returns {number} Precio total
-   */
   const calculateTotalPrice = (): number => {
     if (!product) return 0;
-
     const basePrice = product.price;
     const extrasPrice = selectedTopics.reduce((acc, topic) => acc + topic.price, 0);
     return (basePrice + extrasPrice) * quantity;
   };
 
-  /**
-   * Maneja la adición del producto al carrito
-   */
   const handleAddToCart = () => {
     if (!product) return;
 
-    // NO modificar el precio base - las variantes se calculan aparte
     const productWithExtras: Product = {
       ...product,
       topics: selectedTopics.length > 0 ? selectedTopics : undefined,
@@ -138,32 +101,32 @@ export function ProductModal() {
     handleClose();
   };
 
-
   const increaseQuantity = () => setQuantity(prev => prev + 1);
-
   const decreaseQuantity = () => setQuantity(prev => Math.max(1, prev - 1));
 
-  // Si no está montado o no hay producto, no renderizamos nada
   if (!mounted || !product) return null;
 
   const productContent = (
     <div className="space-y-4">
       {/* Imagen del producto */}
-      <div className="relative w-full h-64 rounded-md overflow-hidden">
+      <div className="relative w-full h-64 rounded-md overflow-hidden bg-gray-50">
         {product.imageUrl || product.image ? (
-          <Image
+          <ImageWithLoader
             src={(product.imageUrl || product.image) as string}
             alt={product.name}
             className="object-cover"
             fill
+            containerClassName="w-full h-full"
+            loaderSize="md"
+            useSkeletonBg={true}
           />
         ) : (
-          <div className="h-full w-full bg-gray-200 flex items-center justify-center">
-            <ShoppingCart className="h-12 w-12 text-gray-400" />
+          <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+            <ShoppingCart className="h-12 w-12 text-gray-300" />
           </div>
         )}
         {!product.available && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
             <span className="text-white font-bold text-lg">Agotado</span>
           </div>
         )}
@@ -196,7 +159,7 @@ export function ProductModal() {
             {product.topics.map((topic) => (
               <div
                 key={topic.id}
-                className="flex w-full bg-white p-2 rounded-md shadow-sm"
+                className="flex w-full bg-white p-2 rounded-md shadow-sm border border-gray-100"
               >
                 <input
                   type="checkbox"
@@ -205,11 +168,11 @@ export function ProductModal() {
                   className="ml-2"
                   checked={selectedTopics.some(t => t.id === topic.id)}
                 />
-                <div className="flex justify-between w-full px-1">
-                  <label htmlFor={topic.id} className="text-gray-600 cursor-pointer">
+                <div className="flex justify-between w-full px-2">
+                  <label htmlFor={topic.id} className="text-gray-600 cursor-pointer text-sm font-medium">
                     {topic.name}
                   </label>
-                  <span className={`font-bold ${themeClasses.price.primary}`}>
+                  <span className={`font-bold text-sm ${themeClasses.price.primary}`}>
                     {formatPrice(topic.price)}
                   </span>
                 </div>
@@ -237,15 +200,14 @@ export function ProductModal() {
     </div>
   );
 
-  // Barra de acciones (cantidad + agregar al carrito)
   const actionBar = (
-    <div className="flex items-center justify-between gap-3">
-      {/* Selector de cantidad - Estilo Pill */}
-      <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-sm overflow-hidden">
+    <div className="flex items-center justify-between gap-3 w-full">
+      {/* Selector de cantidad */}
+      <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-sm overflow-hidden h-10">
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-full hover:bg-gray-100"
+          className="h-10 w-10 rounded-none hover:bg-gray-100"
           onClick={decreaseQuantity}
           disabled={quantity <= 1 || !product.available}
         >
@@ -255,7 +217,7 @@ export function ProductModal() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-full hover:bg-gray-100"
+          className="h-10 w-10 rounded-none hover:bg-gray-100"
           onClick={increaseQuantity}
           disabled={!product.available}
         >
@@ -265,7 +227,7 @@ export function ProductModal() {
       <Button
         onClick={handleAddToCart}
         disabled={!product.available}
-        className={`flex-1 gap-2 ${themeClasses.background.primary} hover:opacity-90 text-white`}
+        className={`flex-1 h-10 gap-2 ${themeClasses.background.primary} hover:opacity-90 text-white rounded-full`}
       >
         <ShoppingCart className="h-4 w-4" />
         {selectedTopics.length > 0
@@ -275,7 +237,6 @@ export function ProductModal() {
     </div>
   );
 
-  // Renderizado condicional según dispositivo
   if (isDesktop) {
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -287,7 +248,7 @@ export function ProductModal() {
             </DialogDescription>
           </DialogHeader>
           {productContent}
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
             {actionBar}
           </DialogFooter>
         </DialogContent>

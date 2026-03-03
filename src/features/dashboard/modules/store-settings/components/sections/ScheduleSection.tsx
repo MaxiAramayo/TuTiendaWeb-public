@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -9,15 +11,15 @@ import {
   AlertCircle,
   Loader2,
   Plus,
-  Trash2
+  Trash2,
+  Calendar
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -50,22 +52,16 @@ interface ScheduleSectionProps {
   isSaving?: boolean;
 }
 
-/**
- * Días de la semana
- */
 const DAYS_OF_WEEK = [
   { key: 'monday', label: 'Lunes', short: 'Lun' },
   { key: 'tuesday', label: 'Martes', short: 'Mar' },
-  { key: 'wednesday', label: 'Miercoles', short: 'Mie' },
+  { key: 'wednesday', label: 'Miércoles', short: 'Mié' },
   { key: 'thursday', label: 'Jueves', short: 'Jue' },
   { key: 'friday', label: 'Viernes', short: 'Vie' },
-  { key: 'saturday', label: 'Sabado', short: 'Sab' },
+  { key: 'saturday', label: 'Sábado', short: 'Sáb' },
   { key: 'sunday', label: 'Domingo', short: 'Dom' }
 ] as const;
 
-/**
- * Horarios predefinidos con múltiples períodos
- */
 const PRESET_SCHEDULES = {
   business: {
     name: 'Horario comercial',
@@ -94,7 +90,7 @@ const PRESET_SCHEDULES = {
     }
   },
   restaurant: {
-    name: 'Restaurante (doble horario)',
+    name: 'Restaurante',
     description: 'Almuerzo 12:00-16:00, Cena 19:00-23:00',
     schedule: {
       monday: { closed: false, periods: [{ open: '12:00', close: '16:00', nextDay: false }, { open: '19:00', close: '23:00', nextDay: false }] },
@@ -106,21 +102,8 @@ const PRESET_SCHEDULES = {
       sunday: { closed: true, periods: [] }
     }
   },
-  nightclub: {
-    name: 'Vida nocturna',
-    description: 'Viernes y sábado 22:00 - 04:00 (siguiente día)',
-    schedule: {
-      monday: { closed: true, periods: [] },
-      tuesday: { closed: true, periods: [] },
-      wednesday: { closed: true, periods: [] },
-      thursday: { closed: true, periods: [] },
-      friday: { closed: false, periods: [{ open: '22:00', close: '04:00', nextDay: true }] },
-      saturday: { closed: false, periods: [{ open: '22:00', close: '04:00', nextDay: true }] },
-      sunday: { closed: true, periods: [] }
-    }
-  },
   always: {
-    name: 'Siempre abierto (24/7)',
+    name: '24/7',
     description: 'Abierto las 24 horas',
     schedule: {
       monday: { closed: false, periods: [{ open: '00:00', close: '23:59', nextDay: false }] },
@@ -134,18 +117,12 @@ const PRESET_SCHEDULES = {
   }
 };
 
-/**
- * Horarios comunes para selección rápida
- */
 const COMMON_HOURS = [
   '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00',
   '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00',
   '20:00', '21:00', '22:00', '23:00', '23:59'
 ];
 
-/**
- * Componente de sección de horarios con múltiples períodos
- */
 export function ScheduleSection({
   formData,
   formState,
@@ -160,7 +137,6 @@ export function ScheduleSection({
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [showPresets, setShowPresets] = useState(false);
 
-  // Estado de horarios con múltiples períodos
   const [schedule, setSchedule] = useState(() => {
     const defaultSchedule: WeeklySchedule = {
       monday: { closed: true, periods: [] },
@@ -171,174 +147,93 @@ export function ScheduleSection({
       saturday: { closed: true, periods: [] },
       sunday: { closed: true, periods: [] }
     };
-
-    // Usar datos existentes si están disponibles
     if (formData.schedule) {
       return { ...defaultSchedule, ...formData.schedule };
     }
-
     return defaultSchedule;
   });
 
-  // Convertir schedule con períodos a formato simple para el backend
-  const convertPeriodsScheduleToSimple = useCallback((periodsSchedule: WeeklySchedule) => {
-    const simpleSchedule: Record<string, string> = {};
-
-    Object.entries(periodsSchedule).forEach(([day, dayData]) => {
-      if (dayData.closed || !dayData.periods || dayData.periods.length === 0) {
-        simpleSchedule[day] = 'Cerrado';
-      } else {
-        // Convertir múltiples períodos a string
-        const periodsText = dayData.periods.map((period: TimePeriod) => {
-          const closeText = period.nextDay ? `${period.close}+1` : period.close;
-          return `${period.open}-${closeText}`;
-        }).join(', ');
-        simpleSchedule[day] = periodsText;
-      }
-    });
-
-    return simpleSchedule;
-  }, []);
-
-  // Guardar cambios de la sección usando Server Action
   const handleSectionSave = useCallback(async () => {
-    if (!user?.uid) {
-      toast.error('No se pudo identificar al usuario');
-      return;
-    }
-
-    if (!profile?.id) {
-      toast.error('No se encontró el perfil de la tienda');
+    if (!user?.uid || !profile?.id) {
+      toast.error('Error de sesión');
       return;
     }
 
     setIsSectionSaving(true);
     try {
-      // Actualizar el campo schedule en el formulario
       updateField('schedule', schedule);
 
-      // Convertir a Record<string, ...> para Server Action
-      const scheduleData: Record<string, { closed?: boolean; periods?: Array<{ open: string; close: string; nextDay?: boolean }> }> = {};
+      const scheduleData: Record<string, any> = {};
       Object.entries(schedule).forEach(([day, data]) => {
         scheduleData[day] = data;
       });
 
-      // Guardar usando Server Action
       const result = await updateScheduleAction(scheduleData);
 
       if (result.success) {
-        // Refrescar el store para actualizar todos los componentes
         const refreshResult = await getProfileAction();
         if (refreshResult.success && refreshResult.data) {
           setProfile(refreshResult.data as StoreProfile);
         }
         toast.success('Horarios guardados correctamente');
       } else {
-        const errorMsg = result.errors._form?.[0] || 'Error al guardar los horarios. Inténtalo de nuevo.';
-        toast.error(errorMsg);
+        toast.error(result.errors._form?.[0] || 'Error al guardar horarios');
       }
     } catch (err) {
-      console.error('Error al guardar horarios:', err);
-      toast.error('Error al guardar los horarios. Inténtalo de nuevo.');
+      toast.error('Error al guardar los horarios');
     } finally {
       setIsSectionSaving(false);
     }
   }, [user?.uid, profile?.id, schedule, updateField, setProfile]);
 
-  // Aplicar horario predefinido
   const applyPreset = useCallback((presetKey: string) => {
     if (presetKey && PRESET_SCHEDULES[presetKey as keyof typeof PRESET_SCHEDULES]) {
       const preset = PRESET_SCHEDULES[presetKey as keyof typeof PRESET_SCHEDULES];
       setSchedule(preset.schedule);
       setSelectedPreset(presetKey);
       setShowPresets(false);
-
       updateField('schedule', preset.schedule);
-
-      toast.success(`Horario "${preset.name}" aplicado correctamente`);
+      toast.success(`Horario "${preset.name}" aplicado`);
     }
   }, [updateField]);
 
-  // Actualizar horario de un día específico
   const updateDaySchedule = useCallback((day: string, newDayData: DailySchedule) => {
-    const newSchedule = {
-      ...schedule,
-      [day]: newDayData
-    };
-
+    const newSchedule = { ...schedule, [day]: newDayData };
     setSchedule(newSchedule);
-    setSelectedPreset(''); // Limpiar preset al hacer cambios manuales
+    setSelectedPreset('');
     updateField('schedule', newSchedule);
   }, [schedule, updateField]);
 
-  // Agregar período a un día
   const addPeriod = useCallback((day: string) => {
     const daySchedule = schedule[day as keyof WeeklySchedule];
-    const newPeriod: TimePeriod = {
-      open: '09:00',
-      close: '18:00',
-      nextDay: false
-    };
-
+    const newPeriod: TimePeriod = { open: '09:00', close: '18:00', nextDay: false };
     const newDayData: DailySchedule = {
       ...daySchedule,
       closed: false,
       periods: [...(daySchedule.periods || []), newPeriod]
     };
-
     updateDaySchedule(day, newDayData);
   }, [schedule, updateDaySchedule]);
 
-  // Eliminar período de un día
   const removePeriod = useCallback((day: string, periodIndex: number) => {
     const daySchedule = schedule[day as keyof WeeklySchedule];
     const newPeriods = (daySchedule.periods || []).filter((_, index) => index !== periodIndex);
-
     const newDayData: DailySchedule = {
       ...daySchedule,
       periods: newPeriods,
       closed: newPeriods.length === 0
     };
-
     updateDaySchedule(day, newDayData);
   }, [schedule, updateDaySchedule]);
 
-  // Actualizar período específico
   const updatePeriod = useCallback((day: string, periodIndex: number, field: keyof TimePeriod, value: any) => {
     const daySchedule = schedule[day as keyof WeeklySchedule];
     const newPeriods = [...(daySchedule.periods || [])];
-    newPeriods[periodIndex] = {
-      ...newPeriods[periodIndex],
-      [field]: value
-    };
-
-    const newDayData: DailySchedule = {
-      ...daySchedule,
-      periods: newPeriods
-    };
-
+    newPeriods[periodIndex] = { ...newPeriods[periodIndex], [field]: value };
+    const newDayData: DailySchedule = { ...daySchedule, periods: newPeriods };
     updateDaySchedule(day, newDayData);
   }, [schedule, updateDaySchedule]);
 
-  // Formatear horario para mostrar
-  const formatScheduleDisplay = useMemo(() => {
-    return DAYS_OF_WEEK.map(day => {
-      const daySchedule = schedule[day.key as keyof WeeklySchedule];
-
-      if (daySchedule.closed || (daySchedule.periods || []).length === 0) {
-        return `${day.short}: Cerrado`;
-      }
-
-      const periodsText = (daySchedule.periods || []).map(period => {
-        const closeText = period.nextDay ? `${period.close}+1` : period.close;
-        return `${period.open}-${closeText}`;
-      }).join(', ');
-
-      return `${day.short}: ${periodsText}`;
-    }).join(' | ');
-  }, [schedule]);
-
-  // Limpiar todos los horarios
   const clearAllSchedules = useCallback(() => {
     const emptySchedule: WeeklySchedule = {
       monday: { closed: true, periods: [] },
@@ -349,31 +244,24 @@ export function ScheduleSection({
       saturday: { closed: true, periods: [] },
       sunday: { closed: true, periods: [] }
     };
-
     setSchedule(emptySchedule);
     setSelectedPreset('');
     updateField('schedule', emptySchedule);
-
-    toast.success('Todos los horarios han sido limpiados');
+    toast.success('Horarios limpiados');
   }, [updateField]);
 
   return (
-    <div className="space-y-6">
-      {/* Header con título y botón de guardar */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-8 pb-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-            <Clock className="w-5 h-5" />
-            <span>Horarios de atención</span>
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Configura los horarios de atención de tu tienda. Puedes agregar múltiples horarios por día y horarios que se extiendan hasta el día siguiente.
-          </p>
+          <h3 className="text-xl font-bold text-gray-900">Horarios de Atención</h3>
+          <p className="text-sm text-gray-500 mt-1">Configura cuándo está abierta tu tienda.</p>
         </div>
         <Button
           onClick={handleSectionSave}
-          disabled={isSectionSaving}
-          className="flex items-center space-x-2"
+          disabled={isSectionSaving || !formState.isDirty}
+          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]"
         >
           {isSectionSaving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -384,273 +272,189 @@ export function ScheduleSection({
         </Button>
       </div>
 
-      {/* Acciones */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      {/* Toolbar / Presets */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/50 p-4 rounded-xl border shadow-sm">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button
             type="button"
-            variant="outline"
+            variant={showPresets ? "secondary" : "outline"}
             size="sm"
             onClick={() => setShowPresets(!showPresets)}
-            className="flex items-center space-x-1"
+            className="flex-1 sm:flex-none flex items-center gap-2"
           >
             <Settings className="w-4 h-4" />
-            <span>Plantillas</span>
+            Plantillas
           </Button>
-
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={clearAllSchedules}
-            className="flex items-center space-x-1 text-red-600 hover:text-red-700"
+            className="flex-1 sm:flex-none flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Limpiar todo</span>
+            Limpiar
           </Button>
         </div>
-
         {selectedPreset && (
-          <Badge variant="secondary" className="text-xs">
-            Usando: {PRESET_SCHEDULES[selectedPreset as keyof typeof PRESET_SCHEDULES]?.name}
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-sm">
+            Plantilla activa: {PRESET_SCHEDULES[selectedPreset as keyof typeof PRESET_SCHEDULES]?.name}
           </Badge>
         )}
       </div>
 
-      {/* Plantillas predefinidas */}
       {showPresets && (
         <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="border rounded-lg p-4 bg-gray-50"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
         >
-          <h4 className="text-sm font-medium mb-3">Plantillas de horarios (recomendado)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(PRESET_SCHEDULES).map(([key, preset]) => (
-              <Button
-                key={key}
-                type="button"
-                variant={selectedPreset === key ? "default" : "outline"}
-                onClick={() => applyPreset(key)}
-                className="flex flex-col items-start p-3 h-auto text-left"
-              >
-                <span className="font-medium">{preset.name}</span>
-                <span className="text-xs text-gray-500">{preset.description}</span>
-              </Button>
-            ))}
-          </div>
+          {Object.entries(PRESET_SCHEDULES).map(([key, preset]) => (
+            <button
+              key={key}
+              onClick={() => applyPreset(key)}
+              className={cn(
+                "p-4 border rounded-xl text-left transition-all hover:border-blue-500 hover:shadow-sm bg-white",
+                selectedPreset === key ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/10" : ""
+              )}
+            >
+              <h4 className="font-semibold text-sm text-gray-900">{preset.name}</h4>
+              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{preset.description}</p>
+            </button>
+          ))}
         </motion.div>
       )}
 
-      <Separator />
+      {/* Main Days Grid */}
+      <Card className="border shadow-sm">
+        <CardHeader className="bg-gray-50/50 border-b pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calendar className="w-5 h-5 text-emerald-600" />
+            Configuración por Día
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y divide-gray-100">
+            {DAYS_OF_WEEK.map((day) => {
+              const daySchedule = schedule[day.key as keyof WeeklySchedule];
+              const isClosed = daySchedule.closed;
 
-      {/* Resumen del horario actual */}
-      <div className="p-3 bg-gray-50 rounded-lg">
-        <p className="text-xs text-gray-600 mb-1">Horario actual:</p>
-        <p className="text-sm font-mono text-gray-800 break-all">
-          {formatScheduleDisplay}
-        </p>
-      </div>
+              return (
+                <div key={day.key} className={cn("p-5 transition-colors", isClosed ? "bg-gray-50/50" : "bg-white")}>
+                  <div className="flex flex-col md:flex-row md:items-start gap-4">
+                    {/* Day Toggle */}
+                    <div className="flex items-center justify-between md:justify-start gap-4 w-full md:w-48 shrink-0">
+                      <Label className="font-bold text-sm text-gray-900 w-20">{day.label}</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">
+                          {isClosed ? 'Cerrado' : 'Abierto'}
+                        </span>
+                        <Switch
+                          checked={!isClosed}
+                          onCheckedChange={(checked) => {
+                            const newDayData: DailySchedule = {
+                              closed: !checked,
+                              periods: checked && (daySchedule.periods || []).length === 0
+                                ? [{ open: '09:00', close: '18:00', nextDay: false }]
+                                : daySchedule.periods
+                            };
+                            updateDaySchedule(day.key, newDayData);
+                          }}
+                        />
+                      </div>
+                    </div>
 
-      {/* Configuración por día */}
-      <div className="space-y-4">
-        <Label className="text-sm font-medium text-gray-700">
-          Configuración personalizada
-        </Label>
+                    {/* Time Periods */}
+                    <div className="flex-1 space-y-3">
+                      {!isClosed && (daySchedule.periods || []).map((period, periodIndex) => (
+                        <div key={periodIndex} className="flex flex-wrap items-center gap-3 bg-gray-50 border rounded-lg p-2.5">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <Select
+                              value={period.open}
+                              onValueChange={(value) => updatePeriod(day.key, periodIndex, 'open', value)}
+                            >
+                              <SelectTrigger className="w-24 h-8 text-xs bg-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COMMON_HOURS.map((hour) => (
+                                  <SelectItem key={hour} value={hour} className="text-xs">{hour}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-gray-400 font-medium">a</span>
+                            <Select
+                              value={period.close}
+                              onValueChange={(value) => updatePeriod(day.key, periodIndex, 'close', value)}
+                            >
+                              <SelectTrigger className="w-24 h-8 text-xs bg-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COMMON_HOURS.map((hour) => (
+                                  <SelectItem key={hour} value={hour} className="text-xs">{hour}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
 
-        {DAYS_OF_WEEK.map((day, index) => {
-          const daySchedule = schedule[day.key as keyof WeeklySchedule];
+                          <div className="flex items-center justify-between w-full sm:w-auto sm:ml-auto gap-4">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={period.nextDay}
+                                onCheckedChange={(checked) => updatePeriod(day.key, periodIndex, 'nextDay', checked)}
+                                className="scale-75 data-[state=checked]:bg-indigo-500"
+                              />
+                              <Label className="text-xs text-gray-600 leading-none">Día sig.</Label>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removePeriod(day.key, periodIndex)}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
 
-          return (
-            <motion.div
-              key={day.key}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="border rounded-lg p-4"
-            >
-              {/* Encabezado del día */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <Label className="font-medium text-gray-900 min-w-[80px]">
-                    {day.label}
-                  </Label>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={!daySchedule.closed}
-                      onCheckedChange={(checked) => {
-                        const newDayData: DailySchedule = {
-                          closed: !checked,
-                          periods: checked && (daySchedule.periods || []).length === 0
-                            ? [{ open: '09:00', close: '18:00', nextDay: false }]
-                            : daySchedule.periods
-                        };
-                        updateDaySchedule(day.key, newDayData);
-                      }}
-                    />
-                    <span className="text-sm text-gray-600">
-                      {daySchedule.closed ? 'Cerrado' : 'Abierto'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Botón para agregar período */}
-                {!daySchedule.closed && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addPeriod(day.key)}
-                    className="flex items-center space-x-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Agregar horario</span>
-                  </Button>
-                )}
-              </div>
-
-              {/* Períodos de tiempo */}
-              {!daySchedule.closed && (
-                <div className="space-y-3">
-                  {(daySchedule.periods || []).map((period, periodIndex) => (
-                    <div key={periodIndex} className="border border-gray-200 rounded-lg p-4 bg-white">
-                      <div className="flex items-center justify-between mb-3">
-                        <Badge variant="secondary" className="text-xs">
-                          Horario {periodIndex + 1}
-                        </Badge>
+                      {!isClosed && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removePeriod(day.key, periodIndex)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                          onClick={() => addPeriod(day.key)}
+                          className="text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 h-8"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          Añadir horario
                         </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Hora de apertura */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">Hora de apertura</Label>
-                          <Select
-                            value={period.open}
-                            onValueChange={(value) => updatePeriod(day.key, periodIndex, 'open', value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Seleccionar hora" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {COMMON_HOURS.map((hour) => (
-                                <SelectItem key={hour} value={hour}>
-                                  {hour}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      )}
+                      
+                      {isClosed && (
+                        <div className="text-sm text-gray-400 italic py-1">
+                          Sin horarios para este día.
                         </div>
-
-                        {/* Hora de cierre */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">Hora de cierre</Label>
-                          <Select
-                            value={period.close}
-                            onValueChange={(value) => updatePeriod(day.key, periodIndex, 'close', value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Seleccionar hora" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {COMMON_HOURS.map((hour) => (
-                                <SelectItem key={hour} value={hour}>
-                                  {hour}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Día siguiente */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">Configuración</Label>
-                          <div className="flex items-center space-x-2 pt-2">
-                            <Switch
-                              checked={period.nextDay}
-                              onCheckedChange={(checked) => updatePeriod(day.key, periodIndex, 'nextDay', checked)}
-                            />
-                            <Label className="text-sm text-gray-600">Continúa al día siguiente</Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Resumen del período */}
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {period.open} - {period.close}{period.nextDay ? ' (día siguiente)' : ''}
-                          </span>
-                        </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-
-                  {(daySchedule.periods || []).length === 0 && (
-                    <div className="text-center py-4 text-gray-500">
-                      <p className="text-sm">No hay horarios configurados para este día</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addPeriod(day.key)}
-                        className="mt-2"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Agregar primer horario
-                      </Button>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              )}
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Información adicional */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
-      >
-        <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center space-x-1">
-          <CheckCircle className="w-4 h-4" />
-          <span>Consejos para los horarios</span>
-        </h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Puedes agregar múltiples horarios por día (ej: almuerzo y cena)</li>
-          <li>• Activa &quot;Día siguiente&quot; para horarios que cruzan la medianoche</li>
-          <li>• Los horarios se muestran en tu tienda online</li>
-          <li>• Usa las plantillas para configurar rápidamente</li>
-          <li>• Mantén los horarios siempre actualizados</li>
-        </ul>
-      </motion.div>
-
-      {/* Estado de validación */}
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      
       {formState.errors?.schedule && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 border border-red-200 rounded-lg p-4"
-        >
-          <div className="flex items-center space-x-2 mb-2">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
             <AlertCircle className="w-4 h-4 text-red-600" />
-            <h4 className="text-sm font-medium text-red-900">Error en horarios</h4>
+            <h4 className="text-sm font-bold text-red-900">Error</h4>
           </div>
           <p className="text-sm text-red-800">{formState.errors.schedule}</p>
-        </motion.div>
+        </div>
       )}
     </div>
   );

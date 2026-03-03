@@ -203,9 +203,8 @@ export function ContactInfoSection({
         </Label>
 
         <div className="space-y-4">
-          {/* Container principal con diseño moderno */}
+          {/* Input principal mejorado */}
           <div className="relative group">
-            {/* Input integrado con selector de país - Diseño mejorado */}
             <div className="relative flex items-center bg-white border-2 border-gray-200 rounded-xl shadow-sm transition-all duration-300 hover:border-green-300 focus-within:border-green-500 focus-within:shadow-lg focus-within:shadow-green-100">
               {/* Selector de país elegante */}
               <div className="relative flex-shrink-0">
@@ -214,11 +213,9 @@ export function ContactInfoSection({
                   onChange={(e) => {
                     const value = e.target.value;
                     selectedCountryCodeRef.current = value;
-                    // Si el campo está vacío, agregar el código automáticamente
                     if (!formData.whatsapp || formData.whatsapp.trim() === '') {
                       updateField('whatsapp', value + ' ');
                     } else {
-                      // Reemplazar el código de país existente
                       const numberWithoutCode = formData.whatsapp.replace(/^\+\d{1,4}\s*/, '');
                       updateField('whatsapp', value + ' ' + numberWithoutCode);
                     }
@@ -232,8 +229,6 @@ export function ContactInfoSection({
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform group-focus-within:rotate-180" />
-
-                {/* Separador visual */}
                 <div className="absolute right-0 top-3 bottom-3 w-px bg-gray-200"></div>
               </div>
 
@@ -270,61 +265,27 @@ export function ContactInfoSection({
               )}
             </div>
 
-            {/* Botones de acción modernos */}
-            {whatsappFormatted && (
-              <div className="flex gap-3 mt-4">
+            {/* Acciones del número y descripción */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-3 text-sm">
+              <div className="flex items-center text-gray-600 mb-3 sm:mb-0">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2"></div>
+                <span>Número principal para recibir pedidos de clientes</span>
+              </div>
+              
+              {isWhatsAppValid && (
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
-                  onClick={copyWhatsApp}
-                  className="flex-1 sm:flex-none h-12 px-6 bg-white border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 group"
-                >
-                  <Copy className="w-4 h-4 mr-2 text-gray-600 group-hover:text-blue-600 transition-colors" />
-                  <span className="font-medium text-gray-700 group-hover:text-blue-700">Copiar número</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  size="lg"
+                  size="sm"
                   onClick={openWhatsApp}
-                  className="flex-1 sm:flex-none h-12 px-6 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  <span className="font-medium">Abrir WhatsApp</span>
+                  Probar enlace
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-
-          {/* Formato automático - Diseño mejorado */}
-          {whatsappFormatted && whatsappFormatted !== formData.whatsapp && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-              className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border border-blue-100 rounded-lg p-3 shadow-sm"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                <div className="flex items-start space-x-2">
-                  <div className="flex items-center justify-center w-6 h-6 bg-blue-50 rounded-full flex-shrink-0 mt-0.5">
-                    <Phone className="w-3 h-3 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-blue-700 mb-1">
-                      Formato sugerido
-                    </p>
-                    <p className="text-sm font-mono text-blue-700 bg-white px-2 py-1 rounded border border-blue-100 break-all">
-                      {whatsappFormatted}
-                    </p>
-                    <p className="text-xs text-blue-500 mt-1">
-                      Se aplicará automáticamente al guardar
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
         </div>
 
         {formState.errors.whatsapp && (
@@ -337,63 +298,7 @@ export function ContactInfoSection({
             <span className="text-sm text-red-700 font-medium">{formState.errors.whatsapp}</span>
           </motion.div>
         )}
-
-        <div className="flex items-center space-x-2 text-gray-600">
-          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-          <p className="text-sm">
-            Número principal para que los clientes se comuniquen contigo
-          </p>
-        </div>
-
-
       </motion.div>
-
-
-
-      {/* Resumen de contacto - Diseño moderno */}
-      {formData.whatsapp && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 border border-green-100 rounded-lg p-4 shadow-sm"
-        >
-          <div className="flex items-center space-x-2 mb-3">
-            <div className="flex items-center justify-center w-8 h-8 bg-green-50 rounded-full">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-            </div>
-            <h4 className="text-base font-medium text-green-700">
-              WhatsApp configurado correctamente
-            </h4>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center justify-center w-6 h-6 bg-white rounded-full shadow-sm">
-                  <Phone className="w-3 h-3 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-green-600 font-medium">Número de contacto</p>
-                  <p className="text-sm font-mono text-green-700 bg-white px-2 py-1 rounded border border-green-100 break-all">
-                    {whatsappFormatted || formData.whatsapp}
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                size="sm"
-                onClick={openWhatsApp}
-                className="bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-300 w-full sm:w-auto"
-              >
-                <MessageCircle className="w-3 h-3 mr-1" />
-                <span className="text-xs font-medium">Probar WhatsApp</span>
-              </Button>
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Consejos - Diseño moderno */}
       <motion.div

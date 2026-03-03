@@ -127,52 +127,52 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className={cn(
-        "flex items-center border-b border-gray-200 dark:border-gray-700",
-        isCollapsed ? "justify-center p-3 sm:p-4" : "justify-between p-3 sm:p-4"
+        "flex items-center border-b border-gray-200 dark:border-gray-800 h-16",
+        isCollapsed ? "justify-center" : "justify-between px-4"
       )}>
         {/* Logo/Título */}
         {!isCollapsed && (
-          <Link href="/dashboard" className="flex items-center space-x-2 sm:space-x-3">
-            <Store className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-            <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+          <Link href="/dashboard" className="flex items-center space-x-2.5 overflow-hidden">
+            <Store className="w-6 h-6 text-blue-600 flex-shrink-0" />
+            <span className="text-base font-bold text-gray-900 dark:text-white truncate">
               TuTiendaWeb
             </span>
           </Link>
         )}
 
         {isCollapsed && (
-          <Link href="/dashboard" className="flex items-center">
-            <Store className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+          <Link href="/dashboard" className="flex items-center justify-center w-full">
+            <Store className="w-6 h-6 text-blue-600" />
           </Link>
         )}
 
         {/* Collapse button - Solo en desktop */}
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => onToggleCollapse(!isCollapsed)}
-          className="hidden lg:flex w-7 h-7 sm:w-8 sm:h-8 p-0"
+          className="hidden lg:flex w-8 h-8 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
         >
           {isCollapsed ? (
-            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+            <ChevronRight className="w-4 h-4" />
           ) : (
-            <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+            <ChevronLeft className="w-4 h-4" />
           )}
         </Button>
 
         {/* Close button - Solo en móvil */}
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={toggleMobile}
-          className="lg:hidden w-7 h-7 sm:w-8 sm:h-8 p-0"
+          className="lg:hidden w-8 h-8 rounded-md text-gray-500 hover:text-gray-900"
         >
-          <X className="w-4 h-4 sm:w-5 sm:h-5" />
+          <X className="w-4 h-4" />
         </Button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 sm:p-4 space-y-1 sm:space-y-2">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {navigationItems.map((item) => {
           const isItemActive = isActive(item.href);
 
@@ -187,28 +187,28 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
                 }
               }}
               className={cn(
-                "flex items-center rounded-lg transition-all duration-200 group relative",
-                isCollapsed ? "justify-center p-3 sm:p-4" : "p-3 sm:p-4 space-x-3 sm:space-x-4",
+                "flex items-center rounded-md transition-colors duration-200 group relative",
+                isCollapsed ? "justify-center py-2.5" : "px-3 py-2 space-x-3",
                 isItemActive
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-100"
               )}
             >
               <item.icon className={cn(
                 "flex-shrink-0 transition-colors",
                 isItemActive
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300",
-                isCollapsed ? "w-6 h-6 sm:w-7 sm:h-7" : "w-5 h-5 sm:w-6 sm:h-6"
+                  ? "text-blue-700 dark:text-blue-400"
+                  : "text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300",
+                "w-5 h-5"
               )} />
 
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 text-sm sm:text-base font-medium">
+                  <span className="flex-1 text-sm font-medium">
                     {item.title}
                   </span>
                   {item.badge && (
-                    <Badge variant="secondary" className="text-xs sm:text-sm px-2 py-0.5">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 border-none">
                       {item.badge}
                     </Badge>
                   )}
@@ -217,15 +217,10 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
 
               {/* Tooltip en modo colapsado */}
               {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-medium rounded-md shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
                   {item.title}
-                  <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+                  <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-800 rotate-45"></div>
                 </div>
-              )}
-
-              {/* Indicador activo */}
-              {isItemActive && (
-                <div className="absolute -left-3 sm:-left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-l-full" />
               )}
             </Link>
           );
@@ -233,35 +228,35 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       </nav>
 
       {/* Footer - Tienda Link */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+      <div className="p-3 border-t border-gray-200 dark:border-gray-800 mt-auto">
         <Link
           href={storeSlug ? `/${storeSlug}` : '#'}
           target="_blank"
           className={cn(
-            "flex items-center rounded-lg p-3 sm:p-4 transition-all duration-200 group relative",
-            isCollapsed ? "justify-center" : "space-x-3 sm:space-x-4",
-            "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+            "flex items-center rounded-md transition-colors duration-200 group relative",
+            isCollapsed ? "justify-center py-2.5" : "px-3 py-2.5 space-x-3",
+            "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-100"
           )}
         >
           <Store className={cn(
-            "flex-shrink-0 text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors",
-            isCollapsed ? "w-6 h-6 sm:w-7 sm:h-7" : "w-5 h-5 sm:w-6 sm:h-6"
+            "flex-shrink-0 transition-colors w-5 h-5",
+            "text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300"
           )} />
 
           {!isCollapsed && (
-            <div className="flex-1">
-              <p className="text-sm sm:text-base font-medium">Ver mi tienda</p>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                {storeSlug || 'Configura tu tienda'}
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-medium truncate">Ver mi tienda</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                {storeSlug ? `/${storeSlug}` : 'Configura tu tienda'}
               </p>
             </div>
           )}
 
           {/* Tooltip en modo colapsado */}
           {isCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-medium rounded-md shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
               Visitar tienda
-              <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+              <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-800 rotate-45"></div>
             </div>
           )}
         </Link>
@@ -282,8 +277,8 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Sidebar Desktop */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
-          isCollapsed ? "w-20" : "w-96"
+          "hidden lg:flex flex-col flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out",
+          isCollapsed ? "w-16" : "w-64"
         )}
       >
         <SidebarContent />
@@ -292,7 +287,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Sidebar Mobile */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transform transition-transform duration-300 ease-in-out lg:hidden",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

@@ -151,7 +151,7 @@ export interface SubscriptionInfoRaw {
   /** Estado activo */
   active: boolean;
   /** Plan actual */
-  plan: 'free' | 'basic' | 'premium' | 'enterprise';
+  plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
   /** Fecha de inicio */
   startDate: Timestamp;
   /** Fecha de fin */
@@ -176,7 +176,7 @@ export interface SubscriptionInfo {
   /** Estado activo */
   active: boolean;
   /** Plan actual */
-  plan: 'free' | 'basic' | 'premium' | 'enterprise';
+  plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
   /** Fecha de inicio (ISO string) */
   startDate: string;
   /** Fecha de fin (ISO string) */

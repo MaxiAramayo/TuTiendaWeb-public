@@ -1,651 +1,345 @@
 /**
  * Sección de gestión de suscripciones
- * 
- * Implementa CU-STORE-10: Gestionar Suscripciones
- * Permite gestionar períodos de prueba, métodos de pago y renovaciones
- * 
+ *
  * @module features/dashboard/modules/store-settings/components/sections
  */
 
 'use client';
 
-import React, { useState, useCallback, useTransition } from 'react';
+import React, { useCallback, useTransition, useState } from 'react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app from '@/lib/firebase/client';
+import { useAuth } from '@/features/auth/providers/auth-store-provider';
 import { ProfileFormData, FormState, SubscriptionInfo } from '../../types/store.type';
-import { updateSubscriptionAction, getProfileAction } from '../../actions/profile.actions';
+import { getProfileAction } from '../../actions/profile.actions';
 import { useProfileStore } from '../../stores/profile.store';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { 
-  Crown, 
-  CreditCard, 
-  Calendar, 
-  CheckCircle2, 
-  AlertTriangle,
+import {
+  Crown,
+  CreditCard,
+  Calendar,
+  CheckCircle2,
   Clock,
-  Star,
-  Gift,
-  RefreshCw,
-  DollarSign,
-  Sparkles,
-  Save,
-  Loader2
+  Loader2,
+  MessageCircle,
+  ExternalLink,
+  Zap,
+  ShieldCheck,
+  BarChart3,
+  Palette,
+  Package,
+  HeadphonesIcon,
 } from 'lucide-react';
 
-/**
- * Props del componente
- */
 interface SubscriptionSectionProps {
   formData: ProfileFormData;
   formState: FormState;
   updateField: (field: keyof ProfileFormData, value: any) => void;
   onSave?: () => Promise<void>;
   isSaving?: boolean;
+  userEmail?: string;
+  profile?: { id?: string; basicInfo?: { name?: string }; contactInfo?: { whatsapp?: string } } | null;
 }
 
-/**
- * Planes de suscripción disponibles
- */
-const SUBSCRIPTION_PLANS = {
-  free: {
-    id: 'free',
-    name: 'Gratuito',
-    price: 0,
-    currency: 'ARS',
-    period: 'mes',
-    description: 'Perfecto para empezar',
-    features: [
-      'Hasta 10 productos',
-      'Tienda básica',
-      'Soporte por email',
-      'Estadísticas básicas'
-    ],
-    limitations: [
-      'Sin personalización avanzada',
-      'Sin integraciones',
-      'Marca de TuTienda visible'
-    ],
-    color: 'gray',
-    icon: Gift
-  },
-  basic: {
-    id: 'basic',
-    name: 'Básico',
-    price: 2999,
-    currency: 'ARS',
-    period: 'mes',
-    description: 'Para tiendas en crecimiento',
-    features: [
-      'Hasta 100 productos',
-      'Personalización básica',
-      'Soporte prioritario',
-      'Estadísticas avanzadas',
-      'Sin marca de TuTienda'
-    ],
-    limitations: [
-      'Integraciones limitadas'
-    ],
-    color: 'blue',
-    icon: Star,
-    popular: false
-  },
-  pro: {
-    id: 'pro',
-    name: 'Profesional',
-    price: 4999,
-    currency: 'ARS',
-    period: 'mes',
-    description: 'Para tiendas profesionales',
-    features: [
-      'Productos ilimitados',
-      'Personalización completa',
-      'Soporte 24/7',
-      'Analytics avanzados',
-      'Todas las integraciones',
-      'API completa',
-      'Dominio personalizado'
-    ],
-    limitations: [],
-    color: 'purple',
-    icon: Crown,
-    popular: true
-  },
-  enterprise: {
-    id: 'enterprise',
-    name: 'Empresarial',
-    price: 9999,
-    currency: 'ARS',
-    period: 'mes',
-    description: 'Para grandes empresas',
-    features: [
-      'Todo del plan Pro',
-      'Soporte dedicado',
-      'Configuración personalizada',
-      'SLA garantizado',
-      'Capacitación incluida',
-      'Múltiples tiendas'
-    ],
-    limitations: [],
-    color: 'gold',
-    icon: Sparkles
-  }
+const PRO_PLAN = {
+  id: 'pro',
+  name: 'Profesional',
+  price: 4999,
+  period: 'mes',
+  description: 'Todo lo que necesitás para hacer crecer tu negocio online.',
+  features: [
+    { icon: Package,         label: 'Productos ilimitados' },
+    { icon: Palette,         label: 'Personalización completa de tu tienda' },
+    { icon: BarChart3,       label: 'Analytics y reportes avanzados' },
+    { icon: Zap,             label: 'Integración con WhatsApp y redes sociales' },
+    { icon: ShieldCheck,     label: 'Sin marca de TuTiendaWeb visible' },
+    { icon: HeadphonesIcon,  label: 'Soporte prioritario' },
+  ],
 };
 
-/**
- * Métodos de pago para suscripciones
- */
-const PAYMENT_METHODS = [
-  {
-    id: 'mercadopago',
-    name: 'MercadoPago',
-    description: 'Tarjetas de crédito y débito',
-    icon: CreditCard,
-    available: true
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe',
-    description: 'Pagos internacionales',
-    icon: CreditCard,
-    available: false
-  },
-  {
-    id: 'paypal',
-    name: 'PayPal',
-    description: 'Cuenta PayPal',
-    icon: CreditCard,
-    available: false
-  }
-];
-
-/**
- * Componente de sección de suscripciones
- */
 export function SubscriptionSection({
   formData,
-  formState,
-  updateField,
+  userEmail,
+  profile,
   onSave,
   isSaving = false,
+  formState,
+  updateField,
 }: SubscriptionSectionProps) {
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [isPending, startTransition] = useTransition();
-  
-  // Store global
+
+  const { user } = useAuth();
   const setProfile = useProfileStore((state) => state.setProfile);
 
-  // Obtener configuración actual o inicializar
   const subscription = formData.subscription || {
-    active: true,
-    plan: 'free',
-    startDate: new Date(),
-    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    trialUsed: false
+    active: false,
+    plan: 'free' as const,
+    startDate: new Date().toISOString(),
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    trialUsed: false,
   };
 
-  const currentPlan = SUBSCRIPTION_PLANS[subscription.plan as keyof typeof SUBSCRIPTION_PLANS];
-  const isOnTrial = !subscription.trialUsed && subscription.active;
-  const trialDaysLeft = subscription.endDate 
-    ? Math.max(0, Math.ceil((
-        ((subscription.endDate as any).toDate 
-          ? (subscription.endDate as any).toDate().getTime() 
-          : new Date(subscription.endDate as any).getTime()) - new Date().getTime()
-      ) / (1000 * 60 * 60 * 24)))
+  const isPro = subscription.plan === 'pro' && subscription.active;
+  const isOnTrial = subscription.plan === 'trial' && subscription.active;
+
+  const endDateMs = subscription.endDate
+    ? (subscription.endDate as any).toDate
+      ? (subscription.endDate as any).toDate().getTime()
+      : new Date(subscription.endDate as string).getTime()
     : 0;
 
-  /**
-   * Guardar y refrescar store global
-   */
-  const handleSectionSave = useCallback(async () => {
-    if (onSave) {
-      await onSave();
-    }
-    
-    // Refrescar store global
-    startTransition(async () => {
-      const result = await getProfileAction();
-      if (result.success && result.data) {
-        setProfile(result.data);
-      }
-    });
-  }, [onSave, setProfile]);
+  const trialDaysLeft = isOnTrial
+    ? Math.max(0, Math.ceil((endDateMs - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
-  /**
-   * Actualizar configuración de suscripción
-   */
-  const updateSubscriptionSettings = (updates: Partial<SubscriptionInfo>) => {
-    updateField('subscription', {
-      ...subscription,
-      ...updates
-    });
-  };
+  const nextPaymentDate = endDateMs
+    ? new Date(endDateMs).toLocaleDateString('es-AR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
 
-  /**
-   * Iniciar actualización de plan
-   */
-  const startPlanUpgrade = (planId: string) => {
-    setSelectedPlan(planId);
-    setShowUpgradeModal(true);
-  };
-
-  /**
-   * Procesar pago de suscripción
-   */
-  const processSubscriptionPayment = async (planId: string, paymentMethodId: string) => {
+  /** Genera el link de MercadoPago y abre en nueva pestaña */
+  const handleSubscribe = async () => {
     setProcessingPayment(true);
-    
     try {
-      // Simular procesamiento de pago
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Actualizar suscripción
-      updateSubscriptionSettings({
-        plan: planId as 'free' | 'basic' | 'premium' | 'enterprise',
-        active: true,
-        billing: {
-          provider: paymentMethodId as 'mercadopago' | 'stripe',
-          autoRenew: true
-        }
+      const functions = getFunctions(app, 'southamerica-east1');
+      const createSubscription = httpsCallable<
+        { storeId: string; userId: string; userEmail: string; plan: string },
+        { initPoint: string }
+      >(functions, 'createSubscription');
+
+      const storeId = profile?.id ?? '';
+      const userId = user?.uid ?? '';
+      const resolvedEmail = user?.email ?? userEmail ?? '';
+
+      if (!storeId || !userId) {
+        toast.error('No se pudo identificar tu tienda. Intentá recargar la página.');
+        return;
+      }
+
+      const result = await createSubscription({
+        storeId,
+        userId,
+        userEmail: resolvedEmail,
+        plan: PRO_PLAN.id,
       });
-      
-      setShowUpgradeModal(false);
-      setSelectedPlan(null);
-    } catch (error) {
-      console.error('Error processing payment:', error);
+
+      window.open(result.data.initPoint, '_blank');
+      toast.success('Redirigiendo a MercadoPago...');
+    } catch (error: any) {
+      console.error('Error creando suscripción:', error);
+      toast.error(error?.message ?? 'No se pudo generar el link de pago. Intentá de nuevo.');
     } finally {
       setProcessingPayment(false);
     }
   };
 
-  /**
-   * Cancelar suscripción
-   */
-  const cancelSubscription = () => {
-    updateSubscriptionSettings({
-      active: false,
-      billing: {
-        ...((subscription as any).billing || {}),
-        autoRenew: false
-      }
-    });
-  };
+  /** WhatsApp para consultas */
+  const handleWhatsApp = () => {
+    const storeName = profile?.basicInfo?.name || formData.name || 'Sin nombre';
+    const email = user?.email ?? userEmail ?? '';
+    const planLabel = isPro ? 'Profesional (activo)' : isOnTrial ? 'Período de prueba' : 'Gratuito';
 
-  /**
-   * Reactivar suscripción
-   */
-  const reactivateSubscription = () => {
-    updateSubscriptionSettings({
-      active: true,
-      billing: {
-        ...((subscription as any).billing || {}),
-        autoRenew: true
-      }
-    });
-  };
-
-  /**
-   * Renderizar tarjeta de plan
-   */
-  const renderPlanCard = (plan: any, isCurrent: boolean = false) => {
-    const Icon = plan.icon;
-    const colorClasses = {
-      gray: 'border-gray-200 bg-gray-50',
-      blue: 'border-blue-200 bg-blue-50',
-      purple: 'border-purple-200 bg-purple-50',
-      gold: 'border-yellow-200 bg-yellow-50'
-    };
-
-    return (
-      <Card className={cn(
-        'relative transition-all duration-200 hover:shadow-lg',
-        isCurrent ? 'ring-2 ring-blue-500 bg-blue-50/30' : '',
-        plan.popular ? 'ring-2 ring-purple-500' : ''
-      )}>
-        {plan.popular && (
-          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-            <Badge className="bg-purple-600 text-white px-3 py-1">
-              Más popular
-            </Badge>
-          </div>
-        )}
-        
-        {isCurrent && (
-          <div className="absolute -top-3 right-4">
-            <Badge className="bg-blue-600 text-white px-3 py-1">
-              Plan actual
-            </Badge>
-          </div>
-        )}
-
-        <CardHeader className="text-center pb-4">
-          <div className={cn(
-            'w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-4',
-            colorClasses[plan.color as keyof typeof colorClasses]
-          )}>
-            <Icon className={cn(
-              'w-6 h-6',
-              plan.color === 'gray' ? 'text-gray-600' :
-              plan.color === 'blue' ? 'text-blue-600' :
-              plan.color === 'purple' ? 'text-purple-600' :
-              'text-yellow-600'
-            )} />
-          </div>
-          
-          <CardTitle className="text-xl">{plan.name}</CardTitle>
-          <CardDescription>{plan.description}</CardDescription>
-          
-          <div className="mt-4">
-            <div className="text-3xl font-bold">
-              {plan.price === 0 ? 'Gratis' : `$${plan.price.toLocaleString()}`}
-            </div>
-            {plan.price > 0 && (
-              <div className="text-sm text-gray-600">por {plan.period}</div>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div className="space-y-4">
-            {/* Características */}
-            <div>
-              <h4 className="font-medium text-sm text-gray-900 mb-2">Incluye:</h4>
-              <ul className="space-y-2">
-                {plan.features.map((feature: string, index: number) => (
-                  <li key={index} className="flex items-center text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Limitaciones */}
-            {plan.limitations.length > 0 && (
-              <div>
-                <h4 className="font-medium text-sm text-gray-900 mb-2">Limitaciones:</h4>
-                <ul className="space-y-2">
-                  {plan.limitations.map((limitation: string, index: number) => (
-                    <li key={index} className="flex items-center text-sm text-gray-600">
-                      <AlertTriangle className="w-4 h-4 text-orange-500 mr-2 flex-shrink-0" />
-                      {limitation}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Botón de acción */}
-            <div className="pt-4">
-              {isCurrent ? (
-                <Button disabled className="w-full">
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Plan actual
-                </Button>
-              ) : (
-                <Button 
-                  onClick={() => startPlanUpgrade(plan.id)}
-                  className="w-full"
-                  variant={plan.popular ? 'default' : 'outline'}
-                >
-                  {plan.price === 0 ? 'Cambiar a gratuito' : 'Actualizar plan'}
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    const text = encodeURIComponent(
+      [
+        'Hola! Tengo una consulta sobre mi suscripción en TuTiendaWeb.',
+        '',
+        '*Datos de mi cuenta:*',
+        `• Comercio: ${storeName}`,
+        email ? `• Email: ${email}` : '',
+        `• Plan actual: ${planLabel}`,
+      ]
+        .filter(Boolean)
+        .join('\n')
     );
+
+    window.open(`https://wa.me/5491123456789?text=${text}`, '_blank');
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header con título y botón de guardar */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Suscripción</h2>
-          <p className="text-sm text-gray-500">Gestiona tu plan y configuración de suscripción</p>
-        </div>
-        {onSave && (
-          <Button
-            onClick={handleSectionSave}
-            disabled={isSaving || isPending}
-            className="flex items-center space-x-2"
-          >
-            {isSaving || isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            <span>{isSaving || isPending ? 'Guardando...' : 'Guardar'}</span>
-          </Button>
-        )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Suscripción</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Gestioná tu plan y facturación</p>
       </div>
-      {/* Estado actual de la suscripción */}
+
+      {/* Estado actual */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Crown className="w-5 h-5" />
-            <span>Estado de tu suscripción</span>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Crown className="w-4 h-4 text-purple-600" />
+            Estado actual
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Plan actual */}
-            <div className="text-center p-4 border rounded-lg">
-              <div className="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
-                <Crown className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="font-medium">Plan actual</p>
-              <p className="text-lg font-bold text-blue-600">{currentPlan.name}</p>
-            </div>
-
-            {/* Estado */}
-            <div className="text-center p-4 border rounded-lg">
-              <div className={cn(
-              'w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center',
-              subscription.active && !isOnTrial ? 'bg-green-100' :
-              isOnTrial ? 'bg-orange-100' :
-              'bg-red-100'
-            )}>
-              <CheckCircle2 className={cn(
-                'w-6 h-6',
-                subscription.active && !isOnTrial ? 'text-green-600' :
-                isOnTrial ? 'text-orange-600' :
-                'text-red-600'
-              )} />
-            </div>
-            <p className="font-medium">Estado</p>
-            <p className={cn(
-              'text-lg font-bold',
-              subscription.active && !isOnTrial ? 'text-green-600' :
-              isOnTrial ? 'text-orange-600' :
-              'text-red-600'
-            )}>
-              {subscription.active && !isOnTrial ? 'Activo' :
-               isOnTrial ? 'Prueba' :
-               'Cancelado'}
-            </p>
-            </div>
-
-            {/* Próximo pago */}
-            <div className="text-center p-4 border rounded-lg">
-              <div className="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-purple-600" />
-              </div>
-              <p className="font-medium">Próximo pago</p>
-              <p className="text-lg font-bold text-purple-600">
-                {subscription.endDate 
-                  ? new Date(
-                      (subscription.endDate as any).toDate 
-                        ? (subscription.endDate as any).toDate() 
-                        : subscription.endDate
-                    ).toLocaleDateString()
-                  : 'N/A'
-                }
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Plan */}
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Plan</p>
+              <p className={cn(
+                'text-lg font-bold',
+                isPro ? 'text-purple-600' : 'text-gray-700'
+              )}>
+                {isPro ? 'Profesional' : isOnTrial ? 'Período de prueba' : 'Gratuito'}
               </p>
             </div>
 
-            {/* Renovación automática */}
-            <div className="text-center p-4 border rounded-lg">
-              <div className={cn(
-                'w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center',
-                (subscription as any).billing?.autoRenew ? 'bg-green-100' : 'bg-gray-100'
-              )}>
-                <RefreshCw className={cn(
-                  'w-6 h-6',
-                  (subscription as any).billing?.autoRenew ? 'text-green-600' : 'text-gray-400'
+            {/* Estado */}
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Estado</p>
+              <div className="flex items-center gap-1.5">
+                <span className={cn(
+                  'w-2 h-2 rounded-full',
+                  subscription.active ? 'bg-green-500' : 'bg-gray-400'
                 )} />
-              </div>
-              <p className="font-medium">Auto-renovación</p>
-              <div className="flex items-center justify-center mt-2">
-                <Switch
-                  checked={(subscription as any).billing?.autoRenew || false}
-                  onCheckedChange={(autoRenew) => updateSubscriptionSettings({ 
-                    billing: { 
-                      ...((subscription as any).billing || {}), 
-                      autoRenew 
-                    } 
-                  })}
-                />
+                <p className={cn(
+                  'text-lg font-bold',
+                  subscription.active ? 'text-green-600' : 'text-gray-500'
+                )}>
+                  {subscription.active ? 'Activo' : 'Inactivo'}
+                </p>
               </div>
             </div>
+
+            {/* Próximo pago / vencimiento */}
+            {nextPaymentDate && (
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {isPro ? 'Próximo pago' : 'Vence el'}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <p className="text-sm font-semibold text-gray-700">{nextPaymentDate}</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Período de prueba */}
+          {/* Alerta de trial */}
           {isOnTrial && (
-            <Alert className="mt-4">
-              <Clock className="h-4 w-4" />
-              <AlertDescription>
-                Tu período de prueba termina en {trialDaysLeft} días. 
-                Actualiza tu plan para continuar disfrutando de todas las funciones.
+            <Alert className="mt-4 border-orange-200 bg-orange-50">
+              <Clock className="h-4 w-4 text-orange-500" />
+              <AlertDescription className="text-orange-700">
+                Tu período de prueba vence en <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'día' : 'días'}</strong>.
+                Activá el plan Profesional para no perder el acceso.
               </AlertDescription>
             </Alert>
           )}
         </CardContent>
       </Card>
 
-      {/* Planes disponibles */}
-      <div>
-        <h3 className="text-xl font-semibold mb-6">Planes disponibles</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Object.values(SUBSCRIPTION_PLANS).map((plan) => (
-            <React.Fragment key={plan.id}>
-              {renderPlanCard(plan, plan.id === subscription.plan)}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
+      {/* Card del plan Pro */}
+      {!isPro && (
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white overflow-hidden">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-purple-900">
+                  <Crown className="w-5 h-5 text-purple-600" />
+                  Plan {PRO_PLAN.name}
+                </CardTitle>
+                <CardDescription className="mt-1 text-purple-700/80">
+                  {PRO_PLAN.description}
+                </CardDescription>
+              </div>
+              <div className="text-right flex-shrink-0 ml-4">
+                <p className="text-3xl font-bold text-purple-900">
+                  ${PRO_PLAN.price.toLocaleString('es-AR')}
+                </p>
+                <p className="text-sm text-purple-600">/ {PRO_PLAN.period}</p>
+              </div>
+            </div>
+          </CardHeader>
 
-      {/* Métodos de pago */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CreditCard className="w-5 h-5" />
-            <span>Métodos de pago</span>
-          </CardTitle>
-          <CardDescription>
-            Configura tu método de pago preferido para las suscripciones
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {PAYMENT_METHODS.map((method) => {
-              const Icon = method.icon;
-              const isSelected = (subscription as any).billing?.provider === method.id;
-              
-              return (
-                <div
-                  key={method.id}
-                  className={cn(
-                    'p-4 border rounded-lg cursor-pointer transition-all duration-200',
-                    method.available 
-                      ? 'hover:border-blue-300 hover:bg-blue-50' 
-                      : 'opacity-50 cursor-not-allowed',
-                    isSelected ? 'border-blue-500 bg-blue-50' : ''
-                  )}
-                  onClick={() => {
-                    if (method.available) {
-                      updateSubscriptionSettings({ 
-                        billing: { 
-                          ...((subscription as any).billing || {}), 
-                          provider: method.id as 'mercadopago' | 'stripe'
-                        } 
-                      });
-                    }
-                  }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <Icon className={cn(
-                      'w-6 h-6',
-                      method.available ? 'text-gray-700' : 'text-gray-400'
-                    )} />
-                    <div>
-                      <p className={cn(
-                        'font-medium',
-                        method.available ? 'text-gray-900' : 'text-gray-500'
-                      )}>
-                        {method.name}
-                      </p>
-                      <p className={cn(
-                        'text-sm',
-                        method.available ? 'text-gray-600' : 'text-gray-400'
-                      )}>
-                        {method.description}
-                      </p>
-                    </div>
-                    {isSelected && (
-                      <CheckCircle2 className="w-5 h-5 text-blue-600 ml-auto" />
-                    )}
+          <CardContent className="space-y-5">
+            <Separator className="bg-purple-100" />
+
+            {/* Features */}
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {PRO_PLAN.features.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex items-center gap-2.5 text-sm text-gray-700">
+                  <div className="w-7 h-7 rounded-md bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-purple-600" />
                   </div>
-                  {!method.available && (
-                    <Badge variant="secondary" className="mt-2">
-                      Próximamente
-                    </Badge>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                  {label}
+                </li>
+              ))}
+            </ul>
 
-      {/* Acciones de suscripción */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestionar suscripción</CardTitle>
-          <CardDescription>
-            Opciones para gestionar tu suscripción actual
-          </CardDescription>
+            <Separator className="bg-purple-100" />
+
+            {/* CTA */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <Button
+                type="button"
+                onClick={handleSubscribe}
+                disabled={processingPayment}
+                className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto"
+              >
+                {processingPayment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generando link...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Activar plan Profesional
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-500">
+                Pago seguro vía MercadoPago. Podés cancelar en cualquier momento.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Si ya es Pro: confirmación */}
+      {isPro && (
+        <Card className="border-green-200 bg-green-50/40">
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-green-800">Tu plan Profesional está activo</p>
+                <p className="text-sm text-green-700 mt-0.5">
+                  Tenés acceso completo a todas las funciones de TuTiendaWeb.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Soporte vía WhatsApp */}
+      <Card className="border-gray-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <MessageCircle className="w-4 h-4" />
+            ¿Tenés dudas sobre tu suscripción?
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            {!subscription.active ? (
-              <Button onClick={reactivateSubscription} className="flex-1">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reactivar suscripción
-              </Button>
-            ) : (
-              <Button 
-                variant="outline" 
-                onClick={cancelSubscription}
-                className="flex-1"
-              >
-                Cancelar suscripción
-              </Button>
-            )}
-            
-            <Button variant="outline" className="flex-1">
-              <DollarSign className="w-4 h-4 mr-2" />
-              Ver historial de pagos
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleWhatsApp}
+            className="border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Contactar por WhatsApp
+          </Button>
         </CardContent>
       </Card>
     </div>
