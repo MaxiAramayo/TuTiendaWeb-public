@@ -152,6 +152,8 @@ export interface SubscriptionInfoRaw {
   active: boolean;
   /** Plan actual */
   plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
+  /** Estado del pago */
+  paymentStatus?: 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
   /** Fecha de inicio */
   startDate: Timestamp;
   /** Fecha de fin */
@@ -165,6 +167,7 @@ export interface SubscriptionInfoRaw {
     provider: 'mercadopago' | 'stripe';
     customerId?: string;
     subscriptionId?: string;
+    payerEmail?: string;
     autoRenew: boolean;
   };
 }
@@ -177,6 +180,8 @@ export interface SubscriptionInfo {
   active: boolean;
   /** Plan actual */
   plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
+  /** Estado del pago */
+  paymentStatus?: 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
   /** Fecha de inicio (ISO string) */
   startDate: string;
   /** Fecha de fin (ISO string) */
@@ -190,6 +195,7 @@ export interface SubscriptionInfo {
     provider: 'mercadopago' | 'stripe';
     customerId?: string;
     subscriptionId?: string;
+    payerEmail?: string;
     autoRenew: boolean;
   };
 }
