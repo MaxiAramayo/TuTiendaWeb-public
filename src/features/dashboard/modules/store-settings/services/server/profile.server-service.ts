@@ -87,7 +87,16 @@ interface StoreProfileRaw {
     plan: string;
     startDate: Timestamp | { _seconds: number; _nanoseconds: number };
     endDate: Timestamp | { _seconds: number; _nanoseconds: number };
+    lastPaymentDate?: Timestamp | { _seconds: number; _nanoseconds: number };
+    graceUntil?: Timestamp | { _seconds: number; _nanoseconds: number };
+    paymentStatus?: string;
     trialUsed: boolean;
+    billing?: {
+      provider: string;
+      subscriptionId?: string;
+      payerEmail?: string;
+      autoRenew: boolean;
+    };
   };
   metadata: {
     createdAt: Timestamp | { _seconds: number; _nanoseconds: number };
@@ -139,9 +148,26 @@ function serializeProfile(raw: StoreProfileRaw): StoreProfile {
     theme: raw.theme,
     settings: raw.settings,
     subscription: raw.subscription ? {
-      ...raw.subscription,
+      active: raw.subscription.active,
+      plan: raw.subscription.plan,
+      trialUsed: raw.subscription.trialUsed,
+      paymentStatus: raw.subscription.paymentStatus,
       startDate: serializeTimestamp(raw.subscription.startDate),
       endDate: serializeTimestamp(raw.subscription.endDate),
+      lastPaymentDate: raw.subscription.lastPaymentDate
+        ? serializeTimestamp(raw.subscription.lastPaymentDate)
+        : undefined,
+      graceUntil: raw.subscription.graceUntil
+        ? serializeTimestamp(raw.subscription.graceUntil)
+        : undefined,
+      billing: raw.subscription.billing
+        ? {
+            provider: raw.subscription.billing.provider,
+            subscriptionId: raw.subscription.billing.subscriptionId,
+            payerEmail: raw.subscription.billing.payerEmail,
+            autoRenew: raw.subscription.billing.autoRenew,
+          }
+        : undefined,
     } : undefined,
     metadata: {
       ...raw.metadata,

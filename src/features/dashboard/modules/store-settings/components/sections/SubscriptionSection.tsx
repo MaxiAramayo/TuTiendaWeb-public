@@ -11,7 +11,7 @@ import { useSearchParams } from 'next/navigation';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '@/lib/firebase/client';
 import { useAuth } from '@/features/auth/providers/auth-store-provider';
-import { ProfileFormData, FormState } from '../../types/store.type';
+import { ProfileFormData, FormState, SubscriptionInfo } from '../../types/store.type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -45,7 +45,12 @@ interface SubscriptionSectionProps {
   onSave?: () => Promise<void>;
   isSaving?: boolean;
   userEmail?: string;
-  profile?: { id?: string; basicInfo?: { name?: string }; contactInfo?: { whatsapp?: string } } | null;
+  profile?: {
+    id?: string;
+    basicInfo?: { name?: string };
+    contactInfo?: { whatsapp?: string };
+    subscription?: SubscriptionInfo;
+  } | null;
 }
 
 const PRO_PLAN = {
@@ -93,7 +98,7 @@ export function SubscriptionSection({
   // Detectar si MP redirigió de vuelta con un preapproval_id
   const returnedPreapprovalId = searchParams.get('preapproval_id');
 
-  const subscription = formData.subscription || {
+  const subscription = profile?.subscription || formData.subscription || {
     active: false,
     plan: 'free' as const,
     startDate: new Date().toISOString(),
