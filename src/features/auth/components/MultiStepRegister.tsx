@@ -7,6 +7,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserRegistrationStep } from './UserRegistrationStep';
 import { StoreSetupStep } from './StoreSetupStep';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,6 +35,7 @@ export const MultiStepRegister = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  const router = useRouter();
 
   const handleUserDataComplete = (data: UserData) => {
     setUserData(data);
@@ -42,6 +44,7 @@ export const MultiStepRegister = () => {
 
   const handleStoreSetupComplete = () => {
     setIsCompleted(true);
+    router.push('/dashboard');
   };
 
   const handleBackToStep1 = () => {

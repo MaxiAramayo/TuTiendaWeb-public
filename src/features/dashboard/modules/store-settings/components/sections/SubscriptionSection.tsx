@@ -17,6 +17,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -36,6 +47,7 @@ import {
   HeadphonesIcon,
   AlertCircle,
   RefreshCw,
+  XCircle,
 } from 'lucide-react';
 
 interface SubscriptionSectionProps {
@@ -91,6 +103,7 @@ export function SubscriptionSection({
   updateField,
 }: SubscriptionSectionProps) {
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const searchParams = useSearchParams();
 
   const { user } = useAuth();
@@ -188,6 +201,36 @@ export function SubscriptionSection({
     );
 
     window.open(`https://wa.me/5491123456789?text=${text}`, '_blank');
+  };
+
+  /** Cancela la suscripción activa llamando a la Firebase Function */
+  const handleCancelSubscription = async () => {
+    setCancellingSubscription(true);
+    try {
+      const functions = getFunctions(app, 'southamerica-east1');
+      const cancelSubscription = httpsCallable<
+        { storeId: string; userId: string },
+        { success: boolean; message: string }
+      >(functions, 'cancelSubscription');
+
+      const storeId = profile?.id ?? '';
+      const userId = user?.uid ?? '';
+
+      if (!storeId || !userId) {
+        toast.error('No se pudo identificar tu tienda. Intentá recargar la página.');
+        return;
+      }
+
+      const result = await cancelSubscription({ storeId, userId });
+      toast.success(result.data.message || 'Suscripción cancelada.');
+      // Recargar para reflejar el nuevo estado desde Firestore
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error cancelando suscripción:', error);
+      toast.error(error?.message ?? 'No se pudo cancelar la suscripción. Intentá de nuevo.');
+    } finally {
+      setCancellingSubscription(false);
+    }
   };
 
   return (
@@ -401,13 +444,57 @@ export function SubscriptionSection({
       {isPro && (
         <Card className="border-green-200 bg-green-50/40">
           <CardContent className="pt-5">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
-              <div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
                 <p className="font-semibold text-green-800">Tu plan Profesional está activo</p>
                 <p className="text-sm text-green-700 mt-0.5">
                   Tenés acceso completo a todas las funciones de TuTiendaWeb.
                 </p>
+                <div className="mt-4">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                        disabled={cancellingSubscription}
+                      >
+                        {cancellingSubscription ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                            Cancelando...
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                            Cancelar suscripción
+                          </>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Cancelar suscripción?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Si cancelás ahora, tu plan Profesional seguirá activo hasta el final del
+                          período ya pagado. Luego tu cuenta pasará al plan gratuito.
+                          Podés reactivarla cuando quieras.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Volver</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleCancelSubscription}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Sí, cancelar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </div>
           </CardContent>

@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User as UserType } from "@/features/user/user.types";
 import { useProfileName, useProfileLogo } from "@/features/dashboard/modules/store-settings/stores/profile.store";
 import SignOutButton from "./SignOutButton";
+import NotificationBell from "./NotificationBell";
 
 /**
  * Props para el componente ModernTopBar
@@ -149,8 +150,11 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
           </h1>
         </div>
 
-        {/* Lado derecho - Solo perfil */}
-        <div className="flex items-center">
+        {/* Lado derecho - Notificaciones + perfil */}
+        <div className="flex items-center gap-1">
+          {/* Campana de notificaciones */}
+          <NotificationBell />
+
           {/* Menú de perfil */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
