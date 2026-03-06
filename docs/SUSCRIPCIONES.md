@@ -229,6 +229,53 @@ export interface StoreSubscription {
   lastPaymentDate?: Timestamp;
   billing?: SubscriptionBilling;
 }
+
+async function handlePayment(dataId: string): Promise<void> {
+  const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN! });
+  const payment = (await new Payment(mp).get({ id: Number(dataId) })) as unknown as PaymentWithSubscription;
+
+  if (payment.status !== "approved" || !payment.subscription_id) return;
+
+  const db = getFirestore();
+  const snap = await db.collection("stores")
+    .where("subscription.billing.subscriptionId", "==", payment.subscription_id)
+    .limit(1).get();
+
+  if (snap.empty) return;
+
+  await snap.docs[0].ref.update({
+    "subscription.active": true,
+    "subscription.paymentStatus": "authorized",
+    "subscription.lastPaymentDate": Timestamp.now(),
+    "subscription.endDate": Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+  await addNotification(snap.docs[0].id, "payment_success", "Tu pago mensual fue procesado.");
+}
+
+// ── Función principal ──────────────────────────────────────────────────────────
+
+export const mpWebhook = onRequest(
+  { region: "southamerica-east1", cors: false },
+  async (req, res) => {
+    if (req.method === "GET") { res.sendStatus(200); return; }
+    if (req.method !== "POST") { res.sendStatus(405); return; }
+    if (!validateMPSignature(req)) { res.sendStatus(401); return; }
+
+    const body = req.body as MPWebhookBody;
+    const dataId = body.data?.id;
+    if (!dataId) { res.sendStatus(200); return; }
+
+    try {
+      if (body.type === "subscription_preapproval") await handlePreapproval(dataId);
+      else if (body.type === "subscription_authorized_payment") await handleAuthorizedPayment(dataId);
+      else if (body.type === "payment") await handlePayment(dataId);
+    } catch (error) {
+      logger.error("Error procesando webhook MP:", error);
+      // Siempre 200 para evitar reintentos de MP
+    }
+    res.sendStatus(200);
+  }
+);
 ```
 
 ---
