@@ -82,7 +82,13 @@ const PRO_PLAN = {
 };
 
 /** Mapea paymentStatus a texto legible */
-function getPaymentStatusLabel(status?: string): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
+function getPaymentStatusLabel(
+  status?: string,
+  isCancelledActive?: boolean
+): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
+  if (status === 'cancelled' && isCancelledActive) {
+    return { label: 'Cancelado — vigente', variant: 'secondary' };
+  }
   switch (status) {
     case 'authorized': return { label: 'Activo', variant: 'default' };
     case 'pending':    return { label: 'Pago pendiente', variant: 'secondary' };
@@ -104,6 +110,7 @@ export function SubscriptionSection({
 }: SubscriptionSectionProps) {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
   const searchParams = useSearchParams();
 
   const { user } = useAuth();
@@ -131,6 +138,14 @@ export function SubscriptionSection({
       : new Date(subscription.endDate as string).getTime()
     : 0;
 
+  // Canceló la renovación automática pero el acceso aún está vigente hasta endDate
+  // Usa cancelAtPeriodEnd (soft-cancel) — NO toca paymentStatus
+  const isCancelledActive =
+    subscription.plan === 'pro' &&
+    subscription.active &&
+    subscription.cancelAtPeriodEnd === true &&
+    endDateMs > Date.now();
+
   const trialDaysLeft = isOnTrial
     ? Math.max(0, Math.ceil((endDateMs - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
@@ -143,7 +158,7 @@ export function SubscriptionSection({
       })
     : null;
 
-  const paymentStatusInfo = getPaymentStatusLabel(subscription.paymentStatus);
+  const paymentStatusInfo = getPaymentStatusLabel(subscription.paymentStatus, isCancelledActive);
 
   /** Genera el link de MercadoPago y abre en nueva pestaña */
   const handleSubscribe = async () => {
@@ -233,6 +248,35 @@ export function SubscriptionSection({
     }
   };
 
+  /** Reactiva la suscripción cancelando el soft-cancel (cancelAtPeriodEnd=false) */
+  const handleReactivate = async () => {
+    setReactivating(true);
+    try {
+      const functions = getFunctions(app, 'southamerica-east1');
+      const reactivateSubscription = httpsCallable<
+        { storeId: string; userId: string },
+        { success: boolean; message: string }
+      >(functions, 'reactivateSubscription');
+
+      const storeId = profile?.id ?? '';
+      const userId = user?.uid ?? '';
+
+      if (!storeId || !userId) {
+        toast.error('No se pudo identificar tu tienda. Intentá recargar la página.');
+        return;
+      }
+
+      const result = await reactivateSubscription({ storeId, userId });
+      toast.success(result.data.message || 'Suscripción reactivada.');
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error reactivando suscripción:', error);
+      toast.error(error?.message ?? 'No se pudo reactivar la suscripción. Intentá de nuevo.');
+    } finally {
+      setReactivating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -278,9 +322,13 @@ export function SubscriptionSection({
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Plan</p>
               <p className={cn(
                 'text-lg font-bold',
-                isPro ? 'text-purple-600' : 'text-gray-700'
+                (isPro || isCancelledActive) ? 'text-purple-600' : 'text-gray-700'
               )}>
-                {isPro || isPendingConfirmation ? 'Profesional' : isOnTrial ? 'Período de prueba' : 'Gratuito'}
+                {isPro || isCancelledActive || isPendingConfirmation
+                  ? 'Profesional'
+                  : isOnTrial
+                  ? 'Período de prueba'
+                  : 'Gratuito'}
               </p>
             </div>
 
@@ -290,14 +338,15 @@ export function SubscriptionSection({
               <div className="flex items-center gap-2">
                 <span className={cn(
                   'w-2 h-2 rounded-full flex-shrink-0',
-                  subscription.active ? 'bg-green-500' : 'bg-gray-400'
+                  subscription.active ? (isCancelledActive ? 'bg-orange-400' : 'bg-green-500') : 'bg-gray-400'
                 )} />
                 <Badge
                   variant={paymentStatusInfo.variant}
                   className={cn(
                     'text-xs font-medium',
                     paymentStatusInfo.variant === 'default' && 'bg-green-100 text-green-800 hover:bg-green-100',
-                    paymentStatusInfo.variant === 'secondary' && 'bg-orange-100 text-orange-800 hover:bg-orange-100',
+                    paymentStatusInfo.variant === 'secondary' && isCancelledActive && 'bg-orange-100 text-orange-800 hover:bg-orange-100',
+                    paymentStatusInfo.variant === 'secondary' && !isCancelledActive && 'bg-orange-100 text-orange-800 hover:bg-orange-100',
                   )}
                 >
                   {subscription.paymentStatus === 'pending' ? 'Confirmando...' : paymentStatusInfo.label}
@@ -305,11 +354,11 @@ export function SubscriptionSection({
               </div>
             </div>
 
-            {/* Próximo pago / vencimiento */}
-            {nextPaymentDate && (isPro || isPendingConfirmation) && (
+            {/* Fecha: "Próximo pago" para activos, "Acceso hasta" para cancelados vigentes */}
+            {nextPaymentDate && (isPro || isPendingConfirmation || isCancelledActive) && (
               <div className="flex flex-col gap-1">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Próximo pago
+                  {isCancelledActive ? 'Acceso hasta' : 'Próximo pago'}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-gray-400" />
@@ -343,8 +392,8 @@ export function SubscriptionSection({
         </CardContent>
       </Card>
 
-      {/* Card del plan Pro — solo si no es Pro ni está pendiente */}
-      {!isPro && !isPendingConfirmation && (
+      {/* Card del plan Pro — solo si no es Pro, no está pendiente y no está cancelado-pero-vigente */}
+      {!isPro && !isPendingConfirmation && !isCancelledActive && (
         <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white overflow-hidden">
           <CardHeader>
             <div className="flex items-start justify-between">
@@ -440,6 +489,44 @@ export function SubscriptionSection({
         </Card>
       )}
 
+      {/* Cancelado pero vigente: card naranja informativa */}
+      {isCancelledActive && (
+        <Card className="border-orange-200 bg-orange-50/40">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-orange-800">Renovación automática cancelada</p>
+                <p className="text-sm text-orange-700 mt-1">
+                  Cancelaste la renovación automática. Seguís teniendo acceso completo a todas las
+                  funciones hasta el <strong>{nextPaymentDate}</strong>. Luego tu cuenta pasará al
+                  plan gratuito.
+                </p>
+                <Button
+                  type="button"
+                  onClick={handleReactivate}
+                  disabled={reactivating}
+                  size="sm"
+                  className="mt-3 bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {reactivating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Reactivando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Reactivar suscripción
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Si ya es Pro: confirmación */}
       {isPro && (
         <Card className="border-green-200 bg-green-50/40">
@@ -451,6 +538,7 @@ export function SubscriptionSection({
                 <p className="text-sm text-green-700 mt-0.5">
                   Tenés acceso completo a todas las funciones de TuTiendaWeb.
                 </p>
+                {!isCancelledActive && (
                 <div className="mt-4">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -495,6 +583,7 @@ export function SubscriptionSection({
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
+                )}
               </div>
             </div>
           </CardContent>

@@ -40,6 +40,7 @@ type NotificationType =
   | 'payment_success'
   | 'subscription_cancelled'
   | 'subscription_expired'
+  | 'subscription_reactivated'
   | 'trial_expired'
   | 'trial_started';
 
@@ -63,6 +64,7 @@ function getNotificationIcon(type: NotificationType) {
     case 'trial_expired':
       return <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />;
     case 'subscription_cancelled':
+    case 'subscription_reactivated':
       return <Info className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />;
     default:
       return <Info className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />;

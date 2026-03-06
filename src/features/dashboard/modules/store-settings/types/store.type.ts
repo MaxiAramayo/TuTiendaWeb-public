@@ -154,6 +154,8 @@ export interface SubscriptionInfoRaw {
   plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
   /** Estado del pago */
   paymentStatus?: 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
+  /** Marcar para cancelar al vencer el período actual (soft-cancel) */
+  cancelAtPeriodEnd?: boolean;
   /** Fecha de inicio */
   startDate: Timestamp;
   /** Fecha de fin */
@@ -182,6 +184,8 @@ export interface SubscriptionInfo {
   plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
   /** Estado del pago */
   paymentStatus?: 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
+  /** Marcar para cancelar al vencer el período actual (soft-cancel) */
+  cancelAtPeriodEnd?: boolean;
   /** Fecha de inicio (ISO string) */
   startDate: string;
   /** Fecha de fin (ISO string) */

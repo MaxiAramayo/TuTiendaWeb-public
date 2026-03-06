@@ -112,6 +112,16 @@ service cloud.firestore {
         // Solo el propietario de la tienda puede gestionar configuraciones
         allow read, write: if isStoreOwner(storeId);
       }
+
+      // === NOTIFICACIONES ===
+
+      match /notifications/{notificationId} {
+        // Solo el propietario de la tienda puede leer y actualizar sus notificaciones
+        allow read, update: if isStoreOwner(storeId);
+        // Las Functions (Admin SDK) crean notificaciones — no se necesita regla de create aquí
+        // ya que el Admin SDK bypasea las rules. Se deniega create desde el cliente.
+        allow create, delete: if false;
+      }
     }
     
     // === REGLAS PARA USUARIOS ===
