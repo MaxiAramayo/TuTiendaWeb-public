@@ -2,7 +2,7 @@
 
 > **Para:** desarrollador que continúa la implementación
 > **Actualizado:** marzo 2026
-> **Estado general:** Flujo de pago funcional en producción. Webhook operativo. UI del dashboard corregida. Pendiente: validar firma del webhook, resolver bug de sandbox desconocido, y completar features de gestión post-suscripción.
+> **Estado general:** Flujo de pago funcional. Webhook operativo con validación de firma activa (secreto configurado, anti-replay de 5 min, sin bypass). Cancelación soft-cancel implementada. Reactivación sin nuevo pago implementada. UI del dashboard refleja todos los estados. Pendiente: deploy de functions actualizadas, test end-to-end con pago real.
 
 ---
 
@@ -18,6 +18,7 @@
 8. [Qué funciona hoy](#8-qué-funciona-hoy)
 9. [Bugs conocidos y pendientes](#9-bugs-conocidos-y-pendientes)
 10. [Pasos para llegar a producción](#10-pasos-para-llegar-a-producción)
+11. [Cómo testear el flujo de vencimiento localmente](#11-cómo-testear-el-flujo-de-vencimiento-localmente)
 
 ---
 
@@ -39,7 +40,7 @@
 [mpWebhook]  ← Firebase Function HTTP (southamerica-east1)
         │  actualiza subscription en Firestore
         ▼
-[checkSubscriptions]  ← Firebase Function scheduler (diario 09:00 ART)
+[checkSubscriptions]  ← Firebase Function scheduler (cada hora)
         │  suspende suscripciones con endDate vencida
         ▼
 [/suscripcion/confirmacion]  ← página pública Next.js (back_url de MP)
@@ -52,7 +53,7 @@
 
 **Stack frontend:**
 - Next.js 15 App Router — Server Components + Server Actions
-- `SubscriptionSection.tsx` — Client Component que llama la Callable Function directamente via `firebase/functions`
+- `SubscriptionSection.tsx` — Client Component que llama las Callable Functions directamente via `firebase/functions`
 
 ---
 
@@ -101,14 +102,81 @@ Los planes `basic` y `enterprise` están definidos en los tipos pero **no tienen
 1. MP cobra automáticamente cada mes
 2. MP envía webhook `type: "subscription_authorized_payment"` con el ID del PreApproval
 3. `mpWebhook` llama `handleAuthorizedPayment` que actualiza `active: true`, `endDate: +30 días`, `lastPaymentDate: now`
-4. `checkSubscriptions` (scheduler diario) verifica que `endDate > now`. Si venció sin renovarse, pone `active: false`, `plan: free`, `paymentStatus: expired`
+4. `checkSubscriptions` (scheduler diario) verifica que `endDate > now`. Si venció sin renovarse, aplica el flujo de suspensión (ver 3.5)
 
-### 3.3 Cancelación
+### 3.3 Cancelación por el usuario desde el dashboard
 
-1. MP cancela el PreApproval (por el usuario o por falta de pago)
+**Soft-cancel: NO cancela el PreApproval en MercadoPago.**
+
+1. El usuario hace click en "Cancelar suscripción"
+2. El Client Component llama la Callable Function `cancelSubscription` con `{ storeId, userId }`
+3. `cancelSubscription` escribe **solo** `subscription.cancelAtPeriodEnd = true` en Firestore
+4. El PreApproval en MP sigue intacto — MP no cobra nada extra
+5. El `paymentStatus` **no cambia** (sigue `"authorized"`)
+6. Se escribe notificación: "Cancelaste la renovación automática. Seguís teniendo acceso completo hasta el {fecha}"
+7. `checkSubscriptions` (scheduler diario), cuando `endDate <= now` y `cancelAtPeriodEnd=true`:
+   - Cancela el PreApproval en MP (`PUT /preapproval/{id}` con `status: "cancelled"`) para que no cobre el próximo ciclo
+   - Suspende: `active=false`, `plan=free`, `paymentStatus=cancelled`, `cancelAtPeriodEnd=false`
+   - Sin período de gracia
+
+### 3.4 Reactivación desde el dashboard (sin nuevo pago)
+
+Si el usuario cancela pero luego cambia de opinión **antes de que venza `endDate`**:
+
+1. El usuario hace click en "Reactivar suscripción" (en la card naranja)
+2. El Client Component llama la Callable Function `reactivateSubscription` con `{ storeId, userId }`
+3. `reactivateSubscription` escribe **solo** `subscription.cancelAtPeriodEnd = false` en Firestore
+4. El PreApproval en MP nunca fue cancelado → MP seguirá cobrando el próximo ciclo normalmente
+5. No hay redirección a MP, no hay nuevo pago
+
+### 3.5 Estado `isCancelledActive` (cancelado pero vigente)
+
+```typescript
+const isCancelledActive =
+  subscription.plan === 'pro' &&
+  subscription.active &&
+  subscription.cancelAtPeriodEnd === true &&  // soft-cancel marcado
+  endDateMs > Date.now();                      // aún tiene acceso
+```
+
+Estado de Firestore cuando el usuario canceló pero aún tiene acceso:
+```
+subscription.active = true              ← sigue activo hasta endDate
+subscription.plan = "pro"               ← sigue en pro
+subscription.paymentStatus = "authorized" ← NO cambia al cancelar desde el dashboard
+subscription.cancelAtPeriodEnd = true   ← la única marca de cancelación
+subscription.endDate = [fecha futura]
+```
+
+### 3.6 Cancelación por MP (webhook)
+
+1. MP cancela el PreApproval (falta de pago u otra causa externa)
 2. MP envía webhook `type: "subscription_preapproval"`, `status: "cancelled"`
-3. El webhook actualiza: `active: false`, `paymentStatus: "cancelled"`
-4. Si el usuario quiere reactivar, debe iniciar un nuevo flujo de pago (crear un nuevo PreApproval)
+3. El webhook actualiza: `active: false`, `paymentStatus: "cancelled"` (via `STATUS_MAP.cancelled`)
+4. El acceso se corta inmediatamente — este path no usa `cancelAtPeriodEnd`
+5. Para reactivar, el usuario debe iniciar un nuevo flujo de pago (nuevo PreApproval)
+
+### 3.7 Suspensión por `checkSubscriptions` (tres caminos)
+
+```
+subscription.active=true && endDate<=now
+         │
+         ├─ plan=free/trial → skip
+         │
+         ├─ lastPaymentDate < 24hs → skip (buffer anti-race-condition)
+         │
+         ├─ cancelAtPeriodEnd=true (Camino A — cancelación voluntaria)
+         │    ├─ PUT /preapproval/{id} status=cancelled en MP
+         │    └─ suspender: active=false, plan=free, paymentStatus=cancelled, cancelAtPeriodEnd=false
+         │
+         ├─ graceUntil vigente → skip (Camino B — en período de gracia por pago fallido)
+         │
+         ├─ sin graceUntil (Camino B — pago fallido, Fase 1)
+         │    └─ escribir graceUntil=now+3días, notificación "Tenés 3 días para renovar"
+         │
+          └─ graceUntil vencido (Camino C — pago fallido, Fase 2)
+               └─ suspender: active=false, plan=free, paymentStatus=expired, graceUntil=null
+```
 
 ---
 
@@ -117,30 +185,19 @@ Los planes `basic` y `enterprise` están definidos en los tipos pero **no tienen
 ### `functions/.env` (Firebase Functions — NO commitear)
 
 ```env
-# Token de acceso a la API de MercadoPago
-# PRODUCCIÓN: usar el token real de la cuenta vendedora
-# SANDBOX: usar el token de un test user de tipo "vendedor"
-MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...
+# ─── Producción ─────────────────────────────────────────────────────────────────
 
-# Public key (no usada actualmente en functions, reservada para futuro)
+MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...   # Token de la cuenta vendedora REAL
 MERCADO_PAGO_PUBLIC_KEY=APP_USR-...
-
-# Firma secreta del webhook
-# Obtener en: MP Panel → Tus integraciones → tu app → Webhooks → "Firma secreta"
-# IMPORTANTE: actualmente está VACÍO — la validación de firma está bypasseada
-# Configurar ANTES de ir a producción
-MERCADO_PAGO_WEBHOOK_SECRET=
-
-# Client ID de la app MP (no usado en lógica, solo referencia)
+MERCADO_PAGO_WEBHOOK_SECRET=<hex>       # Obtener en MP Panel → Webhooks → "Firma secreta"
 MERCADO_PAGO_CLIENT_ID=...
 
 # URL base de la app (para back_url del PreApproval)
 APP_URL=https://tutiendaweb.com.ar
-
-# Solo para sandbox: email del test user comprador
-# En producción esta variable NO debe existir (se usa el email real del usuario)
-MERCADO_PAGO_TEST_PAYER_EMAIL=test_user_...@testuser.com
 ```
+
+> **Nota:** `MERCADO_PAGO_TEST_PAYER_EMAIL` (usada en sandbox) NO debe estar en producción.
+> Si está presente, `createSubscription` sobreescribe el email del pagador con ese valor.
 
 ### Variables de Next.js (`.env.local`)
 
@@ -155,26 +212,10 @@ No se agregaron variables nuevas para suscripciones. La comunicación con Fireba
 Tipos compartidos entre todas las functions.
 
 ```typescript
-import { Timestamp, FieldValue } from "firebase-admin/firestore";
-
-export type FirestoreTimestamp = Timestamp | FieldValue;
-
 export type SubscriptionPlan = "free" | "trial" | "basic" | "pro" | "enterprise";
 
 export type PreapprovalStatus =
-  | "authorized"
-  | "paused"
-  | "cancelled"
-  | "pending"
-  | "trial"
-  | "expired";
-
-export interface SubscriptionBilling {
-  provider: "mercadopago" | "none";
-  subscriptionId?: string;
-  payerEmail?: string;
-  autoRenew: boolean;
-}
+  | "authorized" | "paused" | "cancelled" | "pending" | "trial" | "expired";
 
 export interface StoreSubscription {
   active: boolean;
@@ -184,65 +225,10 @@ export interface StoreSubscription {
   graceUntil?: Timestamp;
   trialUsed?: boolean;
   paymentStatus?: PreapprovalStatus;
+  cancelAtPeriodEnd?: boolean;
   lastPaymentDate?: Timestamp;
   billing?: SubscriptionBilling;
 }
-
-export type NotificationType =
-  | "payment_failed"
-  | "payment_success"
-  | "subscription_cancelled"
-  | "subscription_expired"
-  | "trial_expired"
-  | "trial_started";
-
-export interface SubscriptionNotification {
-  type: NotificationType;
-  message: string;
-  read: boolean;
-  createdAt: Timestamp;
-}
-
-export interface MPWebhookBody {
-  id: number;
-  live_mode: boolean;
-  type: string;
-  date_created: string;
-  user_id: number;
-  api_version: string;
-  action: string;
-  data: { id: string };
-}
-
-export interface CreateSubscriptionResult {
-  initPoint: string;
-  subscriptionId: string;
-}
-
-export interface CreateSubscriptionInput {
-  storeId: string;
-  userId: string;
-  userEmail: string;
-  plan: SubscriptionPlan;
-}
-
-export const PLAN_PRICES: Record<SubscriptionPlan, number> = {
-  free: 0,
-  trial: 0,
-  basic: 2999,
-  pro: 4999,
-  enterprise: 9999,
-};
-
-export const PLAN_NAMES: Record<SubscriptionPlan, string> = {
-  free: "Gratuito",
-  trial: "Prueba gratuita",
-  basic: "Básico",
-  pro: "Profesional",
-  enterprise: "Empresarial",
-};
-
-export const TRIAL_DAYS = 7;
 ```
 
 ---
@@ -251,455 +237,110 @@ export const TRIAL_DAYS = 7;
 
 Callable Function que crea el PreApproval en MP y lo guarda en Firestore.
 
-```typescript
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { MercadoPagoConfig, PreApproval } from "mercadopago";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
-import {
-  PLAN_PRICES, PLAN_NAMES,
-  type CreateSubscriptionInput, type CreateSubscriptionResult, type SubscriptionPlan,
-} from "./types";
-
-function getMPClient(): MercadoPagoConfig {
-  const token = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-  if (!token) throw new HttpsError("internal", "MERCADO_PAGO_ACCESS_TOKEN no está configurado");
-  return new MercadoPagoConfig({ accessToken: token });
-}
-
-const VALID_PAID_PLANS: SubscriptionPlan[] = ["basic", "pro", "enterprise"];
-
-function validatePlan(plan: string): SubscriptionPlan {
-  if (!VALID_PAID_PLANS.includes(plan as SubscriptionPlan)) {
-    throw new HttpsError("invalid-argument", `Plan inválido: ${plan}`);
-  }
-  return plan as SubscriptionPlan;
-}
-
-export const createSubscription = onCall<CreateSubscriptionInput, Promise<CreateSubscriptionResult>>(
-  { region: "southamerica-east1" },
-  async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "Debe estar autenticado");
-
-    const { storeId, userId, userEmail, plan } = request.data;
-    if (!storeId || !userId || !userEmail || !plan) {
-      throw new HttpsError("invalid-argument", "Faltan campos requeridos");
-    }
-
-    // El owner puede gestionar su propia tienda.
-    // Los admins (documento en /admins/{uid}) pueden gestionar cualquier tienda.
-    if (request.auth.uid !== userId) {
-      const db = getFirestore();
-      const adminDoc = await db.doc(`admins/${request.auth.uid}`).get();
-      if (!adminDoc.exists) {
-        throw new HttpsError("permission-denied", "Solo el owner o un admin puede gestionar la suscripción");
-      }
-    }
-
-    const validatedPlan = validatePlan(plan);
-    const amount = PLAN_PRICES[validatedPlan];
-    if (amount === 0) throw new HttpsError("invalid-argument", "El plan gratuito no requiere pago");
-
-    const appUrl = process.env.APP_URL || "https://tutiendaweb.com.ar";
-
-    // En sandbox, MERCADO_PAGO_TEST_PAYER_EMAIL sobreescribe el email del usuario.
-    // En producción esta variable NO debe existir.
-    const testPayerEmail = process.env.MERCADO_PAGO_TEST_PAYER_EMAIL;
-    const resolvedPayerEmail = testPayerEmail || userEmail;
-
-    const mp = getMPClient();
-    const preapprovalClient = new PreApproval(mp);
-
-    let preapproval: Awaited<ReturnType<typeof preapprovalClient.create>>;
-    try {
-      preapproval = await preapprovalClient.create({
-        body: {
-          reason: `TuTiendaWeb - Plan ${PLAN_NAMES[validatedPlan]}`,
-          back_url: `${appUrl}/suscripcion/confirmacion`,
-          payer_email: resolvedPayerEmail,
-          external_reference: `${storeId}:${validatedPlan}`,
-          auto_recurring: {
-            frequency: 1,
-            frequency_type: "months",
-            transaction_amount: amount,
-            currency_id: "ARS",
-          },
-          status: "pending",
-        },
-      });
-    } catch (mpError: any) {
-      logger.error("Error de MercadoPago al crear PreApproval", {
-        storeId, plan: validatedPlan,
-        errorMessage: mpError?.cause?.message ?? mpError?.message,
-      });
-      throw new HttpsError("internal", `Error al crear el link de pago: ${mpError?.cause?.message ?? mpError?.message ?? "error desconocido"}`);
-    }
-
-    if (!preapproval.id || !preapproval.init_point) {
-      throw new HttpsError("internal", "Error al crear el link de pago en MercadoPago");
-    }
-
-    // Guardar en Firestore
-    const db = getFirestore();
-    await db.doc(`stores/${storeId}`).update({
-      "subscription.billing.subscriptionId": preapproval.id,
-      "subscription.billing.provider": "mercadopago",
-      "subscription.billing.payerEmail": userEmail,
-      "subscription.billing.autoRenew": true,
-      "subscription.paymentStatus": "pending",
-      "subscription.plan": validatedPlan,
-      "subscription.startDate": Timestamp.now(),
-    });
-
-    return { initPoint: preapproval.init_point, subscriptionId: preapproval.id };
-  }
-);
-```
+Puntos clave:
+- Valida admin bypass (`/admins/{uid}`)
+- En sandbox, `MERCADO_PAGO_TEST_PAYER_EMAIL` sobreescribe el email del pagador
+- Escribe `paymentStatus: "pending"` hasta que el webhook confirme el pago
 
 ---
 
 ### 5.3 `functions/src/mpWebhook.ts`
 
-HTTP Function que recibe notificaciones de MercadoPago. Deployada como Cloud Run en `southamerica-east1`.
+HTTP Function que recibe notificaciones de MercadoPago.
 
 Maneja tres tipos de eventos:
 - `subscription_preapproval` — cambios de estado del PreApproval (`pending`, `authorized`, `paused`, `cancelled`)
 - `subscription_authorized_payment` — confirmación de pago (activa la suscripción)
 - `payment` — cobro recurrente mensual (renueva `endDate`)
 
-```typescript
-import * as crypto from "crypto";
-import { onRequest, Request } from "firebase-functions/v2/https";
-import { MercadoPagoConfig, PreApproval, Payment } from "mercadopago";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
-import type { MPWebhookBody, PreapprovalStatus, NotificationType } from "./types";
+**Seguridad implementada:**
 
-// ── Validación de firma ────────────────────────────────────────────────────────
-// ATENCIÓN: actualmente MERCADO_PAGO_WEBHOOK_SECRET está vacío → bypass activado.
-// Configurar el secreto antes de producción.
+| Check | Comportamiento |
+|-------|---------------|
+| `MERCADO_PAGO_WEBHOOK_SECRET` no configurado | Rechaza con 401 (sin bypass) |
+| Falta `x-signature` o `x-request-id` | Rechaza con 401 |
+| `x-signature` mal formado | Rechaza con 401 |
+| Timestamp `ts` con más de 5 min de antigüedad | Rechaza con 401 (anti-replay) |
+| HMAC-SHA256 inválido | Rechaza con 401 |
+| Error en handler | Responde 200 (evita reintentos de MP que podrían duplicar eventos) |
 
-function validateMPSignature(req: Request): boolean {
-  const secret = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
-  if (!secret || secret === "REEMPLAZAR_CON_FIRMA_SECRETA_DE_MP") {
-    logger.warn("MERCADO_PAGO_WEBHOOK_SECRET no configurado — firma DESACTIVADA.");
-    return true; // bypass
-  }
-
-  const signatureHeader = req.headers["x-signature"] as string | undefined;
-  const requestId = req.headers["x-request-id"] as string | undefined;
-  if (!signatureHeader || !requestId) return false;
-
-  const parts: Record<string, string> = {};
-  for (const part of signatureHeader.split(",")) {
-    const eqIdx = part.indexOf("=");
-    if (eqIdx !== -1) parts[part.slice(0, eqIdx).trim()] = part.slice(eqIdx + 1).trim();
-  }
-  if (!parts.ts || !parts.v1) return false;
-
-  // MP construye el manifest con el data.id del query param (más confiable que el body)
-  const dataId = (req.query["data.id"] as string) ?? String((req.body as MPWebhookBody)?.data?.id ?? "");
-  const manifest = `id:${dataId};request-id:${requestId};ts:${parts.ts};`;
-  const expectedHash = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
-  return expectedHash === parts.v1;
-}
-
-// ── Mapeo de estados ───────────────────────────────────────────────────────────
-
-const STATUS_MAP: Record<string, {
-  active: boolean;
-  paymentStatus: PreapprovalStatus;
-  notificationType: NotificationType;
-  notificationMessage: string;
-}> = {
-  pending: {
-    active: false, paymentStatus: "pending",
-    notificationType: "payment_failed",
-    notificationMessage: "Tu suscripción está pendiente de confirmación de pago.",
-  },
-  authorized: {
-    active: true, paymentStatus: "authorized",
-    notificationType: "payment_success",
-    notificationMessage: "Tu pago fue acreditado. Tu cuenta está activa.",
-  },
-  paused: {
-    active: false, paymentStatus: "paused",
-    notificationType: "payment_failed",
-    notificationMessage: "Hubo un problema con tu pago. Contactanos por WhatsApp.",
-  },
-  cancelled: {
-    active: false, paymentStatus: "cancelled",
-    notificationType: "subscription_cancelled",
-    notificationMessage: "Tu suscripción fue cancelada. Podés reactivarla cuando quieras.",
-  },
-};
-
-// ── Handlers ───────────────────────────────────────────────────────────────────
-
-async function addNotification(storeId: string, type: NotificationType, message: string) {
-  const db = getFirestore();
-  await db.collection("stores").doc(storeId).collection("notifications").add({
-    type, message, read: false, createdAt: Timestamp.now(),
-  });
-}
-
-async function handlePreapproval(dataId: string): Promise<void> {
-  const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN! });
-  const preapproval = await new PreApproval(mp).get({ id: dataId });
-
-  const externalRef = preapproval.external_reference;
-  if (!externalRef) return;
-
-  const [storeId, planFromRef] = externalRef.split(":");
-  if (!storeId) return;
-
-  const status = preapproval.status as string;
-  const mapping = STATUS_MAP[status];
-  if (!mapping) return;
-
-  const db = getFirestore();
-  const update: Record<string, unknown> = {
-    "subscription.active": mapping.active,
-    "subscription.plan": planFromRef || "basic",
-    "subscription.paymentStatus": mapping.paymentStatus,
-    "subscription.lastPaymentDate": Timestamp.now(),
-    "subscription.billing.subscriptionId": preapproval.id,
-    "subscription.billing.provider": "mercadopago",
-  };
-
-  if (status === "authorized") {
-    update["subscription.endDate"] = preapproval.next_payment_date
-      ? Timestamp.fromDate(new Date(preapproval.next_payment_date))
-      : Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  }
-
-  await db.doc(`stores/${storeId}`).update(update);
-  await addNotification(storeId, mapping.notificationType, mapping.notificationMessage);
-}
-
-async function handleAuthorizedPayment(dataId: string): Promise<void> {
-  const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN! });
-  const preapproval = await new PreApproval(mp).get({ id: dataId });
-
-  const externalRef = preapproval.external_reference;
-  if (!externalRef) return;
-
-  const [storeId, planFromRef] = externalRef.split(":");
-  if (!storeId) return;
-
-  const db = getFirestore();
-  await db.doc(`stores/${storeId}`).update({
-    "subscription.active": true,
-    "subscription.plan": planFromRef || "pro",
-    "subscription.paymentStatus": "authorized",
-    "subscription.lastPaymentDate": Timestamp.now(),
-    "subscription.billing.subscriptionId": preapproval.id,
-    "subscription.billing.provider": "mercadopago",
-    "subscription.endDate": preapproval.next_payment_date
-      ? Timestamp.fromDate(new Date(preapproval.next_payment_date))
-      : Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  });
-  await addNotification(storeId, "payment_success", "Tu pago fue acreditado. Tu cuenta Pro está activa.");
-}
-
-interface PaymentWithSubscription {
-  id?: number; status?: string; subscription_id?: string;
-}
-
-async function handlePayment(dataId: string): Promise<void> {
-  const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN! });
-  const payment = (await new Payment(mp).get({ id: Number(dataId) })) as unknown as PaymentWithSubscription;
-
-  if (payment.status !== "approved" || !payment.subscription_id) return;
-
-  const db = getFirestore();
-  const snap = await db.collection("stores")
-    .where("subscription.billing.subscriptionId", "==", payment.subscription_id)
-    .limit(1).get();
-
-  if (snap.empty) return;
-
-  await snap.docs[0].ref.update({
-    "subscription.active": true,
-    "subscription.paymentStatus": "authorized",
-    "subscription.lastPaymentDate": Timestamp.now(),
-    "subscription.endDate": Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  });
-  await addNotification(snap.docs[0].id, "payment_success", "Tu pago mensual fue procesado.");
-}
-
-// ── Función principal ──────────────────────────────────────────────────────────
-
-export const mpWebhook = onRequest(
-  { region: "southamerica-east1", cors: false },
-  async (req, res) => {
-    if (req.method === "GET") { res.sendStatus(200); return; }
-    if (req.method !== "POST") { res.sendStatus(405); return; }
-    if (!validateMPSignature(req)) { res.sendStatus(401); return; }
-
-    const body = req.body as MPWebhookBody;
-    const dataId = body.data?.id;
-    if (!dataId) { res.sendStatus(200); return; }
-
-    try {
-      if (body.type === "subscription_preapproval") await handlePreapproval(dataId);
-      else if (body.type === "subscription_authorized_payment") await handleAuthorizedPayment(dataId);
-      else if (body.type === "payment") await handlePayment(dataId);
-    } catch (error) {
-      logger.error("Error procesando webhook MP:", error);
-      // Siempre 200 para evitar reintentos de MP
-    }
-    res.sendStatus(200);
-  }
-);
+**Cómo MP construye la firma:**
 ```
+manifest = "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
+firma    = HMAC-SHA256(secret, manifest) → hex
+header   = "ts=<ts>,v1=<firma>"
+```
+donde `data.id` viene del **query param** `?data.id=` de la URL, no del body JSON.
 
 ---
 
 ### 5.4 `functions/src/checkSubscriptions.ts`
 
-Scheduler diario que suspende suscripciones con `endDate` vencida.
+Scheduler **cada hora en punto** (`0 * * * *`) que suspende suscripciones con `endDate` vencida.
+Máximo 59 minutos de desfasaje entre el vencimiento real y la suspensión efectiva.
 
-```typescript
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
+Tres caminos de suspensión: ver diagrama en sección 3.7.
 
-export const checkSubscriptions = onSchedule(
-  {
-    schedule: "0 12 * * *", // 12:00 UTC = 09:00 ART
-    timeZone: "America/Argentina/Buenos_Aires",
-    region: "southamerica-east1",
-  },
-  async () => {
-    const db = getFirestore();
-    const now = Timestamp.now();
-    const oneDayAgoMs = Date.now() - 24 * 60 * 60 * 1000;
+Protecciones:
+- Buffer 24hs desde `lastPaymentDate` (anti-race-condition con webhook de pago)
+- Respeta `graceUntil` si está vigente
+- Cancela el PreApproval en MP antes de suspender (solo en Camino A)
 
-    const storesSnap = await db
-      .collection("stores")
-      .where("subscription.active", "==", true)
-      .where("subscription.endDate", "<=", now)
-      .get();
+---
 
-    if (storesSnap.empty) return;
+### 5.5 `functions/src/cancelSubscription.ts`
 
-    for (const doc of storesSnap.docs) {
-      const subscription = doc.data().subscription as {
-        graceUntil?: Timestamp; lastPaymentDate?: Timestamp; plan?: string;
-      };
+Callable Function — soft-cancel.
 
-      const plan = subscription?.plan ?? "free";
-      if (plan === "free" || plan === "trial") continue;
+- Solo escribe `subscription.cancelAtPeriodEnd = true` en Firestore
+- No toca MercadoPago
+- Solo opera si `plan=pro && active=true`
+- Idempotente: si ya era `cancelAtPeriodEnd=true`, devuelve éxito sin re-escribir
+- Admin bypass: `/admins/{uid}` puede operar sobre cualquier store
 
-      // Buffer 24hs: protege contra race condition con el webhook de pago
-      const lastPaymentMs = subscription?.lastPaymentDate?.toMillis() ?? 0;
-      if (lastPaymentMs > oneDayAgoMs) continue;
+---
 
-      // Período de gracia vigente
-      if (subscription?.graceUntil && subscription.graceUntil.toMillis() > now.toMillis()) continue;
+### 5.6 `functions/src/reactivateSubscription.ts`
 
-      await doc.ref.update({
-        "subscription.active": false,
-        "subscription.plan": "free",
-        "subscription.paymentStatus": "expired",
-      });
+Callable Function — revierte el soft-cancel.
 
-      await db.collection("stores").doc(doc.id).collection("notifications").add({
-        type: "subscription_expired",
-        message: "Tu suscripción venció. Renovála para seguir usando todas las funciones.",
-        read: false,
-        createdAt: now,
-      });
-    }
-  }
-);
-```
+- Solo escribe `subscription.cancelAtPeriodEnd = false` en Firestore
+- Solo opera si `plan=pro && active=true`
+- Idempotente: si ya era `false`, devuelve éxito sin re-escribir
+- El PreApproval en MP nunca fue cancelado → la renovación automática continúa normalmente
 
 ---
 
 ## 6. Código — Frontend
 
-### 6.1 `src/features/dashboard/modules/store-settings/components/sections/SubscriptionSection.tsx`
+### 6.1 `SubscriptionSection.tsx`
 
-Client Component que muestra el estado de la suscripción y maneja el botón de pago.
+`src/features/dashboard/modules/store-settings/components/sections/SubscriptionSection.tsx`
 
-**Puntos clave:**
-- Lee `subscription` desde `profile?.subscription` (viene del Zustand store, que tiene los datos reales de Firestore). **No** desde `formData.subscription` (que siempre es `undefined` porque el schema Zod no incluye `subscription`).
-- Abre MercadoPago en `window.open(_blank)` — el usuario paga en una pestaña nueva.
-- Detecta `?preapproval_id` en la URL para mostrar banners de estado al volver de MP.
+Client Component que muestra el estado de la suscripción y maneja cancelación y reactivación.
 
+**Estados de UI:**
+
+| Condición | Card mostrada |
+|-----------|--------------|
+| `isPro` (activo, sin `cancelAtPeriodEnd`) | Card verde — plan activo + botón "Cancelar" |
+| `isCancelledActive` (`cancelAtPeriodEnd=true`, `endDate` futura) | Card naranja — acceso hasta fecha + botón "Reactivar" |
+| `isPendingConfirmation` (`paymentStatus=pending`) | Card naranja — "Confirmando tu suscripción" |
+| Ninguno de los anteriores (free/trial) | Card purple — CTA "Activar plan Profesional" |
+
+**Lectura de datos:**
 ```typescript
-'use client';
+// CORRECTO: leer desde profile (viene de Firestore vía server)
+const subscription = profile?.subscription || formData.subscription || { ... };
 
-import React, { useCallback, useTransition, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import app from '@/lib/firebase/client';
-import { useAuth } from '@/features/auth/providers/auth-store-provider';
-import { ProfileFormData, FormState, SubscriptionInfo } from '../../types/store.type';
-// ... (imports de UI omitidos por brevedad)
-
-interface SubscriptionSectionProps {
-  formData: ProfileFormData;
-  formState: FormState;
-  updateField: (field: keyof ProfileFormData, value: any) => void;
-  onSave?: () => Promise<void>;
-  isSaving?: boolean;
-  userEmail?: string;
-  profile?: {
-    id?: string;
-    basicInfo?: { name?: string };
-    contactInfo?: { whatsapp?: string };
-    subscription?: SubscriptionInfo;  // ← campo clave
-  } | null;
-}
-
-export function SubscriptionSection({ formData, userEmail, profile, ... }) {
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const searchParams = useSearchParams();
-  const { user } = useAuth();
-
-  // IMPORTANTE: leer desde profile, no desde formData
-  const subscription = profile?.subscription || formData.subscription || {
-    active: false,
-    plan: 'free' as const,
-    startDate: new Date().toISOString(),
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    trialUsed: false,
-  };
-
-  const isPro = subscription.plan === 'pro' && subscription.active;
-  const isPendingConfirmation = subscription.plan === 'pro' && subscription.paymentStatus === 'pending';
-
-  const handleSubscribe = async () => {
-    setProcessingPayment(true);
-    try {
-      const functions = getFunctions(app, 'southamerica-east1');
-      const createSubscription = httpsCallable<
-        { storeId: string; userId: string; userEmail: string; plan: string },
-        { initPoint: string }
-      >(functions, 'createSubscription');
-
-      const result = await createSubscription({
-        storeId: profile?.id ?? '',
-        userId: user?.uid ?? '',
-        userEmail: user?.email ?? userEmail ?? '',
-        plan: 'pro',
-      });
-
-      window.open(result.data.initPoint, '_blank');
-    } catch (error: any) {
-      toast.error(error?.message ?? 'No se pudo generar el link de pago.');
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-  // Render: muestra card de estado actual + card del plan Pro si no es Pro
-  // ...
-}
+// Por qué: formData (React Hook Form) NO incluye subscription.
+// El schema Zod del formulario no lo contempla. Solo profile tiene subscription real.
 ```
+
+**Funciones Firebase llamadas:**
+- `cancelSubscription({ storeId, userId })` → escribe `cancelAtPeriodEnd=true`
+- `reactivateSubscription({ storeId, userId })` → escribe `cancelAtPeriodEnd=false`
+- `createSubscription({ storeId, userId, userEmail, plan })` → devuelve `initPoint`
 
 ---
 
@@ -707,44 +348,20 @@ export function SubscriptionSection({ formData, userEmail, profile, ... }) {
 
 Página pública (sin auth) a la que MercadoPago redirige como `back_url` después del pago.
 
-```typescript
-import Link from 'next/link';
-import { CheckCircle2, Clock, ArrowRight, Crown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-
-interface PageProps {
-  searchParams: Promise<{ preapproval_id?: string; status?: string }>;
-}
-
-export default async function SubscriptionConfirmationPage({ searchParams }: PageProps) {
-  const { preapproval_id: preapprovalId, status } = await searchParams;
-  const likelyApproved = status === 'authorized';
-
-  return (
-    // Muestra CheckCircle verde si status=authorized, Clock azul si no
-    // Botones: "Ver estado de mi suscripción" → /dashboard/profile?section=subscription
-    //          "Ir al panel" → /dashboard
-  );
-}
-```
-
-**Por qué existe esta página:** `back_url` de MP redirige en la misma pestaña donde el usuario pagó (no en la pestaña del dashboard). Si se apuntaba a `/dashboard/profile`, el usuario llegaba sin cookie de sesión activa y era redirigido a `/sign-in`. Esta página no requiere auth y le muestra un mensaje apropiado antes de que vaya al dashboard.
+**Por qué existe:** `back_url` de MP redirige en la misma pestaña donde el usuario pagó (no en la del dashboard). Si se apuntaba directo a `/dashboard/profile`, el usuario llegaba sin cookie y era redirigido a `/sign-in`. Esta página no requiere auth y le muestra un mensaje antes de que vaya al dashboard.
 
 ---
 
 ### 6.3 Flujo de datos de `subscription` en el dashboard
-
-Este es el punto más importante para entender por qué los datos se leen como se leen:
 
 ```
 Firestore
   └─ stores/{storeId}.subscription  (Timestamps de Firebase Admin)
        │
        ▼
-profileServerService.getProfile()  [server-service.ts]
+profileServerService.getProfile()  [profile.server-service.ts]
   └─ serializeProfile()  → convierte todos los Timestamps a ISO strings
-       │
+       │                   incluye cancelAtPeriodEnd
        ▼
 page.tsx  (Server Component)
   └─ pasa initialProfile como prop a ProfileForm
@@ -771,35 +388,36 @@ Campo `subscription` dentro del documento `/stores/{storeId}`:
 
 ```typescript
 subscription: {
-  active: boolean;           // true = acceso completo habilitado
+  active: boolean;              // true = acceso habilitado
   plan: "free" | "trial" | "basic" | "pro" | "enterprise";
   paymentStatus: "pending" | "authorized" | "paused" | "cancelled" | "expired";
-  startDate: Timestamp;      // fecha de inicio del plan
-  endDate: Timestamp;        // próxima fecha de cobro (= fecha de vencimiento)
-  lastPaymentDate: Timestamp;
+  cancelAtPeriodEnd: boolean;   // true = soft-cancel marcado; NO se toca paymentStatus
+  startDate: Timestamp;
+  endDate: Timestamp;           // próxima fecha de cobro / vencimiento
+  lastPaymentDate?: Timestamp;
   trialUsed: boolean;
-  graceUntil?: Timestamp;    // período de gracia (no implementado en UI todavía)
+  graceUntil?: Timestamp;       // período de gracia por pago fallido
   billing: {
     provider: "mercadopago";
-    subscriptionId: string;  // ID del PreApproval de MP
-    payerEmail: string;      // email con el que se creó el PreApproval
+    subscriptionId: string;     // ID del PreApproval de MP
+    payerEmail: string;
     autoRenew: boolean;
   };
 }
 ```
 
-Notificaciones en subcolección `/stores/{storeId}/notifications/{notifId}`:
+Notificaciones en `/stores/{storeId}/notifications/{notifId}`:
 
 ```typescript
 {
-  type: "payment_success" | "payment_failed" | "subscription_cancelled" | "subscription_expired" | "trial_started" | "trial_expired";
+  type: "payment_success" | "payment_failed" | "subscription_cancelled"
+      | "subscription_expired" | "subscription_reactivated"
+      | "trial_started" | "trial_expired";
   message: string;
   read: boolean;
   createdAt: Timestamp;
 }
 ```
-
-**Importante:** las notificaciones se escriben pero **no tienen UI implementada** en el dashboard todavía.
 
 ---
 
@@ -807,111 +425,55 @@ Notificaciones en subcolección `/stores/{storeId}/notifications/{notifId}`:
 
 | Feature | Estado | Notas |
 |---------|--------|-------|
-| Crear PreApproval en MP | ✅ | `createSubscription` function deployada |
-| Recibir webhook de MP | ✅ | `mpWebhook` function deployada |
+| Crear PreApproval en MP | ✅ | `createSubscription` deployada |
+| Recibir webhook de MP | ✅ | `mpWebhook` deployada |
 | Actualizar Firestore al autorizar pago | ✅ | `handlePreapproval` + `handleAuthorizedPayment` |
-| Actualizar Firestore al cancelar | ✅ | `STATUS_MAP.cancelled` |
-| Renovación mensual por webhook `payment` | ✅ | `handlePayment` implementado |
-| Scheduler diario de vencimientos | ✅ | `checkSubscriptions` deployado |
-| UI card de suscripción en dashboard | ✅ | Muestra plan Pro verde si `active: true` |
+| Actualizar Firestore al cancelar (webhook MP) | ✅ | `STATUS_MAP.cancelled` |
+| Renovación mensual por webhook `payment` | ✅ | `handlePayment` — usa `next_payment_date` del PreApproval |
+- Scheduler **cada hora** de vencimientos | ✅ | Máximo 59 min de desfasaje desde el vencimiento real |
+| Cancelación soft-cancel por el usuario | ✅ | `cancelSubscription` — solo Firestore, no toca MP |
+| Reactivación sin nuevo pago | ✅ | `reactivateSubscription` — revierte `cancelAtPeriodEnd` |
+| UI card de suscripción en dashboard | ✅ | Verde (activo), naranja (cancelado-vigente), naranja (pending) |
 | Página de confirmación post-MP | ✅ | `/suscripcion/confirmacion` |
-| Redirect al dashboard tras registro | ✅ | `MultiStepRegister` corregido |
-| Serialización de Timestamps en el server service | ✅ | Todos los campos de `subscription` serializados |
+| Serialización de `cancelAtPeriodEnd` en server service | ✅ | `serializeProfile()` lo incluye |
+| UI de notificaciones (campana) | ✅ | `NotificationBell.tsx` con `onSnapshot` |
+| Reglas Firestore para `/notifications` | ✅ (pendiente deploy) | `firestore.rules` actualizado |
 
 ---
 
 ## 9. Bugs conocidos y pendientes
 
-### BUG-01 — Validación de firma de webhook desactivada
+### BUG-02 — Pagos de prueba rechazados en sandbox
 
-**Severidad:** Alta — debe resolverse antes de producción  
-**Archivo:** `functions/src/mpWebhook.ts` línea 30  
-**Estado:** `MERCADO_PAGO_WEBHOOK_SECRET` está vacío en `functions/.env`
-
-La función `validateMPSignature` bypasea la validación si el secreto no está configurado. Esto significa que cualquiera puede enviar un POST al endpoint del webhook y modificar datos en Firestore.
-
-**Para resolver:**
-1. Ir al panel de MP → Tus integraciones → tu app → Webhooks
-2. Copiar el valor de "Firma secreta"
-3. Pegarlo en `functions/.env` como `MERCADO_PAGO_WEBHOOK_SECRET=<valor>`
-4. Hacer deploy: `firebase deploy --only functions:mpWebhook`
-
-**Nota:** durante el desarrollo se intentó configurar este secreto pero ninguno de los valores obtenidos del panel producía un hash válido. La causa puede ser que MP use un secreto distinto por ambiente (sandbox vs producción) o que el manifest que se construye en el código no coincida con lo que MP espera. Verificar la documentación oficial: https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
-
----
-
-### BUG-02 — Pagos de prueba rechazados en sandbox (causa desconocida)
-
-**Severidad:** Media — bloquea testing, no afecta producción  
+**Severidad:** Media — bloquea testing end-to-end, no afecta producción  
 **Estado:** No resuelto
 
-Al intentar pagar con tarjetas de prueba en el sandbox de MercadoPago, la UI de MP muestra:
+El PreApproval se crea correctamente, pero al intentar pagar MP cancela automáticamente (~15 seg) sin procesar el cobro.
 
-> "Algo salió mal... No pudimos procesar tu pago. Usa un medio de pago distinto."
+**Hipótesis más probable:** el `ACCESS_TOKEN` corresponde a una cuenta real (no test user de MP). Para sandbox correcto, el collector también debe ser un test user con su propio Access Token de prueba.
 
-**Lo que se descartó como causa:**
-- Cuenta del comprador incorrecta — se probó con múltiples test users distintos
-- Tarjetas de prueba incorrectas — se usaron solo las tarjetas oficiales de MP (Mastercard `5031 7557 3453 0604`, Visa `4509 9535 6623 3704`)
-- Historial de cancelaciones acumuladas en el `external_reference` — se probó con stores nuevos sin historial
-- Preapprovals activos del mismo payer — se cancelaron todos antes de cada intento
-
-**Lo que se observó:**
-- El PreApproval se crea correctamente en MP (status `pending`, `init_point` válido)
-- El usuario puede acceder al checkout de MP
-- Al intentar pagar, MP cancela el PreApproval automáticamente en ~15 segundos sin procesar el pago (`charged_quantity: null`, `payment_method_id: null`)
-- El webhook recibe el evento `cancelled` y Firestore se actualiza correctamente
-
-**Datos del collector:**
-- `collector_id: 3234523583`
-- `test_user: false` según la API de MP (`GET /users/me`)
-- El nickname es `TESTUSER738670832445418264` pero la cuenta no está marcada como test user en la API
-
-**Hipótesis más probable:** el `ACCESS_TOKEN` configurado corresponde a una cuenta real (no un test user de MP), lo que hace que MP rechace los pagos de sandbox. Para testear en sandbox correctamente, el collector también debe ser un test user con su propio Access Token de prueba.
-
-**Blocker para obtener el Access Token de test:** el panel de MP no muestra la opción de obtener credenciales desde las cuentas de prueba creadas en "Cuentas de prueba". Esta limitación puede ser del plan o del tipo de cuenta.
-
-**Para resolver:**
-- Investigar si hay una forma de obtener el Access Token de un test user vendedor desde el panel de MP (puede estar en una sección diferente de "Credenciales")
-- Alternativamente, probar el flujo completo directamente en producción con pagos reales de bajo monto y cancelar inmediatamente
+**Para resolver:** obtener Access Token de un test user vendedor desde el panel de MP, o probar directamente en producción con un pago real de bajo monto.
 
 ---
 
-### PENDIENTE-01 — UI de notificaciones no implementada
+### PENDIENTE-01 — Activación del trial
 
-Las notificaciones se escriben en `/stores/{storeId}/notifications` pero no hay ningún componente en el dashboard que las muestre al usuario. Implementar un badge o panel de notificaciones.
-
----
-
-### PENDIENTE-02 — Flujo de cancelación por parte del usuario
-
-No hay UI para que el usuario cancele su suscripción. El flujo de cancelación de MP (llamar `PUT /preapproval/{id}` con `status: cancelled`) no está expuesto en el frontend. Implementar en `SubscriptionSection` un botón "Cancelar suscripción" que llame a una nueva Firebase Function `cancelSubscription`.
+El tipo `trial` y el campo `trialUsed` están definidos pero no hay lógica que active el trial. No implementado en UI. Implementar si se decide ofrecer período de prueba.
 
 ---
 
-### PENDIENTE-03 — Activación del trial
+### PENDIENTE-02 — Webhook URL configurada en MP
 
-El tipo `trial` está definido y `trialUsed` se trackea en Firestore, pero no hay lógica que active el trial. El botón "Iniciar prueba gratuita" no existe en la UI. Implementar si se decide ofrecer un período de prueba.
-
----
-
-### PENDIENTE-04 — Webhook URL configurada en MP
-
-Verificar que la URL del webhook en el panel de MP apunte a la URL correcta de la Cloud Run:
-
-```
-https://mpwebhook-<hash>-uc.a.run.app
-```
-
-o la URL de Firebase Functions si se usa el dominio de Firebase. La URL exacta se puede ver en:
-```
+Verificar que la URL en el panel de MP apunte al endpoint correcto:
+```bash
 firebase functions:list --project tutiendaweb-dev
 ```
 
 ---
 
-### PENDIENTE-05 — Período de gracia no tiene UI
+### PENDIENTE-03 — Período de gracia no tiene UI
 
-El campo `graceUntil` en Firestore está definido en los tipos pero `checkSubscriptions` solo lo respeta como protección — nunca lo escribe. No hay lógica que asigne un período de gracia cuando un pago falla. Implementar si se quiere dar días de gracia antes de suspender.
+El campo `graceUntil` se respeta en `checkSubscriptions` pero no hay banner en la UI cuando un pago falla y el usuario está en período de gracia. Agregar alerta en `SubscriptionSection.tsx` cuando `graceUntil` existe y está en el futuro.
 
 ---
 
@@ -919,37 +481,122 @@ El campo `graceUntil` en Firestore está definido en los tipos pero `checkSubscr
 
 En orden de prioridad:
 
-1. **Resolver BUG-02 (sandbox)** — confirmar que el flujo de pago funciona end-to-end antes de ir a producción
-
-2. **Configurar `MERCADO_PAGO_WEBHOOK_SECRET` (BUG-01)** — obtener la firma secreta real del panel de MP y hacer deploy de `mpWebhook`
-
-3. **Eliminar `MERCADO_PAGO_TEST_PAYER_EMAIL`** de `functions/.env` para que los pagos reales usen el email del usuario
-
-4. **Verificar URL del webhook en MP** — que apunte al endpoint correcto de producción
-
-5. **Deploy de todas las functions:**
+1. **Deploy Firestore rules** (fix `NotificationBell` permission error):
    ```bash
-   firebase deploy --only functions:createSubscription,functions:mpWebhook,functions:checkSubscriptions
+   firebase deploy --only firestore:rules
    ```
 
-6. **Push del código Next.js a Vercel** — incluye los fixes de esta sesión:
-   - `SubscriptionSection.tsx` — lee `subscription` desde `profile`, no `formData`
-   - `MultiStepRegister.tsx` — redirect al dashboard tras registro
-   - `src/app/suscripcion/confirmacion/page.tsx` — página nueva
-   - `profile.server-service.ts` — serialización de todos los Timestamps de `subscription`
+2. **Deploy functions actualizadas** (cancelSubscription reescrita + reactivateSubscription nueva + checkSubscriptions reescrito + mpWebhook corregido):
+   ```bash
+   firebase deploy --only functions:cancelSubscription,functions:reactivateSubscription,functions:checkSubscriptions,functions:mpWebhook
+   ```
 
-7. **Implementar cancelación de suscripción** — nueva Firebase Function + botón en UI
+3. **Push código Next.js a Vercel** — incluye cambios en `SubscriptionSection.tsx`, `store.type.ts`, `profile.server-service.ts`, `NotificationBell.tsx`
 
-8. **Implementar UI de notificaciones** — mostrar las notificaciones de `/stores/{storeId}/notifications`
+4. **Corregir Firestore del usuario de prueba** (`maxiaramayolazo@hotmail.com`):
+   ```
+   subscription.active = true
+   subscription.paymentStatus = "authorized"
+   subscription.cancelAtPeriodEnd = false
+   ```
 
-9. **Test en producción** — pagar con tarjeta real, verificar webhook, verificar Firestore, verificar UI del dashboard
+5. **Verificar URL del webhook en panel de MP**
+
+6. **Test en producción** — pagar con tarjeta real, verificar webhook, verificar Firestore, verificar UI del dashboard
+
+---
+
+## 11. Cómo testear el flujo de vencimiento localmente
+
+El scheduler `checkSubscriptions` corre una vez al día, lo que hace difícil testear manualmente. La solución es manipular directamente Firestore para poner la suscripción en el estado correcto y luego disparar la function a mano.
+
+### Script de setup: `scripts/test-subscription-expiry.ts`
+
+Este script setea en Firestore:
+- `endDate` = ahora + X minutos (configurable)
+- `cancelAtPeriodEnd = true` (para testear el camino A — cancelación voluntaria)
+- `active = true`, `plan = "pro"`, `paymentStatus = "authorized"`
+
+```bash
+# Instalar dependencias si no están
+npm install --save-dev tsx
+
+# Correr el script (reemplazar con tu storeId real)
+STORE_ID=<tu-store-id> MINUTES=5 npx tsx scripts/test-subscription-expiry.ts
+```
+
+Ver `scripts/test-subscription-expiry.ts` para el código completo.
+
+### Cómo disparar `checkSubscriptions` a mano (sin esperar el scheduler)
+
+**Opción A — Firebase Console (más fácil):**
+1. Ir a [Firebase Console](https://console.firebase.google.com) → Functions
+2. Buscar `checkSubscriptions`
+3. Click en los tres puntos → "Test function"
+4. Enviar payload vacío `{}`
+
+**Opción B — Firebase CLI:**
+```bash
+# Requiere tener las functions deployadas
+firebase functions:call checkSubscriptions --project <tu-project-id>
+```
+
+**Opción C — Emuladores locales (más control):**
+```bash
+# Terminal 1: levantar emuladores
+firebase emulators:start --only functions,firestore
+
+# Terminal 2: llamar la function directamente
+curl -X POST "http://localhost:5001/<project-id>/southamerica-east1/checkSubscriptions" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Flujo de test completo (Camino A — cancelación voluntaria)
+
+```
+1. Correr script con MINUTES=3 para tu storeId
+   → endDate queda en 3 minutos, cancelAtPeriodEnd=true
+
+2. Entrar al dashboard → /dashboard/profile → Suscripción
+   → Debe mostrar card naranja "Renovación automática cancelada"
+   → Debe mostrar "Acceso hasta [fecha en 3 minutos]"
+
+3. (Opcional) Testear reactivación:
+   → Click "Reactivar suscripción"
+   → Firestore debe tener cancelAtPeriodEnd=false
+   → UI debe volver a mostrar card verde
+
+4. Si no reactivaste: esperar 3 minutos + disparar checkSubscriptions a mano
+   → Firestore debe tener active=false, plan=free, paymentStatus=cancelled
+   → UI debe mostrar CTA "Activar plan Profesional"
+```
+
+### Flujo de test completo (Camino C — pago fallido + gracia vencida)
+
+```
+1. Setear en Firestore manualmente:
+   subscription.active = true
+   subscription.plan = "pro"
+   subscription.paymentStatus = "authorized"
+   subscription.cancelAtPeriodEnd = false
+   subscription.endDate = <timestamp pasado>
+   subscription.graceUntil = <timestamp pasado>
+   subscription.lastPaymentDate = <hace más de 24hs>
+
+2. Disparar checkSubscriptions
+   → Firestore debe tener active=false, plan=free, paymentStatus=expired
+```
 
 ---
 
 > **Archivos clave para entender el sistema de un vistazo:**
 > - `functions/src/createSubscription.ts` — crea el PreApproval
 > - `functions/src/mpWebhook.ts` — procesa eventos de MP
-> - `functions/src/checkSubscriptions.ts` — scheduler de vencimientos
+> - `functions/src/checkSubscriptions.ts` — scheduler de vencimientos (3 caminos)
+> - `functions/src/cancelSubscription.ts` — soft-cancel (solo Firestore)
+> - `functions/src/reactivateSubscription.ts` — revierte el soft-cancel
 > - `src/features/dashboard/modules/store-settings/components/sections/SubscriptionSection.tsx` — UI del dashboard
 > - `src/features/dashboard/modules/store-settings/services/server/profile.server-service.ts` — serialización de datos
 > - `src/app/suscripcion/confirmacion/page.tsx` — página de retorno de MP
+> - `scripts/test-subscription-expiry.ts` — setup de datos para testing

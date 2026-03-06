@@ -90,6 +90,7 @@ interface StoreProfileRaw {
     lastPaymentDate?: Timestamp | { _seconds: number; _nanoseconds: number };
     graceUntil?: Timestamp | { _seconds: number; _nanoseconds: number };
     paymentStatus?: string;
+    cancelAtPeriodEnd?: boolean;
     trialUsed: boolean;
     billing?: {
       provider: string;
@@ -152,6 +153,7 @@ function serializeProfile(raw: StoreProfileRaw): StoreProfile {
       plan: raw.subscription.plan,
       trialUsed: raw.subscription.trialUsed,
       paymentStatus: raw.subscription.paymentStatus,
+      cancelAtPeriodEnd: raw.subscription.cancelAtPeriodEnd ?? false,
       startDate: serializeTimestamp(raw.subscription.startDate),
       endDate: serializeTimestamp(raw.subscription.endDate),
       lastPaymentDate: raw.subscription.lastPaymentDate
