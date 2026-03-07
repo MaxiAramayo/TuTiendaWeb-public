@@ -130,6 +130,7 @@ export function ProfileForm({
     saveProfile,
     resetForm,
     setActiveSection: setProfileActiveSection,
+    loadProfile,
   } = useProfile({ initialProfile });
 
   // Obtener dirtyFields del formulario para tracking por sección
@@ -186,6 +187,7 @@ export function ProfileForm({
       updateField,
       profile,
       onSave: handleSectionSave,
+      onRefresh: loadProfile,
       isSaving,
     };
 
