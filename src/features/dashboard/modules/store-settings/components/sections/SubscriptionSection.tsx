@@ -55,6 +55,7 @@ interface SubscriptionSectionProps {
   formState: FormState;
   updateField: (field: keyof ProfileFormData, value: any) => void;
   onSave?: () => Promise<void>;
+  onRefresh?: () => Promise<void>;
   isSaving?: boolean;
   userEmail?: string;
   profile?: {
@@ -72,12 +73,12 @@ const PRO_PLAN = {
   period: 'mes',
   description: 'Todo lo que necesitás para hacer crecer tu negocio online.',
   features: [
-    { icon: Package,         label: 'Productos ilimitados' },
-    { icon: Palette,         label: 'Personalización completa de tu tienda' },
-    { icon: BarChart3,       label: 'Analytics y reportes avanzados' },
-    { icon: Zap,             label: 'Integración con WhatsApp y redes sociales' },
-    { icon: ShieldCheck,     label: 'Sin marca de TuTiendaWeb visible' },
-    { icon: HeadphonesIcon,  label: 'Soporte prioritario' },
+    { icon: Package, label: 'Productos ilimitados' },
+    { icon: Palette, label: 'Personalización completa de tu tienda' },
+    { icon: BarChart3, label: 'Analytics y reportes avanzados' },
+    { icon: Zap, label: 'Integración con WhatsApp y redes sociales' },
+    { icon: ShieldCheck, label: 'Sin marca de TuTiendaWeb visible' },
+    { icon: HeadphonesIcon, label: 'Soporte prioritario' },
   ],
 };
 
@@ -99,11 +100,16 @@ function getPaymentStatusLabel(
   }
 }
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export function SubscriptionSection({
   formData,
   userEmail,
   profile,
   onSave,
+  onRefresh,
   isSaving = false,
   formState,
   updateField,
@@ -111,6 +117,7 @@ export function SubscriptionSection({
   const [processingPayment, setProcessingPayment] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [checkingWebhook, startCheckingWebhook] = useTransition();
   const searchParams = useSearchParams();
 
   const { user } = useAuth();
@@ -138,6 +145,12 @@ export function SubscriptionSection({
       : new Date(subscription.endDate as string).getTime()
     : 0;
 
+  const graceUntilMs = subscription.graceUntil
+    ? (subscription.graceUntil as any).toDate
+      ? (subscription.graceUntil as any).toDate().getTime()
+      : new Date(subscription.graceUntil as string).getTime()
+    : 0;
+
   // Canceló la renovación automática pero el acceso aún está vigente hasta endDate
   // Usa cancelAtPeriodEnd (soft-cancel) — NO toca paymentStatus
   const isCancelledActive =
@@ -159,9 +172,47 @@ export function SubscriptionSection({
     : null;
 
   const paymentStatusInfo = getPaymentStatusLabel(subscription.paymentStatus, isCancelledActive);
+  const isInGracePeriod = graceUntilMs > Date.now();
+
+  const refreshSubscriptionStatus = useCallback(async () => {
+    startCheckingWebhook(async () => {
+      try {
+        const refreshAction = onRefresh ?? onSave;
+        await refreshAction?.();
+      } catch (error) {
+        console.error('Error refrescando suscripcion:', error);
+      }
+    });
+  }, [onRefresh, onSave, startCheckingWebhook]);
 
   /** Genera el link de MercadoPago y abre en nueva pestaña */
   const handleSubscribe = async () => {
+    const defaultPayerEmail =
+      subscription.billing?.payerEmail ?? user?.email ?? userEmail ?? '';
+
+    const inputPayerEmail = window.prompt(
+      'Ingresá el email de la cuenta compradora de Mercado Pago:',
+      defaultPayerEmail
+    );
+
+    if (inputPayerEmail === null) {
+      return;
+    }
+
+    const payerEmail = inputPayerEmail.trim().toLowerCase();
+
+    if (!isValidEmail(payerEmail)) {
+      toast.error('Ingresá un email válido de la cuenta compradora.');
+      return;
+    }
+
+    const paymentWindow = window.open('', '_blank', 'noopener,noreferrer');
+
+    if (!paymentWindow) {
+      toast.error('Tu navegador bloqueó la ventana de pago. Habilitá popups e intentá de nuevo.');
+      return;
+    }
+
     setProcessingPayment(true);
     try {
       const functions = getFunctions(app, 'southamerica-east1');
@@ -172,29 +223,43 @@ export function SubscriptionSection({
 
       const storeId = profile?.id ?? '';
       const userId = user?.uid ?? '';
-      const resolvedEmail = user?.email ?? userEmail ?? '';
 
       if (!storeId || !userId) {
         toast.error('No se pudo identificar tu tienda. Intentá recargar la página.');
+        paymentWindow.close();
         return;
       }
 
       const result = await createSubscription({
         storeId,
         userId,
-        userEmail: resolvedEmail,
+        userEmail: payerEmail,
         plan: PRO_PLAN.id,
       });
 
-      window.open(result.data.initPoint, '_blank');
+      paymentWindow.location.href = result.data.initPoint;
       toast.success('Redirigiendo a MercadoPago...');
+      await refreshSubscriptionStatus();
     } catch (error: any) {
-      console.error('Error creando suscripción:', error);
+      console.error('Error creando suscripcion:', error);
+      paymentWindow.close();
       toast.error(error?.message ?? 'No se pudo generar el link de pago. Intentá de nuevo.');
     } finally {
       setProcessingPayment(false);
     }
   };
+
+  useEffect(() => {
+    if (!returnedPreapprovalId) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      refreshSubscriptionStatus();
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [refreshSubscriptionStatus, returnedPreapprovalId]);
 
   /** WhatsApp para consultas */
   const handleWhatsApp = () => {
@@ -238,8 +303,7 @@ export function SubscriptionSection({
 
       const result = await cancelSubscription({ storeId, userId });
       toast.success(result.data.message || 'Suscripción cancelada.');
-      // Recargar para reflejar el nuevo estado desde Firestore
-      window.location.reload();
+      await refreshSubscriptionStatus();
     } catch (error: any) {
       console.error('Error cancelando suscripción:', error);
       toast.error(error?.message ?? 'No se pudo cancelar la suscripción. Intentá de nuevo.');
@@ -268,7 +332,7 @@ export function SubscriptionSection({
 
       const result = await reactivateSubscription({ storeId, userId });
       toast.success(result.data.message || 'Suscripción reactivada.');
-      window.location.reload();
+      await refreshSubscriptionStatus();
     } catch (error: any) {
       console.error('Error reactivando suscripción:', error);
       toast.error(error?.message ?? 'No se pudo reactivar la suscripción. Intentá de nuevo.');
@@ -379,18 +443,33 @@ export function SubscriptionSection({
             </Alert>
           )}
 
-          {/* Alerta pago pendiente (sin preapproval_id en URL) */}
-          {isPendingConfirmation && !returnedPreapprovalId && (
-            <Alert className="mt-4 border-orange-200 bg-orange-50">
-              <AlertCircle className="h-4 w-4 text-orange-500" />
-              <AlertDescription className="text-orange-700">
-                Tu pago está pendiente de confirmación por MercadoPago.
-                Si ya completaste el pago, recargá la página en unos minutos.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+           {/* Alerta pago pendiente (sin preapproval_id en URL) */}
+            {isPendingConfirmation && !returnedPreapprovalId && (
+              <Alert className="mt-4 border-orange-200 bg-orange-50">
+                <AlertCircle className="h-4 w-4 text-orange-500" />
+                <AlertDescription className="text-orange-700">
+                  Tu pago está pendiente de confirmación por MercadoPago.
+                  Si ya completaste el pago, recargá la página en unos minutos.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isInGracePeriod && (
+              <Alert className="mt-4 border-orange-200 bg-orange-50">
+                <AlertCircle className="h-4 w-4 text-orange-500" />
+                <AlertDescription className="text-orange-700">
+                  Hubo un problema con tu último pago. Tenés hasta{' '}
+                  <strong>{new Date(graceUntilMs).toLocaleDateString('es-AR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}</strong>{' '}
+                 para renovarla antes de perder el acceso.
+               </AlertDescription>
+             </Alert>
+           )}
+         </CardContent>
+       </Card>
 
       {/* Card del plan Pro — solo si no es Pro, no está pendiente y no está cancelado-pero-vigente */}
       {!isPro && !isPendingConfirmation && !isCancelledActive && (
@@ -464,25 +543,69 @@ export function SubscriptionSection({
       {isPendingConfirmation && (
         <Card className="border-orange-200 bg-orange-50/40">
           <CardContent className="pt-5">
-            <div className="flex items-start gap-3">
-              <RefreshCw className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0 animate-spin" />
-              <div>
-                <p className="font-semibold text-orange-800">Confirmando tu suscripción</p>
-                <p className="text-sm text-orange-700 mt-1">
-                  Tu pago fue enviado a MercadoPago y está siendo procesado.
-                  Una vez confirmado, tu plan Profesional quedará activo automáticamente.
-                  Este proceso puede demorar algunos minutos.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 border-orange-300 text-orange-700 hover:bg-orange-100"
-                  onClick={() => window.location.reload()}
-                >
-                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                  Verificar estado
-                </Button>
+             <div className="flex items-start gap-3">
+                  <RefreshCw className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0 animate-spin" />
+                  <div>
+                    <p className="font-semibold text-orange-800">Confirmando tu suscripción</p>
+                    <p className="text-sm text-orange-700 mt-1">
+                      Tu pago fue enviado a MercadoPago y está siendo procesado.
+                      Una vez confirmado, tu plan Profesional quedará activo automáticamente.
+                      Este proceso puede demorar algunos minutos.
+                    </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    onClick={refreshSubscriptionStatus}
+                    disabled={checkingWebhook}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    {checkingWebhook ? 'Verificando...' : 'Verificar estado'}
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-500 hover:text-red-600 hover:bg-red-50"
+                        disabled={cancellingSubscription}
+                      >
+                        {cancellingSubscription ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                            Cancelando...
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                            No pagué — cancelar
+                          </>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿No completaste el pago?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Si no llegaste a pagar o querés intentarlo de nuevo, podés cancelar
+                          este intento y empezar desde cero. No se realizó ningún cobro.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Volver</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleCancelSubscription}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Cancelar intento
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </div>
           </CardContent>

@@ -520,7 +520,7 @@ firebase functions:list --project tutiendaweb-dev
 
 ### PENDIENTE-03 — Período de gracia no tiene UI
 
-El campo `graceUntil` se respeta en `checkSubscriptions` pero no hay banner en la UI cuando un pago falla y el usuario está en período de gracia. Agregar alerta en `SubscriptionSection.tsx` cuando `graceUntil` existe y está en el futuro.
+✅ Resuelto. Se agrego un banner de gracia en `SubscriptionSection.tsx` cuando `graceUntil` existe y esta en el futuro.
 
 ---
 
