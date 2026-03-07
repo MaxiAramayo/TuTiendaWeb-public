@@ -13,6 +13,7 @@ import app from '@/lib/firebase/client';
 import { useAuth } from '@/features/auth/providers/auth-store-provider';
 import { ProfileFormData, FormState, SubscriptionInfo } from '../../types/store.type';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
@@ -117,6 +118,7 @@ export function SubscriptionSection({
   const [processingPayment, setProcessingPayment] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [payerEmailInput, setPayerEmailInput] = useState('');
   const [checkingWebhook, startCheckingWebhook] = useTransition();
   const searchParams = useSearchParams();
 
@@ -173,6 +175,14 @@ export function SubscriptionSection({
 
   const paymentStatusInfo = getPaymentStatusLabel(subscription.paymentStatus, isCancelledActive);
   const isInGracePeriod = graceUntilMs > Date.now();
+  const suggestedPayerEmail =
+    subscription.billing?.payerEmail ?? user?.email ?? userEmail ?? '';
+
+  useEffect(() => {
+    if (!payerEmailInput) {
+      setPayerEmailInput(suggestedPayerEmail);
+    }
+  }, [payerEmailInput, suggestedPayerEmail]);
 
   const refreshSubscriptionStatus = useCallback(async () => {
     startCheckingWebhook(async () => {
@@ -187,29 +197,10 @@ export function SubscriptionSection({
 
   /** Genera el link de MercadoPago y abre en nueva pestaña */
   const handleSubscribe = async () => {
-    const defaultPayerEmail =
-      subscription.billing?.payerEmail ?? user?.email ?? userEmail ?? '';
-
-    const inputPayerEmail = window.prompt(
-      'Ingresá el email de la cuenta compradora de Mercado Pago:',
-      defaultPayerEmail
-    );
-
-    if (inputPayerEmail === null) {
-      return;
-    }
-
-    const payerEmail = inputPayerEmail.trim().toLowerCase();
+    const payerEmail = payerEmailInput.trim().toLowerCase();
 
     if (!isValidEmail(payerEmail)) {
       toast.error('Ingresá un email válido de la cuenta compradora.');
-      return;
-    }
-
-    const paymentWindow = window.open('', '_blank', 'noopener,noreferrer');
-
-    if (!paymentWindow) {
-      toast.error('Tu navegador bloqueó la ventana de pago. Habilitá popups e intentá de nuevo.');
       return;
     }
 
@@ -226,7 +217,6 @@ export function SubscriptionSection({
 
       if (!storeId || !userId) {
         toast.error('No se pudo identificar tu tienda. Intentá recargar la página.');
-        paymentWindow.close();
         return;
       }
 
@@ -237,12 +227,10 @@ export function SubscriptionSection({
         plan: PRO_PLAN.id,
       });
 
-      paymentWindow.location.href = result.data.initPoint;
+      window.location.href = result.data.initPoint;
       toast.success('Redirigiendo a MercadoPago...');
-      await refreshSubscriptionStatus();
     } catch (error: any) {
       console.error('Error creando suscripcion:', error);
-      paymentWindow.close();
       toast.error(error?.message ?? 'No se pudo generar el link de pago. Intentá de nuevo.');
     } finally {
       setProcessingPayment(false);
@@ -512,7 +500,25 @@ export function SubscriptionSection({
             <Separator className="bg-purple-100" />
 
             {/* CTA */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-gray-600">
+                  Email de la cuenta compradora en Mercado Pago
+                </p>
+                <Input
+                  type="email"
+                  value={payerEmailInput}
+                  onChange={(event) => setPayerEmailInput(event.target.value)}
+                  placeholder="comprador@email.com"
+                  className="bg-white"
+                  autoComplete="email"
+                />
+                <p className="text-xs text-gray-500">
+                  Este email debe ser el de la cuenta que va a pagar la suscripción.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <Button
                 type="button"
                 onClick={handleSubscribe}
@@ -534,6 +540,7 @@ export function SubscriptionSection({
               <p className="text-xs text-gray-500">
                 Pago seguro vía MercadoPago. Podés cancelar en cualquier momento.
               </p>
+              </div>
             </div>
           </CardContent>
         </Card>

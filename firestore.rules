@@ -11,10 +11,15 @@ service cloud.firestore {
     
     // Verificar si el usuario es propietario de la tienda
     function isStoreOwner(storeId) {
+      let storeData = get(/databases/$(database)/documents/stores/$(storeId)).data;
       return isAuthenticated() && 
              request.auth.uid != null &&
              exists(/databases/$(database)/documents/stores/$(storeId)) &&
-             get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+             (
+               storeData.ownerId == request.auth.uid ||
+               storeData.userId == request.auth.uid ||
+               storeData.metadata.ownerId == request.auth.uid
+             );
     }
     
     // Verificar si los datos son válidos para una venta
