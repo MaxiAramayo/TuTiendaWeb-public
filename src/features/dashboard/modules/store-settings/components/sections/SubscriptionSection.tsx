@@ -650,6 +650,44 @@ export function SubscriptionSection({
         </Card>
       )}
 
+      {/* Cancelado pero vigente: card naranja informativa */}
+      {isCancelledActive && (
+        <Card className="border-orange-200 bg-orange-50/40">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-orange-800">Renovación automática cancelada</p>
+                <p className="text-sm text-orange-700 mt-1">
+                  Cancelaste la renovación automática. Seguís teniendo acceso completo a todas las
+                  funciones hasta el <strong>{nextPaymentDate}</strong>. Luego tu cuenta pasará al
+                  plan gratuito.
+                </p>
+                <Button
+                  type="button"
+                  onClick={handleReactivate}
+                  disabled={reactivating}
+                  size="sm"
+                  className="mt-3 bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {reactivating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Reactivando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Reactivar suscripción
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Si ya es Pro: confirmación */}
       {isPro && (
         <Card className="border-green-200 bg-green-50/40">
