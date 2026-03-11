@@ -44,7 +44,7 @@ export const MultiStepRegister = () => {
 
   const handleStoreSetupComplete = () => {
     setIsCompleted(true);
-    router.push('/dashboard');
+    window.location.href = '/onboarding';
   };
 
   const handleBackToStep1 = () => {
