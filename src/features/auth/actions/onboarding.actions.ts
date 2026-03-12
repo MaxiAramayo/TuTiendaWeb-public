@@ -6,8 +6,6 @@ import { adminDb } from '@/lib/firebase/admin';
 import { getServerSession } from '@/lib/auth/server-session';
 import { createStore } from '@/features/store/services/store.service';
 import { setUserClaims, revokeUserTokens } from '@/features/auth/services/server/auth.service';
-import { createCategoryAction } from '@/features/products/actions/category.actions';
-import { createProductAction } from '@/features/products/actions/product.actions';
 import {
   onboardingBasicInfoSchema,
   onboardingDesignSchema,
@@ -19,6 +17,10 @@ import {
   type OnboardingCompleteInput,
 } from '@/features/auth/schemas/onboarding.schema';
 import { ActionResponse } from '@/features/auth/auth.types';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
 const ONBOARDING_STEPS = [
   'welcome',
@@ -32,6 +34,10 @@ const ONBOARDING_STEPS = [
 
 type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 type OnboardingEventType = 'skip' | 'back' | 'next' | 'abandon';
+
+// ============================================================================
+// HELPERS
+// ============================================================================
 
 async function getCurrentStore(userId: string, sessionStoreId: string | null) {
   if (sessionStoreId) {
@@ -60,7 +66,11 @@ async function markStep(storeId: string, step: OnboardingStep) {
   });
 }
 
-export async function completeFullOnboardingAction(
+// ============================================================================
+// NEW: Complete onboarding with flat schema (v2 - 9 slices)
+// ============================================================================
+
+export async function completeNewOnboardingAction(
   input: OnboardingCompleteInput
 ): Promise<ActionResponse<{ storeId: string; done: boolean }>> {
   const session = await getServerSession();
@@ -71,7 +81,73 @@ export async function completeFullOnboardingAction(
     return { success: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { basicInfo, design, product } = parsed.data;
+  const data = parsed.data;
+  let store = await getCurrentStore(session.userId, session.storeId);
+  let storeId = store?.id;
+
+  try {
+    if (!store) {
+      // Create the store
+      const created = await createStore({
+        storeName: data.name,
+        storeType: data.storeType,
+        slug: data.slug,
+        phone: data.whatsapp,
+        address: data.street || '',
+        ownerId: session.userId,
+      });
+
+      storeId = created.id;
+      store = { id: created.id, data: created as unknown as Record<string, unknown> };
+
+      await setUserClaims(session.userId, { storeId: created.id, role: 'owner' });
+      await revokeUserTokens(session.userId);
+    }
+
+    // Update store with all onboarding data
+    const updates: Record<string, unknown> = {
+      'basicInfo.name': data.name,
+      'basicInfo.description': data.description,
+      'basicInfo.slug': data.slug,
+      'basicInfo.type': data.storeType,
+      'contactInfo.whatsapp': data.whatsapp,
+      'contactInfo.phone': data.whatsapp,
+      'address.street': data.street || '',
+      'address.city': data.city || '',
+      'address.zipCode': data.zipCode || '',
+      'metadata.onboardingStep': 'complete',
+      'metadata.onboardingCompleted': true,
+      'metadata.updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (data.primaryColor) updates['theme.primaryColor'] = data.primaryColor;
+    if (data.secondaryColor) updates['theme.secondaryColor'] = data.secondaryColor;
+    if (data.accentColor) updates['theme.accentColor'] = data.accentColor;
+
+    await adminDb.collection('stores').doc(storeId!).update(updates);
+
+    // No llamamos revalidatePath aquí para no disparar un refresh del router
+    // que causaría que page.tsx detecte onboardingCompleted=true y redirija
+    // antes de mostrar la pantalla de felicitaciones.
+    // El dashboard recibirá datos frescos cuando el usuario navegue allí.
+    return { success: true, data: { storeId: storeId!, done: true } };
+  } catch (error) {
+    console.error('[onboarding] complete new onboarding error', error);
+    return { success: false, errors: { _form: ['No se pudo completar el onboarding'] } };
+  }
+}
+
+// ============================================================================
+// LEGACY: Complete full onboarding (v1 - old nested schema)
+// ============================================================================
+
+export async function completeFullOnboardingAction(
+  input: any
+): Promise<ActionResponse<{ storeId: string; done: boolean }>> {
+  const session = await getServerSession();
+  if (!session) return { success: false, errors: { _form: ['No autenticado'] } };
+
+  const { basicInfo, design, product } = input;
   let store = await getCurrentStore(session.userId, session.storeId);
   let storeId = store?.id;
 
@@ -96,7 +172,6 @@ export async function completeFullOnboardingAction(
       await revokeUserTokens(session.userId);
     }
 
-    // Update store with basic info and design
     const updates: Record<string, unknown> = {
       'basicInfo.name': basicInfo.name,
       'basicInfo.description': basicInfo.description,
@@ -109,14 +184,14 @@ export async function completeFullOnboardingAction(
       'metadata.updatedAt': FieldValue.serverTimestamp(),
     };
 
-    if (design.primaryColor) updates['theme.primaryColor'] = design.primaryColor;
-    if (design.secondaryColor) updates['theme.secondaryColor'] = design.secondaryColor;
-    if (design.accentColor) updates['theme.accentColor'] = design.accentColor;
-    if (design.logoUrl !== undefined) updates['theme.logoUrl'] = design.logoUrl || '';
+    if (design?.primaryColor) updates['theme.primaryColor'] = design.primaryColor;
+    if (design?.secondaryColor) updates['theme.secondaryColor'] = design.secondaryColor;
+    if (design?.accentColor) updates['theme.accentColor'] = design.accentColor;
+    if (design?.logoUrl !== undefined) updates['theme.logoUrl'] = design.logoUrl || '';
 
     await adminDb.collection('stores').doc(storeId!).update(updates);
 
-    // If product is provided, try creating category and product
+    // If product is provided, try creating it
     if (product && product.name && product.price !== undefined && product.price > 0) {
       const categoriesSnap = await adminDb
         .collection('stores')
@@ -128,9 +203,6 @@ export async function completeFullOnboardingAction(
       let categoryId: string | null = null;
       if (categoriesSnap.empty) {
         try {
-          // Temporarily mock the auth session for createCategoryAction / createProductAction 
-          // because those actions might rely on `getServerSession` storeId which may not be set in the cookie yet
-          // Actually, it's safer to create them directly using Admin DB here to avoid cookie race conditions
           const catRef = await adminDb.collection('stores').doc(storeId!).collection('categories').add({
             name: product.categoryName || 'General',
             slug: (product.categoryName || 'General').toLowerCase().replace(/\s+/g, '-'),
@@ -174,6 +246,10 @@ export async function completeFullOnboardingAction(
     return { success: false, errors: { _form: ['No se pudo completar el onboarding'] } };
   }
 }
+
+// ============================================================================
+// GET ONBOARDING STATE
+// ============================================================================
 
 export async function getOnboardingStateAction(): Promise<
   ActionResponse<{
@@ -223,6 +299,10 @@ export async function getOnboardingStateAction(): Promise<
     },
   };
 }
+
+// ============================================================================
+// STEP-BY-STEP ACTIONS (legacy, kept for backward compat)
+// ============================================================================
 
 export async function saveOnboardingBasicInfoAction(
   input: OnboardingBasicInfoInput
@@ -372,8 +452,15 @@ export async function createOnboardingProductAction(
 
   try {
     if (categoriesSnap.empty) {
-      const category = await createCategoryAction({ name: parsed.data.categoryName || 'General' });
-      categoryId = category.id;
+      const catRef = await adminDb.collection('stores').doc(store.id).collection('categories').add({
+        name: parsed.data.categoryName || 'General',
+        slug: (parsed.data.categoryName || 'General').toLowerCase().replace(/\s+/g, '-'),
+        storeId: store.id,
+        isActive: true,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      categoryId = catRef.id;
     } else {
       categoryId = categoriesSnap.docs[0].id;
     }
@@ -382,27 +469,34 @@ export async function createOnboardingProductAction(
     return { success: false, errors: { _form: ['No se pudo crear la categoria inicial'] } };
   }
 
-  const form = new FormData();
-  form.append('name', parsed.data.name || '');
-  form.append('description', parsed.data.description || '');
-  form.append('price', String(parsed.data.price || 0));
-  form.append('costPrice', '0');
-  form.append('categoryId', categoryId);
-  form.append('active', 'true');
+  try {
+    const productRef = await adminDb.collection('stores').doc(store.id).collection('products').add({
+      name: parsed.data.name || '',
+      description: parsed.data.description || '',
+      price: parsed.data.price || 0,
+      costPrice: 0,
+      categoryId,
+      active: true,
+      status: 'active',
+      storeId: store.id,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-  const result = await createProductAction(form);
-  if (!result.success) return result;
+    await adminDb.collection('stores').doc(store.id).update({
+      'metadata.onboardingCompleted': true,
+      'metadata.onboardingStep': 'complete',
+      'metadata.updatedAt': FieldValue.serverTimestamp(),
+    });
 
-  await adminDb.collection('stores').doc(store.id).update({
-    'metadata.onboardingCompleted': true,
-    'metadata.onboardingStep': 'complete',
-    'metadata.updatedAt': FieldValue.serverTimestamp(),
-  });
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/products');
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/products');
-
-  return { success: true, data: { productId: result.data.id } };
+    return { success: true, data: { productId: productRef.id } };
+  } catch (error) {
+    console.error('[onboarding] create product error', error);
+    return { success: false, errors: { _form: ['No se pudo crear el producto'] } };
+  }
 }
 
 export async function completeOnboardingAction(): Promise<ActionResponse<{ done: boolean }>> {

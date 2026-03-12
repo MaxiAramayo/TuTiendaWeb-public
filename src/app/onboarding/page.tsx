@@ -14,7 +14,6 @@ export default async function OnboardingPage() {
 
   const storeId = session.storeId || await findStoreIdByUserId(session.userId);
 
-  let currentStep: 'welcome' | 'basic-info' | 'design-choice' | 'design-customize' | 'product-intro' | 'product-create' | 'complete' = 'welcome';
   let storeSlug: string | null = null;
 
   let defaults: {
@@ -26,7 +25,9 @@ export default async function OnboardingPage() {
     primaryColor?: string;
     secondaryColor?: string;
     accentColor?: string;
-    logoUrl?: string;
+    street?: string;
+    city?: string;
+    zipCode?: string;
   } = {};
 
   if (storeId) {
@@ -36,30 +37,27 @@ export default async function OnboardingPage() {
       redirect('/dashboard');
     }
 
-    currentStep = onboarding.hasProduct
-      ? 'complete'
-      : (onboarding.step || 'basic-info');
-
     const profile = await profileServerService.getProfile(storeId);
     if (profile) {
       storeSlug = profile.basicInfo?.slug || null;
       defaults = {
         name: profile.basicInfo?.name || '',
         description: profile.basicInfo?.description || '',
-        whatsapp: profile.contactInfo?.whatsapp || '',
+        whatsapp: profile.contactInfo?.whatsapp || '+54 ',
         slug: profile.basicInfo?.slug || '',
         storeType: profile.basicInfo?.type || 'other',
         primaryColor: profile.theme?.primaryColor || '#4F46E5',
         secondaryColor: profile.theme?.secondaryColor || '#EEF2FF',
         accentColor: profile.theme?.accentColor || '#1E1B4B',
-        logoUrl: profile.theme?.logoUrl || '',
+        street: profile.address?.street || '',
+        city: profile.address?.city || '',
+        zipCode: profile.address?.zipCode || '',
       };
     }
   }
 
   return (
     <OnboardingWizard
-      initialStep={currentStep}
       storeSlug={storeSlug}
       defaultValues={defaults}
     />
