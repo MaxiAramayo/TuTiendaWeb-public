@@ -358,19 +358,6 @@ export function PaymentDeliverySection({
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Métodos de pago y entrega</h2>
           <p className="text-xs sm:text-sm text-gray-500">Configura cómo recibirás pagos y entregarás productos</p>
         </div>
-        <Button
-          onClick={handleSectionSave}
-          disabled={isCurrentlySaving}
-          className="flex items-center justify-center space-x-2 w-full sm:w-auto"
-          size="sm"
-        >
-          {isCurrentlySaving ? (
-            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-          ) : (
-            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-          )}
-          <span className="text-xs sm:text-sm">{isCurrentlySaving ? 'Guardando...' : 'Guardar'}</span>
-        </Button>
       </div>
       {/* Validación general */}
       {!hasActiveDelivery && (
@@ -450,6 +437,22 @@ export function PaymentDeliverySection({
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSectionSave}
+          disabled={isCurrentlySaving}
+          className="flex items-center justify-center space-x-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
+          size="sm"
+        >
+          {isCurrentlySaving ? (
+            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+          ) : (
+            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+          )}
+          <span className="text-xs sm:text-sm">{isCurrentlySaving ? 'Guardando...' : 'Guardar cambios'}</span>
+        </Button>
+      </div>
     </div>
   );
 }

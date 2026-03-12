@@ -271,6 +271,8 @@ export async function createStore(
       metadata: {
         ownerId: data.ownerId,
         active: true,
+        onboardingCompleted: false,
+        onboardingStep: 'welcome',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },

@@ -78,13 +78,13 @@ export const GoogleButton = ({
         } else {
           // Redirigir a completar perfil
           toast.success('Cuenta iniciada con Google');
-          router.push('/auth/complete-profile');
+          window.location.href = '/onboarding';
         }
       } else {
         // Usuario existente con tienda
         if (!onNewUser) {
           toast.success('Sesión iniciada correctamente');
-          router.push('/dashboard');
+          window.location.href = '/onboarding';
         }
       }
     } catch (error: any) {

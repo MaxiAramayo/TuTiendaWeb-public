@@ -103,16 +103,22 @@ export function NotificationBell() {
       limit(MAX_NOTIFICATIONS)
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      const items: StoreNotification[] = snap.docs.map((d) => ({
-        id: d.id,
-        type: d.data().type as NotificationType,
-        message: d.data().message as string,
-        read: d.data().read as boolean,
-        createdAt: d.data().createdAt as Timestamp | null,
-      }));
-      setNotifications(items);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items: StoreNotification[] = snap.docs.map((d) => ({
+          id: d.id,
+          type: d.data().type as NotificationType,
+          message: d.data().message as string,
+          read: d.data().read as boolean,
+          createdAt: d.data().createdAt as Timestamp | null,
+        }));
+        setNotifications(items);
+      },
+      (error) => {
+        console.warn('[NotificationBell] Error escuchando notificaciones:', error);
+      }
+    );
 
     return () => unsub();
   }, [storeId]);

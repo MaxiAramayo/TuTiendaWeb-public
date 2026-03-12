@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,7 +32,9 @@ import {
   Loader2,
   Image as ImageIcon,
   Trash2,
+  Check,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /**
  * Componente interno para mostrar imagen con skeleton mientras carga
@@ -77,21 +79,13 @@ interface ThemeSectionProps {
 }
 
 /**
- * Interface para subida de imágenes
- */
-interface ImageUpload {
-  file: File;
-  preview: string;
-}
-
-/**
  * Sets de Colores Recomendados (Paletas Inteligentes)
  */
 const THEME_PRESETS = [
   {
     id: 'gastronomic',
-    name: 'Gastronómico & Cálido',
-    description: 'Ideal para restaurantes y comida.',
+    name: 'Gastronómico',
+    description: 'Cálido y apetitoso',
     primary: '#EA580C',
     secondary: '#FFF7ED',
     accent: '#1F2937'
@@ -99,26 +93,42 @@ const THEME_PRESETS = [
   {
     id: 'eco',
     name: 'Eco & Fresco',
-    description: 'Para productos naturales y salud.',
+    description: 'Natural y saludable',
     primary: '#059669',
     secondary: '#ECFDF5',
     accent: '#064E3B'
   },
   {
     id: 'tech',
-    name: 'Tech & Moderno',
-    description: 'Electrónica y servicios digitales.',
+    name: 'Tech Moderno',
+    description: 'Limpio y digital',
     primary: '#2563EB',
     secondary: '#F3F4F6',
     accent: '#111827'
   },
   {
     id: 'luxury',
-    name: 'Lujo & Minimal',
-    description: 'Joyería, moda y alta gama.',
+    name: 'Lujo Minimal',
+    description: 'Elegante y sofisticado',
     primary: '#171717',
     secondary: '#F5F5F4',
     accent: '#CA8A04'
+  },
+  {
+    id: 'feminine',
+    name: 'Boutique',
+    description: 'Suave y delicado',
+    primary: '#db2777',
+    secondary: '#fdf2f8',
+    accent: '#831843'
+  },
+  {
+    id: 'ocean',
+    name: 'Océano',
+    description: 'Profundo y confiable',
+    primary: '#0284c7',
+    secondary: '#f0f9ff',
+    accent: '#0c4a6e'
   }
 ];
 
@@ -126,12 +136,14 @@ const THEME_PRESETS = [
  * Opciones de fuentes disponibles
  */
 const FONT_OPTIONS = [
-  { name: 'Inter', value: 'Inter, sans-serif' },
-  { name: 'Roboto', value: 'Roboto, sans-serif' },
-  { name: 'Open Sans', value: 'Open Sans, sans-serif' },
-  { name: 'Lato', value: 'Lato, sans-serif' },
-  { name: 'Montserrat', value: 'Montserrat, sans-serif' },
-  { name: 'Poppins', value: 'Poppins, sans-serif' },
+  { name: 'Inter (Sans-serif)', value: 'Inter, sans-serif' },
+  { name: 'Roboto (Sans-serif)', value: 'Roboto, sans-serif' },
+  { name: 'Open Sans (Sans-serif)', value: 'Open Sans, sans-serif' },
+  { name: 'Lato (Sans-serif)', value: 'Lato, sans-serif' },
+  { name: 'Montserrat (Sans-serif)', value: 'Montserrat, sans-serif' },
+  { name: 'Poppins (Sans-serif)', value: 'Poppins, sans-serif' },
+  { name: 'Playfair Display (Sans-serif)', value: '"Playfair Display", serif' },
+  { name: 'Merriweather (Serif)', value: 'Merriweather, serif' },
 ];
 
 /**
@@ -155,7 +167,6 @@ export function ThemeSection({
   const { setProfile } = useProfileStore();
   const [isSectionSaving, setIsSectionSaving] = useState(false);
 
-  // Toast functions using sonner
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
 
@@ -357,232 +368,225 @@ export function ThemeSection({
 
   return (
     <div className='space-y-8 pb-8'>
-      {/* Header */}
-      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
-        <div>
-          <h3 className='text-xl font-bold text-gray-900'>
-            Tema y Branding
-          </h3>
-          <p className='text-sm text-gray-500 mt-1'>
-            Personaliza la apariencia visual de tu tienda y la marca.
-          </p>
+      <div className='flex flex-col xl:flex-row gap-6'>
+      
+      {/* Controles de Configuración (Lado Izquierdo) */}
+      <div className="flex-1 space-y-6 min-w-0">
+        {/* Header */}
+        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4'>
+          <div>
+            <h3 className='text-2xl font-bold text-gray-900 tracking-tight'>
+              Apariencia
+            </h3>
+            <p className='text-sm text-gray-500 mt-1'>
+              Personaliza la marca, colores y estilo de tu tienda.
+            </p>
+          </div>
         </div>
-        <Button
-          onClick={handleSectionSave}
-          disabled={isSectionSaving || !formState?.isDirty}
-          className='flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]'
-        >
-          {isSectionSaving ? (
-            <Loader2 className='w-4 h-4 animate-spin' />
-          ) : (
-            <Save className='w-4 h-4' />
-          )}
-          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
-        </Button>
-      </div>
 
-      {/* Sección de Imágenes */}
-      <Card className="border shadow-sm">
-        <CardHeader className="bg-gray-50/50 border-b pb-4">
-          <CardTitle className='flex items-center gap-2 text-lg'>
-            <ImageIcon className='w-5 h-5 text-blue-600' />
-            Imágenes de Marca
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='pt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12'>
-          {/* Logo */}
-          <div className='space-y-4 lg:col-span-4'>
-            <div className='flex items-center justify-between'>
-              <Label className='text-sm font-semibold text-gray-700'>Logo de la Tienda</Label>
-              <div className='flex items-center gap-2'>
-                <Button
-                  variant='outline'
-                  size='sm'
+        {/* Imágenes de Marca */}
+        <Card className="border-gray-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className='flex items-center gap-2 text-base font-semibold'>
+              <ImageIcon className='w-4 h-4 text-indigo-600' />
+              Imágenes de Marca
+            </CardTitle>
+            <CardDescription className="text-xs">
+              El logo y banner que verán tus clientes en el catálogo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='pt-6 grid grid-cols-1 md:grid-cols-2 gap-8'>
+            {/* Logo */}
+            <div className='space-y-4 flex flex-col items-center p-4 border border-dashed border-gray-200 rounded-xl bg-gray-50/30'>
+              <Label className='text-sm font-semibold text-gray-700 text-center w-full'>Logo de la Tienda</Label>
+              
+              <input
+                id='logo-upload'
+                type='file'
+                accept='image/*'
+                onChange={(e) => handleImageSelect(e, 'logo')}
+                className='hidden'
+              />
+
+              <div className="relative group cursor-pointer" onClick={() => document.getElementById('logo-upload')?.click()}>
+                {themeConfig.logoUrl ? (
+                  <div className='relative w-32 h-32 rounded-full overflow-hidden border border-gray-200 shadow-sm bg-white'>
+                    <ImageWithSkeleton
+                      src={themeConfig.logoUrl}
+                      alt='Logo'
+                      className="w-full h-full"
+                      imageClassName="object-contain"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                      <Upload className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className='w-32 h-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-white text-gray-400 group-hover:bg-gray-50 transition-colors'>
+                    <ImageIcon className='w-8 h-8 opacity-50' />
+                  </div>
+                )}
+                {(isLoadingLogo || isDeletingLogo) && (
+                  <div className='absolute inset-0 rounded-full bg-white/80 flex items-center justify-center backdrop-blur-sm z-10'>
+                    <Loader2 className='w-6 h-6 text-indigo-600 animate-spin' />
+                  </div>
+                )}
+              </div>
+
+              <div className='flex gap-2 w-full justify-center'>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs"
                   onClick={() => document.getElementById('logo-upload')?.click()}
                   disabled={isLoadingLogo}
                 >
-                  {isLoadingLogo ? (
-                    <Loader2 className='w-4 h-4 animate-spin' />
-                  ) : (
-                    <Upload className='w-4 h-4' />
-                  )}
-                  <span className='ml-2'>Subir</span>
+                  Cambiar Logo
                 </Button>
                 {themeConfig.logoUrl && (
-                  <Button
-                    variant='outline'
-                    size='sm'
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
                     onClick={() => removeImage('logo')}
                     disabled={isDeletingLogo}
-                    className='text-red-600 hover:text-red-700 hover:bg-red-50'
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs px-2"
                   >
-                    {isDeletingLogo ? (
-                      <Loader2 className='w-4 h-4 animate-spin' />
-                    ) : (
-                      <Trash2 className='w-4 h-4' />
-                    )}
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
               </div>
             </div>
 
-            <input
-              id='logo-upload'
-              type='file'
-              accept='image/*'
-              onChange={(e) => handleImageSelect(e, 'logo')}
-              className='hidden'
-            />
+            {/* Banner */}
+            <div className='space-y-4 flex flex-col items-center p-4 border border-dashed border-gray-200 rounded-xl bg-gray-50/30'>
+              <Label className='text-sm font-semibold text-gray-700 text-center w-full'>Banner Principal</Label>
+              
+              <input
+                id='banner-upload'
+                type='file'
+                accept='image/*'
+                onChange={(e) => handleImageSelect(e, 'banner')}
+                className='hidden'
+              />
 
-            {themeConfig.logoUrl ? (
-              <div className='relative w-32 h-32 border-2 border-dashed border-gray-200 rounded-full overflow-hidden shadow-sm'>
-                <ImageWithSkeleton
-                  src={themeConfig.logoUrl}
-                  alt='Logo de la tienda'
-                  className="w-full h-full"
-                  imageClassName="object-contain bg-white"
-                />
-                {(isLoadingLogo || isDeletingLogo) && (
-                  <div className='absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm'>
-                    <Loader2 className='w-6 h-6 text-white animate-spin' />
+              <div className="relative group cursor-pointer w-full" onClick={() => document.getElementById('banner-upload')?.click()}>
+                {themeConfig.bannerUrl ? (
+                  <div className='relative w-full h-32 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white'>
+                    <ImageWithSkeleton
+                      src={themeConfig.bannerUrl}
+                      alt='Banner'
+                      className="w-full h-full"
+                      imageClassName="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                      <Upload className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className='w-full h-32 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-white text-gray-400 group-hover:bg-gray-50 transition-colors'>
+                    <ImageIcon className='w-8 h-8 opacity-50 mb-2' />
+                    <span className="text-xs">1200 x 400px</span>
+                  </div>
+                )}
+                {(isLoadingBanner || isDeletingBanner) && (
+                  <div className='absolute inset-0 rounded-lg bg-white/80 flex items-center justify-center backdrop-blur-sm z-10'>
+                    <Loader2 className='w-6 h-6 text-indigo-600 animate-spin' />
                   </div>
                 )}
               </div>
-            ) : (
-              <div className='w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 bg-gray-50'>
-                <div className='text-center'>
-                  <ImageIcon className='w-8 h-8 mx-auto mb-1 opacity-50' />
-                  <p className='text-xs font-medium'>Sin logo</p>
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-gray-500">Recomendado: 512x512px, formato PNG o JPG.</p>
-          </div>
 
-          {/* Banner */}
-          <div className='space-y-4 lg:col-span-8'>
-            <div className='flex items-center justify-between'>
-              <Label className='text-sm font-semibold text-gray-700'>Banner de la Tienda</Label>
-              <div className='flex items-center gap-2'>
-                <Button
-                  variant='outline'
-                  size='sm'
+              <div className='flex gap-2 w-full justify-center'>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs"
                   onClick={() => document.getElementById('banner-upload')?.click()}
                   disabled={isLoadingBanner}
                 >
-                  {isLoadingBanner ? (
-                    <Loader2 className='w-4 h-4 animate-spin' />
-                  ) : (
-                    <Upload className='w-4 h-4' />
-                  )}
-                  <span className='ml-2'>Subir</span>
+                  Cambiar Banner
                 </Button>
                 {themeConfig.bannerUrl && (
-                  <Button
-                    variant='outline'
-                    size='sm'
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
                     onClick={() => removeImage('banner')}
                     disabled={isDeletingBanner}
-                    className='text-red-600 hover:text-red-700 hover:bg-red-50'
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs px-2"
                   >
-                    {isDeletingBanner ? (
-                      <Loader2 className='w-4 h-4 animate-spin' />
-                    ) : (
-                      <Trash2 className='w-4 h-4' />
-                    )}
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <input
-              id='banner-upload'
-              type='file'
-              accept='image/*'
-              onChange={(e) => handleImageSelect(e, 'banner')}
-              className='hidden'
-            />
-
-            {themeConfig.bannerUrl ? (
-              <div className='relative w-full h-32 sm:h-40 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden shadow-sm'>
-                <ImageWithSkeleton
-                  src={themeConfig.bannerUrl}
-                  alt='Banner de la tienda'
-                  className="w-full h-full"
-                  imageClassName="object-cover bg-gray-100"
-                />
-                {(isLoadingBanner || isDeletingBanner) && (
-                  <div className='absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm'>
-                    <Loader2 className='w-6 h-6 text-white animate-spin' />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className='w-full h-32 sm:h-40 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 bg-gray-50'>
-                <div className='text-center'>
-                  <ImageIcon className='w-8 h-8 mx-auto mb-2 opacity-50' />
-                  <p className='text-sm font-medium'>Sin banner</p>
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-gray-500">Recomendado: 1200x400px, formato JPG o WEBP.</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sección de Colores */}
-      <Card className="border shadow-sm">
-        <CardHeader className="bg-gray-50/50 border-b pb-4">
-          <CardTitle className='flex items-center gap-2 text-lg'>
-            <Palette className='w-5 h-5 text-pink-500' />
-            Esquema de Colores
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='pt-6 space-y-8'>
-          {/* Paletas Recomendadas */}
-          <div className='space-y-4'>
-            <Label className='text-sm font-semibold text-gray-700'>Paletas Recomendadas</Label>
-            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
-              {THEME_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() =>
-                    handleFieldChange('theme', {
-                      ...currentTheme,
-                      primaryColor: preset.primary,
-                      secondaryColor: preset.secondary,
-                      accentColor: preset.accent,
-                    })
-                  }
-                  className='flex flex-col items-start p-4 border rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-left group bg-white'
-                >
-                  <div className='flex items-center gap-1.5 mb-3 w-full'>
-                    <div className='flex-1 h-8 rounded-l-md border border-black/5' style={{ backgroundColor: preset.primary }} />
-                    <div className='flex-1 h-8 border-y border-black/5' style={{ backgroundColor: preset.secondary }} />
-                    <div className='flex-1 h-8 rounded-r-md border border-black/5' style={{ backgroundColor: preset.accent }} />
-                  </div>
-                  <span className='font-semibold text-sm text-gray-900 group-hover:text-blue-700 transition-colors'>
-                    {preset.name}
-                  </span>
-                  <span className='text-xs text-gray-500 mt-1 line-clamp-2'>
-                    {preset.description}
-                  </span>
-                </button>
-              ))}
+        {/* Colores */}
+        <Card className="border-gray-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className='flex items-center gap-2 text-base font-semibold'>
+              <Palette className='w-4 h-4 text-pink-500' />
+              Colores de la Tienda
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Elige una paleta recomendada o personaliza tus propios colores.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='pt-6 space-y-8'>
+            {/* Paletas Recomendadas */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {THEME_PRESETS.map((preset) => {
+                const isSelected = 
+                  themeConfig.primaryColor === preset.primary &&
+                  themeConfig.secondaryColor === preset.secondary &&
+                  themeConfig.accentColor === preset.accent;
+                
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        primaryColor: preset.primary,
+                        secondaryColor: preset.secondary,
+                        accentColor: preset.accent,
+                      })
+                    }
+                    className={cn(
+                      'flex flex-col items-start p-3 border rounded-xl transition-all text-left group bg-white relative overflow-hidden',
+                      isSelected ? 'border-indigo-600 ring-1 ring-indigo-600 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                    )}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 bg-indigo-600 rounded-full p-0.5">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                    <div className='flex items-center w-full h-8 rounded-lg overflow-hidden border border-black/5 mb-3'>
+                      <div className='flex-1 h-full' style={{ backgroundColor: preset.primary }} />
+                      <div className='flex-1 h-full' style={{ backgroundColor: preset.secondary }} />
+                      <div className='flex-1 h-full' style={{ backgroundColor: preset.accent }} />
+                    </div>
+                    <span className='font-semibold text-xs text-gray-900'>
+                      {preset.name}
+                    </span>
+                    <span className='text-[10px] text-gray-500 mt-0.5 line-clamp-1'>
+                      {preset.description}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
 
-          <div className="border-t border-gray-100" />
+            <div className="border-t border-gray-100" />
 
-          {/* Ajustes Manuales */}
-          <div className='space-y-4'>
-            <Label className='text-sm font-semibold text-gray-700'>Ajustes Manuales</Label>
-            <div className='grid gap-6 sm:grid-cols-3'>
+            {/* Ajustes Manuales */}
+            <div className='grid gap-4 sm:grid-cols-3'>
               {/* Color Primario */}
-              <div className='space-y-3 p-4 border rounded-xl bg-gray-50/50'>
-                <Label className='text-xs font-semibold text-gray-600 uppercase tracking-wider'>Principal</Label>
-                <div className='flex items-center gap-3'>
-                  <div className="relative w-12 h-12 rounded-lg border shadow-sm overflow-hidden flex-shrink-0">
+              <div className='space-y-2'>
+                <Label className='text-xs font-semibold text-gray-600'>Color Principal</Label>
+                <div className='flex items-center gap-2 p-1.5 border border-gray-200 rounded-lg bg-white shadow-sm'>
+                  <div className="relative w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-black/10">
                     <Input
                       type='color'
                       value={themeConfig.primaryColor}
@@ -592,32 +596,28 @@ export function ThemeSection({
                           primaryColor: e.target.value,
                         })
                       }
-                      className='absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-0'
+                      className='absolute -inset-2 w-12 h-12 cursor-pointer p-0 border-0'
                     />
                   </div>
-                  <div className='flex-1'>
-                    <Input
-                      type='text'
-                      value={themeConfig.primaryColor}
-                      onChange={(e) =>
-                        handleFieldChange('theme', {
-                          ...currentTheme,
-                          primaryColor: e.target.value,
-                        })
-                      }
-                      className='font-mono text-sm uppercase h-9'
-                      placeholder='#000000'
-                    />
-                    <p className='text-[11px] text-gray-500 mt-1'>Botones y marca</p>
-                  </div>
+                  <Input
+                    type='text'
+                    value={themeConfig.primaryColor}
+                    onChange={(e) =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        primaryColor: e.target.value,
+                      })
+                    }
+                    className='font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-0 p-0 uppercase bg-transparent'
+                  />
                 </div>
               </div>
 
               {/* Color Secundario */}
-              <div className='space-y-3 p-4 border rounded-xl bg-gray-50/50'>
-                <Label className='text-xs font-semibold text-gray-600 uppercase tracking-wider'>Fondo / Secundario</Label>
-                <div className='flex items-center gap-3'>
-                  <div className="relative w-12 h-12 rounded-lg border shadow-sm overflow-hidden flex-shrink-0">
+              <div className='space-y-2'>
+                <Label className='text-xs font-semibold text-gray-600'>Fondo (Secundario)</Label>
+                <div className='flex items-center gap-2 p-1.5 border border-gray-200 rounded-lg bg-white shadow-sm'>
+                  <div className="relative w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-black/10">
                     <Input
                       type='color'
                       value={themeConfig.secondaryColor}
@@ -627,32 +627,28 @@ export function ThemeSection({
                           secondaryColor: e.target.value,
                         })
                       }
-                      className='absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-0'
+                      className='absolute -inset-2 w-12 h-12 cursor-pointer p-0 border-0'
                     />
                   </div>
-                  <div className='flex-1'>
-                    <Input
-                      type='text'
-                      value={themeConfig.secondaryColor}
-                      onChange={(e) =>
-                        handleFieldChange('theme', {
-                          ...currentTheme,
-                          secondaryColor: e.target.value,
-                        })
-                      }
-                      className='font-mono text-sm uppercase h-9'
-                      placeholder='#000000'
-                    />
-                    <p className='text-[11px] text-gray-500 mt-1'>Fondos suaves</p>
-                  </div>
+                  <Input
+                    type='text'
+                    value={themeConfig.secondaryColor}
+                    onChange={(e) =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        secondaryColor: e.target.value,
+                      })
+                    }
+                    className='font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-0 p-0 uppercase bg-transparent'
+                  />
                 </div>
               </div>
 
               {/* Color de Acento */}
-              <div className='space-y-3 p-4 border rounded-xl bg-gray-50/50'>
-                <Label className='text-xs font-semibold text-gray-600 uppercase tracking-wider'>Acento / Texto</Label>
-                <div className='flex items-center gap-3'>
-                  <div className="relative w-12 h-12 rounded-lg border shadow-sm overflow-hidden flex-shrink-0">
+              <div className='space-y-2'>
+                <Label className='text-xs font-semibold text-gray-600'>Texto (Acento)</Label>
+                <div className='flex items-center gap-2 p-1.5 border border-gray-200 rounded-lg bg-white shadow-sm'>
+                  <div className="relative w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-black/10">
                     <Input
                       type='color'
                       value={themeConfig.accentColor}
@@ -662,43 +658,37 @@ export function ThemeSection({
                           accentColor: e.target.value,
                         })
                       }
-                      className='absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-0'
+                      className='absolute -inset-2 w-12 h-12 cursor-pointer p-0 border-0'
                     />
                   </div>
-                  <div className='flex-1'>
-                    <Input
-                      type='text'
-                      value={themeConfig.accentColor}
-                      onChange={(e) =>
-                        handleFieldChange('theme', {
-                          ...currentTheme,
-                          accentColor: e.target.value,
-                        })
-                      }
-                      className='font-mono text-sm uppercase h-9'
-                      placeholder='#000000'
-                    />
-                    <p className='text-[11px] text-gray-500 mt-1'>Textos y detalles</p>
-                  </div>
+                  <Input
+                    type='text'
+                    value={themeConfig.accentColor}
+                    onChange={(e) =>
+                      handleFieldChange('theme', {
+                        ...currentTheme,
+                        accentColor: e.target.value,
+                      })
+                    }
+                    className='font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-0 p-0 uppercase bg-transparent'
+                  />
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Sección de Tipografía y Botones */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="border shadow-sm">
-          <CardHeader className="bg-gray-50/50 border-b pb-4">
-            <CardTitle className='flex items-center gap-2 text-lg'>
-              <Type className='w-5 h-5 text-indigo-500' />
-              Tipografía
+        {/* Tipografía y Botones */}
+        <Card className="border-gray-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className='flex items-center gap-2 text-base font-semibold'>
+              <Type className='w-4 h-4 text-violet-500' />
+              Tipografía y Botones
             </CardTitle>
           </CardHeader>
-          <CardContent className='pt-6 space-y-6'>
+          <CardContent className='pt-6 grid grid-cols-1 sm:grid-cols-2 gap-8'>
             <div className='space-y-3'>
-              <Label className='text-sm font-semibold text-gray-700'>Fuente Principal</Label>
+              <Label className='text-sm font-semibold text-gray-700'>Fuente de la Tienda</Label>
               <Select
                 value={themeConfig.fontFamily}
                 onValueChange={(value) =>
@@ -708,7 +698,7 @@ export function ThemeSection({
                   })
                 }
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue placeholder='Selecciona una fuente' />
                 </SelectTrigger>
                 <SelectContent>
@@ -721,9 +711,9 @@ export function ThemeSection({
               </Select>
             </div>
 
-            <div className='space-y-3 pt-2'>
-              <Label className='text-sm font-semibold text-gray-700'>Estilo de Botones</Label>
-              <div className='grid grid-cols-3 gap-3'>
+            <div className='space-y-3'>
+              <Label className='text-sm font-semibold text-gray-700'>Forma de Botones</Label>
+              <div className='grid grid-cols-3 gap-2'>
                 {BUTTON_STYLES.map((style) => {
                   const isSelected = themeConfig.buttonStyle === style.value;
                   return (
@@ -738,26 +728,23 @@ export function ThemeSection({
                             | 'pill',
                         })
                       }
-                      className={`py-4 px-2 border-2 rounded-xl text-center transition-all duration-200 flex flex-col items-center gap-3 group ${isSelected ? 'shadow-sm bg-blue-50/30' : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      style={{
-                        borderColor: isSelected ? themeConfig.primaryColor : undefined,
-                      }}
+                      className={cn(
+                        "py-3 px-1 border rounded-lg text-center transition-all flex flex-col items-center gap-2",
+                        isSelected ? "border-indigo-600 bg-indigo-50/30 shadow-sm" : "border-gray-200 hover:border-gray-300 bg-white"
+                      )}
                     >
                       <div
-                        className={`w-full max-w-[80px] h-8 text-white text-xs font-medium flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 ${style.value === 'rounded'
-                            ? 'rounded-md'
-                            : style.value === 'square'
-                              ? 'rounded-none'
-                              : 'rounded-full'
-                          }`}
-                        style={{ backgroundColor: isSelected ? themeConfig.primaryColor : '#9CA3AF' }}
-                      >
-                        Botón
-                      </div>
-                      <span className={`text-xs font-medium ${isSelected ? '' : 'text-gray-500'}`}
-                        style={{ color: isSelected ? themeConfig.primaryColor : undefined }}
-                      >
+                        className={cn(
+                          "w-10 h-4 shadow-sm",
+                          style.value === 'rounded' ? 'rounded' : 
+                          style.value === 'square' ? 'rounded-none' : 'rounded-full'
+                        )}
+                        style={{ backgroundColor: isSelected ? themeConfig.primaryColor : '#D1D5DB' }}
+                      />
+                      <span className={cn(
+                        "text-[10px] font-medium",
+                        isSelected ? "text-indigo-700" : "text-gray-500"
+                      )}>
                         {style.name}
                       </span>
                     </button>
@@ -767,73 +754,112 @@ export function ThemeSection({
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        <Card className="border shadow-sm">
-          <CardHeader className="bg-gray-50/50 border-b pb-4">
-            <CardTitle className='flex items-center gap-2 text-lg'>
-              <ImageIcon className='w-5 h-5 text-emerald-500' />
-              Vista Previa
-            </CardTitle>
-          </CardHeader>
-          <CardContent className='pt-6'>
-            <div
-              className='relative w-full h-[320px] rounded-xl border border-black/10 shadow-inner overflow-hidden flex flex-col transition-colors duration-500'
-              style={{
-                fontFamily: themeConfig.fontFamily,
-                backgroundColor: themeConfig.secondaryColor
-              }}
-            >
-              {/* Fake header */}
-              <div className="h-14 bg-white/60 backdrop-blur-md border-b border-black/5 flex items-center px-4 justify-between shrink-0">
-                 <div className="flex items-center gap-2">
-                   <div className="w-8 h-8 rounded-full shadow-sm" style={{ backgroundColor: themeConfig.primaryColor }} />
-                   <div className="h-3 w-20 rounded bg-black/10" />
-                 </div>
-                 <div className="flex gap-3">
-                   <div className="h-3 w-10 rounded bg-black/10" />
-                   <div className="h-3 w-10 rounded bg-black/10" />
-                 </div>
+      {/* Vista Previa en Vivo (Sticky Right Column) */}
+      <div className="w-full xl:w-[420px] 2xl:w-[460px] flex-shrink-0">
+        <div className="sticky top-6">
+          <Card className="border-gray-200 shadow-lg overflow-hidden">
+            <CardHeader className="bg-indigo-600 text-white p-3 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
               </div>
+              <span className="text-xs font-mono text-gray-400">Live Preview</span>
+            </CardHeader>
+            <CardContent className='p-0'>
+              <div
+                className='relative w-full h-[500px] flex flex-col transition-colors duration-500 overflow-hidden'
+                style={{
+                  fontFamily: themeConfig.fontFamily,
+                  backgroundColor: themeConfig.secondaryColor
+                }}
+              >
+                {/* Banner Preview */}
+                {themeConfig.bannerUrl ? (
+                  <div className="h-32 w-full relative">
+                    <img src={themeConfig.bannerUrl} className="w-full h-full object-cover" alt="banner preview" />
+                    <div className="absolute inset-0 bg-black/20" />
+                  </div>
+                ) : (
+                  <div className="h-32 w-full relative opacity-50" style={{ backgroundColor: themeConfig.primaryColor }} />
+                )}
 
-              {/* Hero content */}
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 z-10">
-                <h1 className='text-3xl font-extrabold tracking-tight mb-3' style={{ color: themeConfig.primaryColor }}>
-                  Mi Tienda
-                </h1>
-                <p className='text-sm mb-6 max-w-[250px] mx-auto opacity-90' style={{ color: themeConfig.accentColor }}>
-                  Descubre los mejores productos con calidad garantizada.
-                </p>
-                <div className='flex flex-col sm:flex-row justify-center gap-3 w-full max-w-[280px]'>
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col px-6 -mt-10 relative z-10">
+                  {/* Logo Preview */}
+                  <div className="w-20 h-20 rounded-full border-4 border-white shadow-md bg-white overflow-hidden flex-shrink-0 mb-4 mx-auto flex items-center justify-center">
+                    {themeConfig.logoUrl ? (
+                      <img src={themeConfig.logoUrl} className="w-full h-full object-contain" alt="logo preview" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-gray-300" />
+                    )}
+                  </div>
+
+                  <div className="text-center space-y-2 mb-6">
+                    <h2 className='text-2xl font-bold tracking-tight' style={{ color: themeConfig.accentColor || '#111827' }}>
+                      Mi Tienda Demo
+                    </h2>
+                    <p className='text-sm opacity-80' style={{ color: themeConfig.accentColor || '#4B5563' }}>
+                      La mejor experiencia de compra con productos de calidad.
+                    </p>
+                  </div>
+
+                  {/* Mock Products Grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {[1, 2].map(i => (
+                      <div key={i} className="bg-white p-3 rounded-xl shadow-sm border border-black/5 flex flex-col gap-2">
+                        <div className="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+                           <ImageIcon className="w-5 h-5 text-gray-300" />
+                        </div>
+                        <div className="h-3 w-3/4 rounded bg-gray-200" />
+                        <div className="h-4 w-1/2 rounded mt-1" style={{ backgroundColor: themeConfig.primaryColor, opacity: 0.2 }} />
+                        <button
+                          className={cn(
+                            "w-full mt-2 py-1.5 text-[10px] text-white font-medium shadow-sm transition-all",
+                            themeConfig.buttonStyle === 'rounded' ? 'rounded-md' :
+                            themeConfig.buttonStyle === 'square' ? 'rounded-none' : 'rounded-full'
+                          )}
+                          style={{ backgroundColor: themeConfig.primaryColor }}
+                        >
+                          Agregar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
                   <button
-                    className={`px-5 py-2.5 text-white text-sm font-medium shadow-md transition-all ${themeConfig.buttonStyle === 'rounded'
-                      ? 'rounded-lg'
-                      : themeConfig.buttonStyle === 'square'
-                        ? 'rounded-none'
-                        : 'rounded-full'
-                      }`}
+                    className={cn(
+                      "w-full py-3 text-sm text-white font-medium shadow-md transition-all mt-auto mb-6",
+                      themeConfig.buttonStyle === 'rounded' ? 'rounded-lg' :
+                      themeConfig.buttonStyle === 'square' ? 'rounded-none' : 'rounded-full'
+                    )}
                     style={{ backgroundColor: themeConfig.primaryColor }}
                   >
-                    Ver Catálogo
-                  </button>
-                  <button
-                    className={`px-5 py-2.5 border-2 text-sm font-medium bg-white/30 backdrop-blur-sm transition-all ${themeConfig.buttonStyle === 'rounded'
-                      ? 'rounded-lg'
-                      : themeConfig.buttonStyle === 'square'
-                        ? 'rounded-none'
-                        : 'rounded-full'
-                      }`}
-                    style={{
-                      borderColor: themeConfig.primaryColor,
-                      color: themeConfig.primaryColor
-                    }}
-                  >
-                    Contactar
+                    Ver todo el catálogo
                   </button>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+    </div>
+      <div className="flex justify-end mt-8">
+        <Button
+          onClick={handleSectionSave}
+          disabled={isSectionSaving || !formState?.isDirty}
+          className='flex items-center justify-center gap-2 min-w-[170px] shadow-sm bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto'
+        >
+          {isSectionSaving ? (
+            <Loader2 className='w-4 h-4 animate-spin' />
+          ) : (
+            <Save className='w-4 h-4' />
+          )}
+          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+        </Button>
       </div>
     </div>
   );
