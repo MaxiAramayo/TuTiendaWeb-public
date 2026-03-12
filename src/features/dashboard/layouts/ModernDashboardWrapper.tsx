@@ -76,13 +76,9 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
 
   // Redireccionar si no hay usuario después de la carga
   useEffect(() => {
-    if (isReady && !user) {
-      // Agregar un pequeño delay para evitar problemas de hidratación
-      const timer = setTimeout(() => {
-        router.replace("/sign-in"); // usar replace en lugar de push
-      }, 150);
-
-      return () => clearTimeout(timer);
+        if (isReady && !user) {
+      console.log('[ModernDashboardWrapper] No user after auth ready, redirecting to /sign-in');
+      router.replace("/sign-in");
     }
   }, [isReady, user, router]);
 
@@ -90,7 +86,10 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Spinner />
+        <div className="flex flex-col items-center gap-3">
+          <Spinner />
+          <p className="text-sm text-gray-500">Cargando tu panel...</p>
+        </div>
       </div>
     );
   }
@@ -98,7 +97,14 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
   // Si no hay usuario después de la carga, no renderizar nada
   // (la redirección se encargará)
   if (!isReady || !user) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner />
+          <p className="text-sm text-gray-500">Redirigiendo...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

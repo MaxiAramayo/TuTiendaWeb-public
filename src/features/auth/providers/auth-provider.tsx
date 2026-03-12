@@ -103,7 +103,8 @@ export function AuthSyncProvider({ children }: { children: React.ReactNode }) {
 
                     // 3. Refrescar router solo si estamos en rutas protegidas
                     const isProtectedRoute = pathname.startsWith('/dashboard') || 
-                                           pathname.startsWith('/complete-profile');
+                                           pathname.startsWith('/complete-profile') ||
+                                           pathname.startsWith('/onboarding');
                     
                     if (isProtectedRoute) {
                         router.refresh();

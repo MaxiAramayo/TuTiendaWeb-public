@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Clock,
@@ -123,6 +123,40 @@ const COMMON_HOURS = [
   '20:00', '21:00', '22:00', '23:00', '23:59'
 ];
 
+const DEFAULT_WEEKLY_SCHEDULE: WeeklySchedule = {
+  monday: { closed: true, periods: [] },
+  tuesday: { closed: true, periods: [] },
+  wednesday: { closed: true, periods: [] },
+  thursday: { closed: true, periods: [] },
+  friday: { closed: true, periods: [] },
+  saturday: { closed: true, periods: [] },
+  sunday: { closed: true, periods: [] }
+};
+
+function normalizeWeeklySchedule(input?: WeeklySchedule): WeeklySchedule {
+  const base: WeeklySchedule = {
+    ...DEFAULT_WEEKLY_SCHEDULE,
+    ...(input || {})
+  };
+
+  const normalized = { ...base } as WeeklySchedule;
+
+  (Object.keys(DEFAULT_WEEKLY_SCHEDULE) as Array<keyof WeeklySchedule>).forEach((day) => {
+    const dayValue = base[day] || { closed: true, periods: [] };
+    const periods = Array.isArray(dayValue.periods)
+      ? dayValue.periods.filter((p) => p?.open && p?.close)
+      : [];
+
+    normalized[day] = {
+      ...dayValue,
+      closed: typeof dayValue.closed === 'boolean' ? dayValue.closed : periods.length === 0,
+      periods,
+    };
+  });
+
+  return normalized;
+}
+
 export function ScheduleSection({
   formData,
   formState,
@@ -137,21 +171,13 @@ export function ScheduleSection({
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [showPresets, setShowPresets] = useState(false);
 
-  const [schedule, setSchedule] = useState(() => {
-    const defaultSchedule: WeeklySchedule = {
-      monday: { closed: true, periods: [] },
-      tuesday: { closed: true, periods: [] },
-      wednesday: { closed: true, periods: [] },
-      thursday: { closed: true, periods: [] },
-      friday: { closed: true, periods: [] },
-      saturday: { closed: true, periods: [] },
-      sunday: { closed: true, periods: [] }
-    };
-    if (formData.schedule) {
-      return { ...defaultSchedule, ...formData.schedule };
-    }
-    return defaultSchedule;
-  });
+  const [schedule, setSchedule] = useState<WeeklySchedule>(() =>
+    normalizeWeeklySchedule(formData.schedule)
+  );
+
+  useEffect(() => {
+    setSchedule(normalizeWeeklySchedule(formData.schedule));
+  }, [formData.schedule]);
 
   const handleSectionSave = useCallback(async () => {
     if (!user?.uid || !profile?.id) {
@@ -258,18 +284,6 @@ export function ScheduleSection({
           <h3 className="text-xl font-bold text-gray-900">Horarios de Atención</h3>
           <p className="text-sm text-gray-500 mt-1">Configura cuándo está abierta tu tienda.</p>
         </div>
-        <Button
-          onClick={handleSectionSave}
-          disabled={isSectionSaving || !formState.isDirty}
-          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]"
-        >
-          {isSectionSaving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
-        </Button>
       </div>
 
       {/* Toolbar / Presets */}
@@ -456,6 +470,21 @@ export function ScheduleSection({
           <p className="text-sm text-red-800">{formState.errors.schedule}</p>
         </div>
       )}
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSectionSave}
+          disabled={isSectionSaving || !formState.isDirty}
+          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
+        >
+          {isSectionSaving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+        </Button>
+      </div>
     </div>
   );
 }

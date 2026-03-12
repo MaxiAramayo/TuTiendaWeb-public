@@ -197,20 +197,10 @@ export function BasicInfoSection({
           <h3 className="text-xl font-bold text-gray-900">Información Básica</h3>
           <p className="text-sm text-gray-500 mt-1">Configura los datos principales de tu tienda</p>
         </div>
-        <Button
-          onClick={handleSectionSave}
-          disabled={isBasicSaving || !formState.isDirty}
-          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]"
-        >
-          {isBasicSaving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          <span>{isBasicSaving ? 'Guardando...' : 'Guardar cambios'}</span>
-        </Button>
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-8">
+        <div className="xl:col-span-8 space-y-6">
       <Card className="border shadow-sm">
         <CardHeader className="bg-gray-50/50 border-b pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -224,11 +214,10 @@ export function BasicInfoSection({
             <Label htmlFor="name" className="text-sm font-semibold text-gray-700">Nombre de la tienda *</Label>
             <Input
               id="name"
-              value={formData.name}
+              value={formData.name || ''}
               onChange={(e) => handleStoreNameChange(e.target.value)}
               placeholder="Ej: Mi Tienda Online"
               className={cn(
-                'max-w-xl',
                 formState.errors.name && 'border-red-500 focus-visible:ring-red-500'
               )}
             />
@@ -246,9 +235,9 @@ export function BasicInfoSection({
           {/* Tipo de tienda */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-gray-700">Tipo de tienda *</Label>
-            <div className="max-w-xl">
+            <div>
               <Select
-                value={formData.storeType}
+                value={formData.storeType || 'other'}
                 onValueChange={(value) => updateField('storeType', value)}
               >
                 <SelectTrigger className={cn(formState.errors.storeType && 'border-red-500')}>
@@ -276,23 +265,23 @@ export function BasicInfoSection({
 
           {/* Descripción */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between max-w-xl">
+            <div className="flex items-center justify-between">
               <Label htmlFor="description" className="text-sm font-semibold text-gray-700">Descripción</Label>
               <span className={cn(
                 'text-xs',
-                formData.description.length < 50 ? 'text-amber-600' : 'text-green-600'
+                (formData.description || '').length < 50 ? 'text-amber-600' : 'text-green-600'
               )}>
-                {formData.description.length}/500 caracteres
+                {(formData.description || '').length}/500 caracteres
               </span>
             </div>
             <Textarea
               id="description"
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) => updateField('description', e.target.value)}
               placeholder="Describe tu tienda, productos o servicios. Una buena descripción ayuda a los clientes a entender qué ofreces..."
               rows={4}
               className={cn(
-                'max-w-xl resize-y',
+                'resize-y',
                 formState.errors.description && 'border-red-500 focus-visible:ring-red-500'
               )}
             />
@@ -317,14 +306,14 @@ export function BasicInfoSection({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="siteName" className="text-sm font-semibold text-gray-700">URL personalizada *</Label>
-              <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex flex-1 rounded-md shadow-sm">
                   <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-sm">
                     tutiendaweb.com.ar/
                   </span>
                   <Input
                     id="siteName"
-                    value={formData.siteName}
+                    value={formData.siteName || ''}
                     onChange={(e) => handleSlugChange(e.target.value)}
                     placeholder="mi-tienda"
                     className={cn(
@@ -348,7 +337,7 @@ export function BasicInfoSection({
               </div>
 
               {/* Validation Status */}
-              <div className="flex items-center gap-2 max-w-xl">
+              <div className="flex items-center gap-2">
                 {slugValidation.isValidating && (
                   <div className="flex items-center gap-1.5 text-blue-600">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -375,7 +364,7 @@ export function BasicInfoSection({
                   <span>{formState.errors.siteName}</span>
                 </p>
               )}
-              <p className="text-xs text-gray-500 max-w-xl">
+              <p className="text-xs text-gray-500">
                 Este enlace es único y no podrá ser utilizado por otra tienda. Solo se permiten minúsculas, números y guiones medios.
               </p>
             </div>
@@ -385,7 +374,7 @@ export function BasicInfoSection({
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 max-w-xl"
+                className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4"
               >
                 <h4 className="text-xs font-semibold text-indigo-900 uppercase tracking-wider mb-2">
                   Vista Previa del Enlace
@@ -404,6 +393,53 @@ export function BasicInfoSection({
           </div>
         </CardContent>
       </Card>
+        </div>
+
+        <div className="xl:col-span-4">
+          <div className="sticky top-6 space-y-4">
+            <Card className="border shadow-sm bg-blue-50/40">
+              <CardHeader className="pb-3 border-b border-blue-100">
+                <CardTitle className="text-sm font-semibold text-blue-900">Estado de Configuración</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Nombre</span>
+                  <span className={cn(formData.name ? 'text-green-600' : 'text-amber-600')}>
+                    {formData.name ? 'Completo' : 'Pendiente'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">URL</span>
+                  <span className={cn(formData.siteName ? 'text-green-600' : 'text-amber-600')}>
+                    {formData.siteName ? 'Completo' : 'Pendiente'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Descripción</span>
+                  <span className={cn(formData.description ? 'text-green-600' : 'text-amber-600')}>
+                    {formData.description ? 'Completo' : 'Opcional'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSectionSave}
+          disabled={isBasicSaving || !formState.isDirty}
+          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
+        >
+          {isBasicSaving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{isBasicSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+        </Button>
+      </div>
     </div>
   );
 }

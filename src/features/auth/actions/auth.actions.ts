@@ -20,6 +20,7 @@ import { adminAuth } from '@/lib/firebase/admin';
 import { createUserInFirestore } from '@/features/user/services/user.service';
 import { createStore } from '@/features/store/services/store.service';
 import { setUserClaims, revokeUserTokens } from '@/features/auth/services/server/auth.service';
+import { getServerSession } from '@/lib/auth/server-session';
 import { loginSchema } from '@/features/auth/schemas/login.schema';
 import { registerServerSchema } from '@/features/auth/schemas/register.schema';
 import { resetPasswordSchema } from '@/features/auth/schemas/reset-password.schema';
@@ -569,9 +570,17 @@ export async function checkSlugAvailabilityAction(
             .collection('stores')
             .where('basicInfo.slug', '==', slug)
             .limit(1);
-        
+
         const querySnapshot = await storesQuery.get();
-        const isAvailable = querySnapshot.empty;
+
+        // Si el slug está en uso, verificar si pertenece a la tienda del usuario actual
+        let isAvailable = querySnapshot.empty;
+        if (!isAvailable) {
+            const session = await getServerSession();
+            if (session?.storeId && querySnapshot.docs[0].id === session.storeId) {
+                isAvailable = true;
+            }
+        }
 
         console.log(`[CheckSlugAvailabilityAction] Slug "${slug}" available: ${isAvailable}`);
 

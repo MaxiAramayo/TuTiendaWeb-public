@@ -21,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { registerAction, completeRegistrationAction } from '@/features/auth/actions/auth.actions';
 import { hybridRegister } from '@/features/auth/lib/hybrid-login';
+import { refreshCurrentToken } from '@/features/auth/lib/hybrid-login';
+import { syncTokenAction } from '@/features/auth/actions/auth.actions';
 import { useSlugValidation } from '@/features/auth/hooks/use-slug-validation';
 import { UserData, StoreData } from './MultiStepRegister';
 import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
@@ -157,6 +159,11 @@ export const StoreSetupStep: React.FC<StoreSetupStepProps> = ({
 
         if (!completeResult.success) {
           throw new Error(completeResult.errors?._form?.[0] || 'Error al configurar tienda');
+        }
+
+        const refreshedToken = await refreshCurrentToken();
+        if (refreshedToken) {
+          await syncTokenAction(refreshedToken);
         }
 
         onComplete();
