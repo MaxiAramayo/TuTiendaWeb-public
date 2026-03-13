@@ -59,19 +59,54 @@ interface StoreThemeProviderProps {
  * );
  * ```
  */
-export function StoreThemeProvider({ 
-  children, 
-  themeData 
+// Mapa de fuentes a especificaciones de Google Fonts
+const GOOGLE_FONTS_MAP: Record<string, string> = {
+  'inter': 'Inter:wght@300;400;500;600;700',
+  'roboto': 'Roboto:wght@300;400;500;700',
+  'open sans': 'Open+Sans:wght@300;400;500;600;700',
+  'lato': 'Lato:wght@300;400;700',
+  'montserrat': 'Montserrat:wght@300;400;500;600;700',
+  'poppins': 'Poppins:wght@300;400;500;600;700',
+  'playfair display': 'Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400',
+  'merriweather': 'Merriweather:ital,wght@0,300;0,400;0,700;1,300',
+};
+
+function loadGoogleFont(fontFamily: string) {
+  if (!fontFamily) return;
+  // Extrae el primer nombre de fuente (ej: '"Playfair Display", serif' → 'playfair display')
+  const match = fontFamily.match(/^["']?([^"',]+)["']?/);
+  const fontName = match ? match[1].trim().toLowerCase() : '';
+  const googleFontSpec = GOOGLE_FONTS_MAP[fontName];
+  if (!googleFontSpec) return;
+
+  const linkId = `gfont-${fontName.replace(/\s+/g, '-')}`;
+  if (document.getElementById(linkId)) return; // ya cargada
+
+  const link = document.createElement('link');
+  link.id = linkId;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${googleFontSpec}&display=swap`;
+  document.head.appendChild(link);
+}
+
+export function StoreThemeProvider({
+  children,
+  themeData
 }: StoreThemeProviderProps) {
   const theme = useMemo(() => generateTheme(themeData), [themeData]);
 
-  // Inyectar CSS variables en el documento
+  // Inyectar CSS variables en el documento y cargar Google Font si es necesario
   useEffect(() => {
     const root = document.documentElement;
-    
+
     Object.entries(theme.cssVariables).forEach(([key, value]) => {
       root.style.setProperty(key, value);
     });
+
+    // Cargar la fuente de Google Fonts dinámicamente
+    if (theme.fontFamily) {
+      loadGoogleFont(theme.fontFamily);
+    }
 
     // Cleanup al desmontar
     return () => {
@@ -79,7 +114,7 @@ export function StoreThemeProvider({
         root.style.removeProperty(key);
       });
     };
-  }, [theme.cssVariables]);
+  }, [theme.cssVariables, theme.fontFamily]);
 
   const contextValue = useMemo(() => ({
     theme,

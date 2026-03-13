@@ -231,9 +231,6 @@ Nota: existe inconsistencia en el sufijo de types (`store.types.ts` vs `store.ty
 
 Roles definidos (custom claims de Firebase Auth)
 - `owner`: dueno de la tienda. Tiene acceso completo al dashboard. Se asigna en `completeRegistrationAction()`.
-- `admin`: definido en el sistema pero sin reglas Firestore activas todavia.
-- `employee`: definido en el sistema pero sin reglas Firestore activas todavia.
-- `user`: valor transitorio en Firestore, asignado al registrarse antes de crear la tienda. No es un rol operativo.
 
 Verificacion en servidor
 - Usar `getServerSession()` de `src/lib/auth/server-session.ts` en toda Server Action y Server Component que requiera permisos.

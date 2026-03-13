@@ -14,7 +14,6 @@ import { Search, Filter, SlidersHorizontal, X, ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import {
   Select,
@@ -59,12 +58,10 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
     selectedCategory,
     priceRange,
     sortBy,
-    onlyAvailable,
     setSearchTerm,
     setCategory,
     setPriceRange,
     setSortBy,
-    toggleAvailability,
     clearFilters,
     resetPriceRange
   } = useFiltersStore();
@@ -72,7 +69,9 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
   // Filtros activos
   const { hasActiveFilters, activeFiltersCount } = useActiveFilters(maxPrice);
 
-  // Extraer categorías únicas y rango de precios de los productos
+  // Extraer categorías únicas y rango de precios de los productos.
+  // Solo depende de `products` — leer priceRangeModified directo del store
+  // (sin ponerlo en deps) para evitar re-runs innecesarios.
   useEffect(() => {
     if (!products || !products.length) return;
 
@@ -82,11 +81,12 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
     const [, productMaxPrice] = getPriceRange(products);
     setMaxPrice(productMaxPrice);
 
-    // Resetear rango de precios si es necesario
-    if (priceRange[1] > productMaxPrice) {
+    // Si el usuario no tocó el slider, sincronizar el max con los productos reales
+    const { priceRangeModified } = useFiltersStore.getState();
+    if (!priceRangeModified) {
       resetPriceRange(productMaxPrice);
     }
-  }, [products, priceRange, resetPriceRange]);
+  }, [products, resetPriceRange]);
 
   // Manejar cambio de rango de precios
   const handlePriceRangeChange = (newRange: number[]) => {
@@ -180,17 +180,6 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Switch de disponibilidad */}
-          <div className="flex items-center space-x-2 px-2">
-            <Switch
-              checked={onlyAvailable}
-              onCheckedChange={toggleAvailability}
-              className="data-[state=checked]:bg-[var(--store-primary)]"
-            />
-            <Label htmlFor="availability-filter" className="text-sm font-medium text-gray-700">
-              Disponibles
-            </Label>
-          </div>
         </div>
       </div>
 
@@ -317,18 +306,6 @@ const AdvancedProductFilters = ({ products }: AdvancedProductFiltersProps) => {
                   <span>$0</span>
                   <span>${maxPrice}</span>
                 </div>
-              </div>
-
-              {/* Switch de disponibilidad */}
-              <div className="flex items-center justify-between">
-                <Label htmlFor="mobile-availability" className="text-sm font-medium">
-                  Solo productos disponibles
-                </Label>
-                <Switch
-                  checked={onlyAvailable}
-                  onCheckedChange={toggleAvailability}
-                  className="data-[state=checked]:bg-[var(--store-primary)]"
-                />
               </div>
 
               {/* Botones de acción */}

@@ -1,15 +1,16 @@
 /**
  * Sección de métodos de pago y entrega
- * 
+ *
  * Implementa CU-STORE-08: Configurar Métodos de Pago y Entrega
- * Permite habilitar y configurar métodos de pago y entrega
- * 
+ * Permite habilitar y configurar métodos de pago y entrega.
+ * Regla: siempre debe haber al menos un método activo en cada grupo.
+ *
  * @module features/dashboard/modules/store-settings/components/sections
  */
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
 import { PaymentMethod, DeliveryMethod } from '@/shared/types/firebase.types';
@@ -20,29 +21,27 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { 
-  CreditCard, 
-  Truck, 
-  DollarSign, 
-  MapPin, 
-  Plus, 
-  Trash2, 
-  Edit,
+import {
+  CreditCard,
+  Truck,
+  DollarSign,
+  MapPin,
   AlertTriangle,
   CheckCircle2,
   Save,
   Loader2,
-  Info
+  ArrowRightLeft,
+  ShoppingBag,
+  Lock,
 } from 'lucide-react';
 
-/**
- * Props del componente
- */
+// ============================================================================
+// TYPES
+// ============================================================================
+
 interface PaymentDeliverySectionProps {
   formData: ProfileFormData;
   formState: FormState;
@@ -52,66 +51,254 @@ interface PaymentDeliverySectionProps {
   isSaving?: boolean;
 }
 
-/**
- * Métodos de pago predefinidos
- */
-const PAYMENT_METHODS_CONFIG = {
+// ============================================================================
+// CONFIG
+// ============================================================================
+
+const PAYMENT_CONFIG = {
   efectivo: {
     id: 'efectivo',
     name: 'Efectivo',
+    description: 'Pago en efectivo al momento de la entrega',
     icon: DollarSign,
-    description: 'Pago en efectivo al recibir el pedido',
-    color: 'text-green-600',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200'
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    dot: 'bg-emerald-500',
   },
   transferencia: {
     id: 'transferencia',
-    name: 'Transferencia bancaria',
-    icon: CreditCard,
-    description: 'Transferencia a cuenta bancaria',
+    name: 'Transferencia',
+    description: 'Transferencia bancaria o CBU / alias',
+    icon: ArrowRightLeft,
     color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200'
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    dot: 'bg-blue-500',
   },
   mercadopago: {
     id: 'mercadopago',
     name: 'MercadoPago',
+    description: 'Pagos online — próximamente disponible',
     icon: CreditCard,
-    description: 'Pagos online con MercadoPago',
     color: 'text-cyan-600',
-    bgColor: 'bg-cyan-50',
-    borderColor: 'border-cyan-200'
-  }
-};
+    bg: 'bg-cyan-50',
+    border: 'border-cyan-200',
+    dot: 'bg-cyan-500',
+    comingSoon: true,
+  },
+} as const;
 
-/**
- * Métodos de entrega predefinidos
- */
-const DELIVERY_METHODS_CONFIG = {
+const DELIVERY_CONFIG = {
   retiro: {
     id: 'retiro',
     name: 'Retiro en local',
+    description: 'El cliente pasa a retirar el pedido',
     icon: MapPin,
-    description: 'El cliente retira en la tienda',
     color: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-200'
+    bg: 'bg-orange-50',
+    border: 'border-orange-200',
+    dot: 'bg-orange-500',
   },
   delivery: {
     id: 'delivery',
     name: 'Delivery',
-    icon: Truck,
     description: 'Entrega a domicilio',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200'
-  }
-};
+    icon: Truck,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
+    dot: 'bg-violet-500',
+  },
+} as const;
 
-/**
- * Componente de sección de métodos de pago y entrega
- */
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Garantiza que todos los métodos del config estén presentes en el array */
+function ensureAllPaymentMethods(existing: PaymentMethod[]): PaymentMethod[] {
+  return Object.values(PAYMENT_CONFIG).map((cfg) => {
+    const found = existing.find((m) => m.id === cfg.id);
+    return found ?? { id: cfg.id, name: cfg.name, enabled: cfg.id === 'efectivo' };
+  });
+}
+
+function ensureAllDeliveryMethods(existing: DeliveryMethod[]): DeliveryMethod[] {
+  return Object.values(DELIVERY_CONFIG).map((cfg) => {
+    const found = existing.find((m) => m.id === cfg.id);
+    return found ?? { id: cfg.id, name: cfg.name, enabled: cfg.id === 'retiro', price: 0 };
+  });
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+interface MethodCardProps {
+  enabled: boolean;
+  isLastActive: boolean;
+  onToggle: (val: boolean) => void;
+  icon: React.ElementType;
+  name: string;
+  description: string;
+  color: string;
+  bg: string;
+  border: string;
+  dot: string;
+  comingSoon?: boolean;
+  extra?: React.ReactNode;
+}
+
+function MethodCard({
+  enabled,
+  isLastActive,
+  onToggle,
+  icon: Icon,
+  name,
+  description,
+  color,
+  bg,
+  border,
+  dot,
+  comingSoon,
+  extra,
+}: MethodCardProps) {
+  const isDisabledToggle = enabled && isLastActive;
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border p-4 transition-all duration-200',
+        enabled && !comingSoon ? `${border} ${bg}` : 'border-gray-200 bg-white',
+        comingSoon && 'opacity-60'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        {/* Dot indicator */}
+        <div className="mt-0.5 flex-shrink-0">
+          <div
+            className={cn(
+              'w-2 h-2 rounded-full mt-1.5 transition-all',
+              enabled && !comingSoon ? dot : 'bg-gray-300'
+            )}
+          />
+        </div>
+
+        {/* Icon */}
+        <div
+          className={cn(
+            'p-2 rounded-lg flex-shrink-0',
+            enabled && !comingSoon ? bg : 'bg-gray-100'
+          )}
+        >
+          <Icon
+            className={cn(
+              'w-4 h-4',
+              enabled && !comingSoon ? color : 'text-gray-400'
+            )}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={cn(
+                'font-medium text-sm',
+                enabled && !comingSoon ? 'text-gray-900' : 'text-gray-500'
+              )}
+            >
+              {name}
+            </span>
+            {comingSoon && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                Próximamente
+              </Badge>
+            )}
+            {isDisabledToggle && (
+              <span className="flex items-center gap-1 text-[10px] text-amber-600 font-medium">
+                <Lock className="w-2.5 h-2.5" />
+                mínimo requerido
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+
+          {/* Extra content (e.g. price field for delivery) */}
+          <AnimatePresence>
+            {extra && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3">{extra}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Toggle */}
+        <div className="flex-shrink-0">
+          <Switch
+            checked={enabled}
+            onCheckedChange={onToggle}
+            disabled={comingSoon || isDisabledToggle}
+            className={cn(isDisabledToggle && 'opacity-50 cursor-not-allowed')}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SECTION WRAPPER
+// ============================================================================
+
+function Section({
+  icon: Icon,
+  title,
+  description,
+  children,
+  hasError,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  hasError?: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div
+          className={cn(
+            'p-1.5 rounded-lg',
+            hasError ? 'bg-red-50' : 'bg-gray-100'
+          )}
+        >
+          <Icon
+            className={cn('w-4 h-4', hasError ? 'text-red-500' : 'text-gray-600')}
+          />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          <p className="text-xs text-gray-400">{description}</p>
+        </div>
+      </div>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export function PaymentDeliverySection({
   formData,
   formState,
@@ -120,337 +307,232 @@ export function PaymentDeliverySection({
   onSave,
   isSaving: externalIsSaving = false,
 }: PaymentDeliverySectionProps) {
-  const [editingPayment, setEditingPayment] = useState<string | null>(null);
-  const [editingDelivery, setEditingDelivery] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { setProfile } = useProfileStore();
 
-  // Handler propio para guardar y actualizar el store
-  const handleSectionSave = useCallback(async () => {
+  // Normalizar arrays para asegurar que todos los métodos estén presentes
+  const paymentMethods = useMemo(
+    () => ensureAllPaymentMethods(Array.isArray(formData.paymentMethods) ? formData.paymentMethods : []),
+    [formData.paymentMethods]
+  );
+
+  const deliveryMethods = useMemo(
+    () => ensureAllDeliveryMethods(Array.isArray(formData.deliveryMethods) ? formData.deliveryMethods : []),
+    [formData.deliveryMethods]
+  );
+
+  const activePaymentCount = useMemo(
+    () => paymentMethods.filter((m) => m.enabled).length,
+    [paymentMethods]
+  );
+
+  const activeDeliveryCount = useMemo(
+    () => deliveryMethods.filter((m) => m.enabled).length,
+    [deliveryMethods]
+  );
+
+  const hasError = activePaymentCount === 0 || activeDeliveryCount === 0;
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const updatePaymentMethod = useCallback(
+    (methodId: string, updates: Partial<PaymentMethod>) => {
+      const updated = paymentMethods.map((m) =>
+        m.id === methodId ? { ...m, ...updates } : m
+      );
+      updateField('paymentMethods', updated);
+    },
+    [paymentMethods, updateField]
+  );
+
+  const updateDeliveryMethod = useCallback(
+    (methodId: string, updates: Partial<DeliveryMethod>) => {
+      const updated = deliveryMethods.map((m) =>
+        m.id === methodId ? { ...m, ...updates } : m
+      );
+      updateField('deliveryMethods', updated);
+    },
+    [deliveryMethods, updateField]
+  );
+
+  const handleSave = useCallback(async () => {
     if (!profile?.id) {
       toast.error('No se encontró el perfil');
+      return;
+    }
+    if (hasError) {
+      toast.error('Debe haber al menos un método activo en cada grupo');
       return;
     }
 
     setIsSaving(true);
     try {
-      const paymentDeliveryData = {
-        paymentMethods: formData.paymentMethods || [],
-        deliveryMethods: formData.deliveryMethods || []
-      };
-
-      const result = await updatePaymentDeliveryAction(paymentDeliveryData);
+      const result = await updatePaymentDeliveryAction({
+        paymentMethods,
+        deliveryMethods,
+      });
 
       if (result.success) {
-        // Refrescar el store con los datos actualizados
         const refreshResult = await getProfileAction();
         if (refreshResult.success && refreshResult.data) {
           setProfile(refreshResult.data as StoreProfile);
         }
-        toast.success('Métodos de pago y entrega guardados correctamente');
+        toast.success('Configuración guardada correctamente');
       } else {
         toast.error(result.errors?._form?.[0] || 'Error al guardar');
       }
-    } catch (error) {
-      console.error('Error saving payment/delivery:', error);
+    } catch {
       toast.error('Error al guardar los métodos de pago y entrega');
     } finally {
       setIsSaving(false);
     }
-  }, [profile?.id, formData.paymentMethods, formData.deliveryMethods, setProfile]);
+  }, [profile?.id, hasError, paymentMethods, deliveryMethods, setProfile]);
 
   const isCurrentlySaving = isSaving || externalIsSaving;
 
-  // Obtener métodos actuales o inicializar con arrays vacíos
-  const paymentMethods = useMemo(() => {
-    return Array.isArray(formData.paymentMethods) ? formData.paymentMethods : [];
-  }, [formData.paymentMethods]);
-
-  const deliveryMethods = useMemo(() => {
-    return Array.isArray(formData.deliveryMethods) ? formData.deliveryMethods : [];
-  }, [formData.deliveryMethods]);
-
-  // Validar que al menos un método de entrega esté activo (pagos se configuran por soporte)
-  const hasActiveDelivery = useMemo(() => {
-    return deliveryMethods.length > 0 && deliveryMethods.some(method => method && method.enabled === true);
-  }, [deliveryMethods]);
-
-  const isValid = hasActiveDelivery;
-
-  // Estado actual de métodos de pago y entrega
-  useEffect(() => {
-    // Verificar estado de métodos de entrega
-  }, [deliveryMethods, hasActiveDelivery, isValid]);
-
-  /**
-   * Actualizar método de entrega
-   */
-  const updateDeliveryMethod = (methodId: string, updates: Partial<DeliveryMethod>) => {
-    if (!methodId) return;
-    
-    const updatedMethods = deliveryMethods.map(method => 
-      method && method.id === methodId ? { ...method, ...updates } : method
-    ).filter(Boolean); // Filtrar elementos null/undefined
-    
-    // Actualizando método de entrega
-    updateField('deliveryMethods', updatedMethods);
-  };
-
-  /**
-   * Agregar método de entrega
-   */
-  const addDeliveryMethod = (configKey: string) => {
-    const config = DELIVERY_METHODS_CONFIG[configKey as keyof typeof DELIVERY_METHODS_CONFIG];
-    if (!config) {
-      console.warn('Configuración de método de entrega no encontrada:', configKey);
-      return;
-    }
-
-    const newMethod: DeliveryMethod = {
-      id: config.id,
-      name: config.name,
-      enabled: true,
-      price: 0
-    };
-
-    const exists = deliveryMethods.find(method => method && method.id === config.id);
-    if (exists) {
-      // Método de entrega ya existe, habilitando
-      updateDeliveryMethod(config.id, { enabled: true });
-    } else {
-      // Agregando nuevo método de entrega
-      const updatedMethods = [...deliveryMethods.filter(Boolean), newMethod];
-      updateField('deliveryMethods', updatedMethods);
-    }
-  };
-
-  /**
-   * Renderizar método de entrega
-   */
-  const renderDeliveryMethod = (method: DeliveryMethod) => {
-    const config = DELIVERY_METHODS_CONFIG[method.id as keyof typeof DELIVERY_METHODS_CONFIG];
-    if (!config) return null;
-
-    const Icon = config.icon;
-    const isEditing = editingDelivery === method.id;
-
-    return (
-      <motion.div
-        key={method.id}
-        layout
-        className={cn(
-          'border rounded-lg p-3 sm:p-4 transition-all duration-200',
-          method.enabled ? config.borderColor : 'border-gray-200',
-          method.enabled ? config.bgColor : 'bg-gray-50'
-        )}
-      >
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            <div className={cn(
-              'p-1.5 sm:p-2 rounded-lg',
-              method.enabled ? config.bgColor : 'bg-gray-100'
-            )}>
-              <Icon className={cn(
-                'w-4 h-4 sm:w-5 sm:h-5',
-                method.enabled ? config.color : 'text-gray-400'
-              )} />
-            </div>
-            
-            <div className="flex-1">
-              <div className="flex items-center space-x-2">
-                <h4 className={cn(
-                  'font-medium text-sm sm:text-base',
-                  method.enabled ? 'text-gray-900' : 'text-gray-500'
-                )}>
-                  {method.name}
-                </h4>
-                <Switch
-                  checked={method.enabled}
-                  onCheckedChange={(enabled) => updateDeliveryMethod(method.id, { enabled })}
-                />
-              </div>
-              
-              <p className={cn(
-                'text-xs sm:text-sm mt-1',
-                method.enabled ? 'text-gray-600' : 'text-gray-400'
-              )}>
-                {config.description}
-              </p>
-
-              {method.enabled && (
-                <AnimatePresence>
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-2 sm:mt-3 space-y-2"
-                  >
-                    {isEditing ? (
-                      <div className="space-y-2 sm:space-y-3">
-                        <div>
-                          <Label htmlFor={`price-${method.id}`} className="text-xs sm:text-sm">
-                            Precio (opcional)
-                          </Label>
-                          <Input
-                            id={`price-${method.id}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={method.price || ''}
-                            onChange={(e) => updateDeliveryMethod(method.id, { price: parseFloat(e.target.value) || 0 })}
-                            className="text-xs sm:text-sm"
-                          />
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                          <Button
-                            size="sm"
-                            onClick={() => setEditingDelivery(null)}
-                            className="w-full sm:w-auto text-xs sm:text-sm"
-                          >
-                            Guardar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingDelivery(null)}
-                            className="w-full sm:w-auto text-xs sm:text-sm"
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                        <div className="text-xs sm:text-sm text-gray-600">
-                          {method.price && method.price > 0 && (
-                            <p className="font-medium">Precio: ${method.price}</p>
-                          )}
-                          <p className="break-words">Sin instrucciones específicas</p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setEditingDelivery(method.id)}
-                          className="w-full sm:w-auto justify-center sm:justify-start"
-                        >
-                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="ml-1 sm:hidden text-xs">Editar</span>
-                        </Button>
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              )}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    );
-  };
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4 sm:space-y-8">
-      {/* Header con título y botón de guardar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
-        <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Métodos de pago y entrega</h2>
-          <p className="text-xs sm:text-sm text-gray-500">Configura cómo recibirás pagos y entregarás productos</p>
-        </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Métodos de pago y entrega</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Activá los métodos que querés ofrecer. Siempre debe haber al menos uno activo en cada grupo.
+        </p>
       </div>
-      {/* Validación general */}
-      {!hasActiveDelivery && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" />
-          <AlertDescription className="text-xs sm:text-sm">
-            Debe configurar al menos un método de entrega.
-          </AlertDescription>
-        </Alert>
-      )}
 
-      {/* Información de estado */}
-      <Alert>
-        <Info className="h-3 w-3 sm:h-4 sm:w-4" />
-        <AlertDescription className="text-xs sm:text-sm">
-          <div className="space-y-1">
-            <p>Estado actual:</p>
-            <ul className="text-xs sm:text-sm space-y-1 ml-4">
-              <li className={cn(
-                "flex items-center space-x-2",
-                hasActiveDelivery ? "text-green-600" : "text-red-600"
-              )}>
-                {hasActiveDelivery ? (
-                  <CheckCircle2 className="w-3 h-3" />
-                ) : (
-                  <AlertTriangle className="w-3 h-3" />
-                )}
-                <span className="break-words">Métodos de entrega: {deliveryMethods.filter(m => m?.enabled).length} activos de {deliveryMethods.length} configurados</span>
-              </li>
-            </ul>
-          </div>
-        </AlertDescription>
-      </Alert>
+      {/* Error global */}
+      <AnimatePresence>
+        {hasError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+          >
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Cada grupo debe tener al menos un método activo antes de guardar.
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Métodos de entrega */}
-      <Card>
-        <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="flex items-center space-x-2">
-            <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="text-sm sm:text-base">Métodos de entrega</span>
-            {hasActiveDelivery && <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />}
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Configura cómo entregas los productos a tus clientes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
-          {/* Métodos existentes */}
-          <div className="space-y-2 sm:space-y-3">
-            {deliveryMethods.map(renderDeliveryMethod)}
-          </div>
+      {/* ── Métodos de pago ── */}
+      <Section
+        icon={CreditCard}
+        title="Métodos de pago"
+        description="¿Cómo aceptás pagos de tus clientes?"
+        hasError={activePaymentCount === 0}
+      >
+        {paymentMethods.map((method) => {
+          const cfg = PAYMENT_CONFIG[method.id as keyof typeof PAYMENT_CONFIG];
+          if (!cfg) return null;
+          const isLastActive = method.enabled && activePaymentCount === 1;
 
-          {/* Agregar nuevos métodos */}
-          <div className="border-t pt-3 sm:pt-4">
-            <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Agregar método de entrega</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(DELIVERY_METHODS_CONFIG).map(([key, config]) => {
-                const exists = deliveryMethods.find(method => method.id === config.id);
-                const Icon = config.icon;
-                
-                return (
-                  <Button
-                    key={key}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addDeliveryMethod(key)}
-                    disabled={exists?.enabled}
-                    className="justify-start text-xs sm:text-sm"
-                  >
-                    <Icon className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                    <span className="truncate">{config.name}</span>
-                    {exists?.enabled && <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 ml-auto text-green-600" />}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          return (
+            <MethodCard
+              key={method.id}
+              enabled={method.enabled}
+              isLastActive={isLastActive}
+              onToggle={(val) => updatePaymentMethod(method.id, { enabled: val })}
+              icon={cfg.icon}
+              name={cfg.name}
+              description={cfg.description}
+              color={cfg.color}
+              bg={cfg.bg}
+              border={cfg.border}
+              dot={cfg.dot}
+              comingSoon={'comingSoon' in cfg ? cfg.comingSoon : false}
+            />
+          );
+        })}
+      </Section>
 
-      <div className="flex justify-end">
+      {/* Divider */}
+      <div className="border-t border-dashed border-gray-200" />
+
+      {/* ── Métodos de entrega ── */}
+      <Section
+        icon={ShoppingBag}
+        title="Métodos de entrega"
+        description="¿Cómo llegás a tus clientes?"
+        hasError={activeDeliveryCount === 0}
+      >
+        {deliveryMethods.map((method) => {
+          const cfg = DELIVERY_CONFIG[method.id as keyof typeof DELIVERY_CONFIG];
+          if (!cfg) return null;
+          const isLastActive = method.enabled && activeDeliveryCount === 1;
+          const isDelivery = method.id === 'delivery';
+
+          return (
+            <MethodCard
+              key={method.id}
+              enabled={method.enabled}
+              isLastActive={isLastActive}
+              onToggle={(val) => updateDeliveryMethod(method.id, { enabled: val })}
+              icon={cfg.icon}
+              name={cfg.name}
+              description={cfg.description}
+              color={cfg.color}
+              bg={cfg.bg}
+              border={cfg.border}
+              dot={cfg.dot}
+              extra={
+                method.enabled && isDelivery ? (
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="delivery-price"
+                      className="text-xs text-gray-500 whitespace-nowrap"
+                    >
+                      Costo de envío
+                    </Label>
+                    <div className="relative w-28">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                        $
+                      </span>
+                      <Input
+                        id="delivery-price"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={method.price ?? ''}
+                        onChange={(e) =>
+                          updateDeliveryMethod(method.id, {
+                            price: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="pl-6 h-8 text-sm"
+                      />
+                    </div>
+                    {(!method.price || method.price === 0) && (
+                      <span className="text-[10px] text-gray-400">gratis</span>
+                    )}
+                  </div>
+                ) : null
+              }
+            />
+          );
+        })}
+      </Section>
+
+      {/* Save button */}
+      <div className="flex justify-end pt-2">
         <Button
-          onClick={handleSectionSave}
-          disabled={isCurrentlySaving}
-          className="flex items-center justify-center space-x-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
+          onClick={handleSave}
+          disabled={isCurrentlySaving || hasError}
           size="sm"
+          className="flex items-center gap-2 min-w-[140px] bg-gray-900 hover:bg-gray-800"
         >
           {isCurrentlySaving ? (
-            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Save className="w-4 h-4" />
           )}
-          <span className="text-xs sm:text-sm">{isCurrentlySaving ? 'Guardando...' : 'Guardar cambios'}</span>
+          {isCurrentlySaving ? 'Guardando...' : 'Guardar cambios'}
         </Button>
       </div>
     </div>

@@ -32,6 +32,7 @@ import type { ProductInCart } from "@/shared/types/store";
 interface OrderTicketProps {
   orderData: {
     orderId: string;
+    orderNumber?: string | number;
     customerName: string;
     products: ProductInCart[];
     subtotal: number;
@@ -63,6 +64,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
   // Validaciones defensivas para prevenir errores
   const {
     orderId = `order-${Date.now()}`,
+    orderNumber,
     customerName = 'Cliente',
     deliveryMethod = 'pickup',
     paymentMethod = 'cash',
@@ -77,6 +79,11 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
     storeName = 'Mi Tienda',
     date = new Date()
   } = orderData || {};
+
+  // Mostrar número de orden amigable o fallback al ID corto
+  const displayOrderId = orderNumber
+    ? `#${orderNumber}`
+    : `#${orderId.slice(-6).toUpperCase()}`;
 
   // Asegurar que products sea un array válido
   const items = Array.isArray(products) ? products : [];
@@ -186,7 +193,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
                   ¡Pedido Confirmado!
                 </h1>
                 <p className="text-lg text-gray-600 mt-2">
-                  Tu pedido #{orderId} ha sido enviado exitosamente
+                  Pedido {displayOrderId} enviado exitosamente
                 </p>
               </div>
             </div>

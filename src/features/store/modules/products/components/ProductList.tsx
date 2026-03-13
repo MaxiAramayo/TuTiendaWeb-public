@@ -8,11 +8,11 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Product } from '@/shared/types/store';
 import ProductCard from './ProductCard';
 import { ProductModal } from './ProductModal';
-import ProductSkeleton from './ProductSkeleton';
 import CartDrawer from '../../../components/cart/CartDrawer';
 import CartFloatingButton from '../../../components/cart/CartFloatingButton';
 import AdvancedProductFilters from '../../../components/filters/AdvancedProductFilters';
@@ -20,21 +20,44 @@ import { applyAdvancedFilters } from '../utils/product-filter.utils';
 import { useFiltersStore } from '../../../store/filters.store';
 import { useCartStore } from '../../../store/cart.store';
 import { useProductModalStore } from '../../../store/product-modal.store';
-import { Loader2 } from 'lucide-react';
 import { useThemeClasses, useThemeStyles } from '../../../hooks/useStoreTheme';
+
+// Variantes de animación para secciones y cards
+const sectionVariants = {
+  hidden: { opacity: 0, x: -16 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { type: 'spring' as const, stiffness: 80, damping: 18 }
+  }
+};
+
+const gridVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06, delayChildren: 0.05 }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 14, scale: 0.97 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring' as const, stiffness: 100, damping: 16 }
+  }
+};
 
 interface ProductListProps {
   products: Product[];
-  isLoading?: boolean;
 }
 
 /**
  * Componente principal para mostrar la lista de productos con filtros
  */
-const ProductList = ({
-  products,
-  isLoading = false
-}: ProductListProps) => {
+const ProductList = ({ products }: ProductListProps) => {
   // Store de filtros
   const {
     searchTerm,
@@ -48,46 +71,26 @@ const ProductList = ({
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
 
-  // Estado para manejar los productos filtrados
-  // isFiltering starts true to avoid flashing the "no results" state before the
-  // first useEffect run populates filteredProductData.
-  const [filteredProductData, setFilteredProductData] = useState({
-    groupedProducts: {} as Record<string, Product[]>,
-    hasProducts: false,
-  });
-  const [isFiltering, setIsFiltering] = useState(true);
+  // Filtrado sincrónico con useMemo — no hay estado intermedio ni flash de loading
+  const filteredProductData = useMemo(() => {
+    if (!products || !products.length) {
+      return { groupedProducts: {} as Record<string, Product[]>, hasProducts: false };
+    }
+    const result = applyAdvancedFilters(products, {
+      searchTerm,
+      selectedCategory,
+      priceRange,
+      sortBy,
+      onlyAvailable,
+    });
+    return { groupedProducts: result.groupedProducts, hasProducts: result.hasProducts };
+  }, [products, searchTerm, selectedCategory, priceRange, sortBy, onlyAvailable]);
 
   // Acceder al store del modal de producto
   const openProductModal = useProductModalStore((state: any) => state.openModal);
 
   // Acceder al store del carrito
-  const cartItems = useCartStore((state: any) => state.items);
   const openCart = useCartStore((state: any) => state.openCart);
-
-  // Aplicar filtros cuando cambien las opciones o los productos
-  useEffect(() => {
-    if (!products || !products.length) {
-      setFilteredProductData({ groupedProducts: {}, hasProducts: false });
-      setIsFiltering(false);
-      return;
-    }
-
-    setIsFiltering(true);
-
-    const filterResult = applyAdvancedFilters(products, {
-      searchTerm,
-      selectedCategory,
-      priceRange,
-      sortBy,
-      onlyAvailable
-    });
-
-    setFilteredProductData({
-      groupedProducts: filterResult.groupedProducts,
-      hasProducts: filterResult.hasProducts
-    });
-    setIsFiltering(false);
-  }, [products, searchTerm, selectedCategory, priceRange, sortBy, onlyAvailable]);
 
   /**
    * Abre el modal con los detalles del producto
@@ -134,32 +137,30 @@ const ProductList = ({
   // Contenedor principal para la lista de productos
   return (
     <div className="pb-24 px-4 mx-auto max-w-5xl">
-      {/* Componente de filtros avanzados */}
-      <AdvancedProductFilters
-        products={products}
-      />
+      {/* Componente de filtros avanzados con animación de entrada */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 80, damping: 18, delay: 0.15 }}
+      >
+        <AdvancedProductFilters products={products} />
+      </motion.div>
 
       {/* Contenedor para productos */}
       <div className="relative">
-        {/* Skeleton loading durante filtrado para mantener layout estable */}
-        {(isLoading || isFiltering) && (
-          <div className="relative">
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex justify-center items-start pt-8">
-              <div className="flex items-center bg-white/90 px-4 py-2 rounded-full shadow-sm border">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" style={{ color: 'var(--store-primary)' }} />
-                <span className="text-sm text-gray-600">Filtrando productos...</span>
-              </div>
-            </div>
-            <ProductSkeleton count={6} />
-          </div>
-        )}
-
         {/* Listado de productos */}
-        {!isLoading && !isFiltering && filteredProductData.hasProducts ? (
+        {filteredProductData.hasProducts ? (
           <div className="space-y-8">
             {/* Productos agrupados por categoría */}
             {Object.entries(filteredProductData.groupedProducts).map(([category, categoryProducts]) => (
-              <section key={category} aria-labelledby={`category-${category}`}>
+              <motion.section
+                key={category}
+                aria-labelledby={`category-${category}`}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-40px' }}
+                variants={sectionVariants}
+              >
                 <h2
                   id={`category-${category}`}
                   className={`text-xl font-bold mb-4 border-l-4 ${themeClasses.border.primary} pl-3`}
@@ -168,19 +169,26 @@ const ProductList = ({
                   {category}
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <motion.div
+                  className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                  variants={gridVariants}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: '-20px' }}
+                >
                   {categoryProducts.map((product) => (
-                    <ProductCard
-                      key={product.idProduct || product.id}
-                      product={product}
-                      onOpenModal={handleOpenModal}
-                    />
+                    <motion.div key={product.idProduct || product.id} variants={cardVariants}>
+                      <ProductCard
+                        product={product}
+                        onOpenModal={handleOpenModal}
+                      />
+                    </motion.div>
                   ))}
-                </div>
-              </section>
+                </motion.div>
+              </motion.section>
             ))}
           </div>
-        ) : !isLoading && !isFiltering ? (
+        ) : (
           // Mensaje cuando no hay resultados para los filtros aplicados
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -205,7 +213,7 @@ const ProductList = ({
               Intenta con otros términos de búsqueda o categorías.
             </p>
           </div>
-        ) : null}
+        )}
       </div>
 
       {/* Modal de producto */}

@@ -339,30 +339,31 @@ export const SellForm: React.FC<SellFormProps> = ({
   }, [onCancel, router]);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={handleCancel}>
+      <div className="flex flex-wrap items-center gap-3 justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={handleCancel}>
             <ArrowLeftIcon className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-xl sm:text-2xl font-bold">
               {sell?.id || sellId ? "Editar Venta" : "Nueva Venta"}
             </h1>
             {sell?.orderNumber && (
-              <p className="text-muted-foreground">Orden: {sell.orderNumber}</p>
+              <p className="text-muted-foreground text-sm">Orden: {sell.orderNumber}</p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={showAdvanced}
             onChange={(e) => setShowAdvanced(e.target.checked)}
+            className="rounded"
           />
-          <Label>Opciones avanzadas</Label>
-        </div>
+          <span className="text-sm font-medium">Opciones avanzadas</span>
+        </label>
       </div>
 
       <form
@@ -480,18 +481,18 @@ export const SellForm: React.FC<SellFormProps> = ({
               Totales
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>Subtotal</Label>
-                <div className="text-lg font-semibold">
+          <CardContent>
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Subtotal</Label>
+                <div className="text-lg font-semibold mt-1">
                   ${calculatedTotals.subtotal.toFixed(2)}
                 </div>
               </div>
 
               {showAdvanced && (
-                <div>
-                  <Label>Descuento</Label>
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Descuento</Label>
                   <Controller
                     name="discount"
                     control={form.control}
@@ -500,19 +501,20 @@ export const SellForm: React.FC<SellFormProps> = ({
                         type="number"
                         step="0.01"
                         min="0"
-                        placeholder="0"
+                        placeholder="0.00"
                         disabled={readOnly}
-                        value={field.value || 0}
+                        value={field.value === 0 ? "" : field.value}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        className="mt-1"
                       />
                     )}
                   />
                 </div>
               )}
 
-              <div>
-                <Label>Total</Label>
-                <div className="text-xl font-bold text-green-600">
+              <div className="flex-1 sm:text-right">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Total</Label>
+                <div className="text-2xl font-bold text-green-600 mt-1">
                   ${calculatedTotals.total.toFixed(2)}
                 </div>
               </div>
@@ -621,14 +623,15 @@ export const SellForm: React.FC<SellFormProps> = ({
         </Card>
 
         {/* Acciones */}
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={handleCancel}>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <Button type="button" variant="outline" onClick={handleCancel} className="w-full sm:w-auto">
             Cancelar
           </Button>
           {!readOnly && (
             <Button
               type="submit"
               disabled={isPending || !form.formState.isValid}
+              className="w-full sm:w-auto"
             >
               {isPending ? "Guardando..." : "Guardar Venta"}
               <SaveIcon className="h-4 w-4 ml-2" />

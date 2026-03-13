@@ -34,11 +34,6 @@ export default function AppearanceSettingsClient() {
 
   return (
     <div className="w-full">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-1">Apariencia</h2>
-        <p className="text-sm text-gray-500">Personaliza el look & feel de tu tienda para tus clientes.</p>
-      </div>
-
       <ThemeSection {...sectionProps} />
     </div>
   );
