@@ -1,10 +1,10 @@
 /**
- * Formulario de checkout refactorizado
- * 
+ * Formulario de checkout
+ *
  * Recibe datos de la tienda por props (desde Server Component)
  * Usa React Hook Form + Zod para validación
  * Usa Server Actions para mutaciones
- * 
+ *
  * @module features/store/components/checkout
  */
 "use client";
@@ -12,14 +12,30 @@
 import React, { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import type { ProductInCart } from "@/shared/types/store";
 import type { StoreSettings } from "@/features/store/types/store.types";
 import { checkoutFormSchema, type CheckoutFormData } from "../../schemas/checkout.schema";
 import { processCheckoutAction } from "../../actions/checkout.actions";
 import { useCartStore } from "@/features/store/store/cart.store";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import LoadingSpinner from "../ui/LoadingSpinner";
-import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";
-import { CreditCard, AlertCircle, User, Truck, MapPin, MessageSquare, CheckCircle2 } from "lucide-react";
+import { useThemeClasses } from "../../hooks/useStoreTheme";
+import { formatPrice } from "@/features/products/utils/product.utils";
+import {
+  CreditCard,
+  AlertCircle,
+  User,
+  Truck,
+  MapPin,
+  MessageSquare,
+  CheckCircle2,
+  Banknote,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 
 // ============================================================================
@@ -41,23 +57,128 @@ interface CheckoutFormProps {
 // ============================================================================
 
 const defaultPaymentMethods = [
-  { id: 'efectivo', name: 'Efectivo', enabled: true, instructions: 'Pago en efectivo al momento de la entrega' },
-  { id: 'transferencia', name: 'Transferencia bancaria', enabled: false },
-  { id: 'mercadopago', name: 'MercadoPago', enabled: false }
+  {
+    id: "efectivo",
+    name: "Efectivo",
+    enabled: true,
+    instructions: "Pago en efectivo al momento de la entrega",
+  },
+  { id: "transferencia", name: "Transferencia", enabled: false },
+  { id: "mercadopago", name: "MercadoPago", enabled: false },
 ];
 
 const defaultDeliveryMethods = [
-  { id: 'retiro', name: 'Retiro en local', enabled: true, price: 0 },
-  { id: 'delivery', name: 'Delivery', enabled: true, price: 0 }
+  { id: "retiro", name: "Retiro en local", enabled: true, price: 0, type: "pickup" as const },
+  { id: "delivery", name: "Delivery", enabled: true, price: 0, type: "delivery" as const },
 ];
+
+// Íconos para métodos de pago
+const paymentIcons: Record<string, React.ReactNode> = {
+  efectivo: <Banknote className="h-4 w-4" />,
+  transferencia: <CreditCard className="h-4 w-4" />,
+  mercadopago: <Smartphone className="h-4 w-4" />,
+};
+
+// Íconos para métodos de entrega
+const deliveryIcons: Record<string, React.ReactNode> = {
+  retiro: <MapPin className="h-4 w-4" />,
+  delivery: <Truck className="h-4 w-4" />,
+};
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Elimina duplicados por ID manteniendo el primero encontrado */
+function deduplicateById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+// ============================================================================
+// CARD RADIO — opción seleccionable visual
+// ============================================================================
+
+interface CardRadioProps {
+  value: string;
+  selected: boolean;
+  label: string;
+  sublabel?: string;
+  icon?: React.ReactNode;
+  onClick: () => void;
+}
+
+const CardRadio = ({ selected, label, sublabel, icon, onClick }: CardRadioProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "flex items-center gap-3 w-full p-3.5 rounded-xl border-2 text-left transition-all duration-150",
+      selected
+        ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5"
+        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+    )}
+  >
+    {/* Indicador radio */}
+    <span
+      className={cn(
+        "flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
+        selected ? "border-[var(--store-primary)]" : "border-gray-300"
+      )}
+    >
+      {selected && (
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: "var(--store-primary)" }}
+        />
+      )}
+    </span>
+
+    {/* Ícono */}
+    {icon && (
+      <span
+        className={cn(
+          "flex-shrink-0 transition-colors",
+          selected ? "text-[var(--store-primary)]" : "text-gray-400"
+        )}
+      >
+        {icon}
+      </span>
+    )}
+
+    {/* Texto */}
+    <div className="flex-1 min-w-0">
+      <span
+        className={cn(
+          "block text-sm font-medium transition-colors",
+          selected ? "text-[var(--store-primary)]" : "text-gray-700"
+        )}
+      >
+        {label}
+      </span>
+      {sublabel && <span className="block text-xs text-gray-400 mt-0.5">{sublabel}</span>}
+    </div>
+  </button>
+);
+
+// ============================================================================
+// SECTION CARD — tarjeta blanca para agrupar campos del formulario
+// ============================================================================
+
+const SectionCard = ({ children }: { children: React.ReactNode }) => (
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    {children}
+  </div>
+);
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-/**
- * Formulario de checkout con validación Zod y Server Actions
- */
 export const CheckoutForm = ({
   carrito,
   total,
@@ -70,17 +191,14 @@ export const CheckoutForm = ({
   const [isPending, startTransition] = useTransition();
   const { clearCart } = useCartStore();
   const themeClasses = useThemeClasses();
-  const themeStyles = useThemeStyles();
 
-  // Configuración con fallbacks
-  const paymentMethods = storeSettings?.paymentMethods || defaultPaymentMethods;
-  const deliveryMethods = storeSettings?.deliveryMethods || defaultDeliveryMethods;
+  // Configuración con fallbacks + deduplicación para evitar entradas duplicadas en Firestore
+  const rawPaymentMethods = storeSettings?.paymentMethods || defaultPaymentMethods;
+  const rawDeliveryMethods = storeSettings?.deliveryMethods || defaultDeliveryMethods;
 
-  // Filtrar métodos habilitados
-  const enabledPaymentMethods = paymentMethods.filter(method => method.enabled);
-  const enabledDeliveryMethods = deliveryMethods.filter(method => method.enabled);
+  const enabledPaymentMethods = deduplicateById(rawPaymentMethods.filter((m) => m.enabled));
+  const enabledDeliveryMethods = deduplicateById(rawDeliveryMethods.filter((m) => m.enabled));
 
-  // React Hook Form con Zod
   const {
     register,
     watch,
@@ -92,34 +210,35 @@ export const CheckoutForm = ({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       nombre: "",
-      formaDeConsumir: "retiro",
-      formaDePago: "efectivo",
+      formaDeConsumir: enabledDeliveryMethods[0]?.id || "retiro",
+      formaDePago: enabledPaymentMethods[0]?.id || "efectivo",
       direccion: "",
       aclaracion: "",
     },
   });
 
-  // Observar valores del formulario
   const formaDePago = watch("formaDePago");
   const formaDeConsumir = watch("formaDeConsumir");
-  const direccion = watch("direccion");
 
-  // Métodos seleccionados
-  const selectedPaymentMethod = enabledPaymentMethods.find(m => m.id === formaDePago);
-  const selectedDeliveryMethod = enabledDeliveryMethods.find(m => m.id === formaDeConsumir);
+  const selectedPaymentMethod = enabledPaymentMethods.find((m) => m.id === formaDePago);
+  const selectedDeliveryMethod = enabledDeliveryMethods.find((m) => m.id === formaDeConsumir);
 
-  // Calcular totales
   const deliveryPrice = selectedDeliveryMethod?.price || 0;
   const finalTotal = total + deliveryPrice;
 
-  // Limpiar dirección cuando no es delivery
+  // El campo dirección se muestra cuando el método de entrega es delivery
+  // Soporta tanto id === 'delivery' como type === 'delivery' para métodos personalizados
+  const requiresAddress =
+    formaDeConsumir === "delivery" ||
+    (selectedDeliveryMethod as any)?.type === "delivery";
+
+  // Limpiar dirección cuando no se requiere
   useEffect(() => {
-    if (formaDeConsumir !== "delivery") {
+    if (!requiresAddress) {
       setValue("direccion", "");
     }
-  }, [formaDeConsumir, setValue]);
+  }, [requiresAddress, setValue]);
 
-  // Handler del submit
   const onSubmit = handleSubmit(async (data) => {
     if (!carrito || carrito.length === 0) {
       toast.error("No puedes realizar un pedido sin productos en el carrito");
@@ -138,15 +257,14 @@ export const CheckoutForm = ({
       if (result.success) {
         toast.success("¡Pedido creado exitosamente!");
 
-        // Preparar datos para el ticket
         const orderInfo = {
           orderId: result.data.orderId,
           orderNumber: result.data.orderNumber,
           customerName: data.nombre,
           deliveryMethod: data.formaDeConsumir,
           paymentMethod: data.formaDePago,
-          address: data.direccion || '',
-          notes: data.aclaracion || '',
+          address: data.direccion || "",
+          notes: data.aclaracion || "",
           products: carrito,
           subtotal: total,
           deliveryPrice,
@@ -156,18 +274,13 @@ export const CheckoutForm = ({
           storeName: result.data.storeName,
         };
 
-        // NO limpiar el carrito aquí - se limpiará cuando vuelva a la tienda
-        // clearCart();
-
-        // Callback con datos del pedido
         if (onOrderComplete) {
           onOrderComplete(result.data.orderId, orderInfo);
         }
       } else {
-        // Manejar errores de validación
         if (result.errors) {
           Object.entries(result.errors).forEach(([field, messages]) => {
-            if (field === '_form') {
+            if (field === "_form") {
               toast.error(messages[0]);
             } else {
               setError(field as keyof CheckoutFormData, { message: messages[0] });
@@ -178,223 +291,257 @@ export const CheckoutForm = ({
     });
   });
 
+  const sectionVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.08, type: "spring", stiffness: 260, damping: 22 },
+    }),
+  };
+
   return (
-    <div className="mb-5 flex flex-col gap-3 mt-5 w-full p-2 md:p-4 bg-white rounded-lg max-w-2xl mx-auto">
-      <div className="text-center mb-6">
-        <h1
-          className="text-2xl font-bold"
-          style={{ color: 'var(--store-accent, #1F2937)' }}
-        >
-          Finalizar Pedido
-        </h1>
-        <p className="text-sm text-gray-500 mt-2">
-          Completa los datos para confirmar tu pedido
-        </p>
-      </div>
+    <div className="w-full max-w-2xl mx-auto">
+      <form onSubmit={onSubmit} className="space-y-4">
 
-      <form onSubmit={onSubmit} className="space-y-6">
-        {/* Campo de nombre */}
-        <div className="sm:col-span-4">
-          <div className="flex items-center gap-2 mb-3">
-            <User className="h-5 w-5 text-gray-700" />
-            <label htmlFor="nombre" className="block text-sm font-medium text-gray-800">
-              Nombre completo
-            </label>
-          </div>
-          <input
-            type="text"
-            id="nombre"
-            className={`block w-full border-0 bg-transparent py-2 pl-2 text-gray-600 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 rounded-xl shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-inset ${themeClasses.accent.primary}`}
-            placeholder="Escriba su nombre completo"
-            {...register("nombre")}
-          />
-          {errors.nombre && (
-            <span className={`${themeClasses.status.error} text-xs`}>
-              {errors.nombre.message}
-            </span>
-          )}
-        </div>
-
-        {/* Campo de forma de consumo */}
-        <div className="sm:col-span-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Truck className="h-5 w-5 text-gray-700" />
-            <label htmlFor="formaDeConsumir" className="block text-sm font-medium text-gray-800">
-              Forma de entrega
-            </label>
-          </div>
-          {enabledDeliveryMethods.length > 0 ? (
-            <select
-              id="formaDeConsumir"
-              className={`block w-full border-0 bg-transparent py-2 pl-2 text-gray-600 focus:ring-0 sm:text-sm sm:leading-6 rounded-xl ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-inset ${themeClasses.accent.primary}`}
-              {...register("formaDeConsumir")}
+        {/* ── Nombre ── */}
+        <motion.div custom={0} variants={sectionVariants} initial="hidden" animate="visible">
+          <SectionCard>
+            <Label
+              htmlFor="nombre"
+              className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3"
             >
-              {enabledDeliveryMethods.map((method) => (
-                <option key={method.id} value={method.id}>
-                  {method.name} {method.price && method.price > 0 ? `(+$${method.price})` : ''}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="p-3 rounded-lg border border-red-300 bg-red-50">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-                <p className="text-red-700 text-sm">
-                  No hay métodos de entrega disponibles.
-                </p>
-              </div>
-            </div>
-          )}
-          {errors.formaDeConsumir && (
-            <span className={`${themeClasses.status.error} text-xs`}>
-              {errors.formaDeConsumir.message}
-            </span>
-          )}
-        </div>
-
-        {/* Campo de dirección (solo para delivery) */}
-        {formaDeConsumir === "delivery" && (
-          <div className="sm:col-span-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin className="h-5 w-5 text-gray-700" />
-              <label htmlFor="direccion" className="block text-sm font-medium text-gray-800">
-                Dirección de entrega
-              </label>
-            </div>
-            <textarea
-              id="direccion"
-              className={`block w-full border-0 bg-transparent py-2 pl-2 text-gray-600 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 rounded-xl shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-inset ${themeClasses.accent.primary}`}
-              placeholder="Escriba la dirección completa (calle, número, piso, depto, referencias)"
-              {...register("direccion")}
+              <User className="h-4 w-4 text-gray-400" />
+              Nombre completo
+            </Label>
+            <Input
+              id="nombre"
+              placeholder="Ej: María García"
+              className="h-11 bg-gray-50 border-gray-200 focus-visible:ring-[var(--store-primary)] focus-visible:border-[var(--store-primary)]"
+              {...register("nombre")}
             />
-            {errors.direccion && (
-              <span className={`${themeClasses.status.error} text-xs`}>
-                {errors.direccion.message}
-              </span>
+            {errors.nombre && (
+              <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                {errors.nombre.message}
+              </p>
             )}
-          </div>
-        )}
+          </SectionCard>
+        </motion.div>
 
-        {/* Campo de forma de pago */}
-        <div className="sm:col-span-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CreditCard className="h-5 w-5 text-gray-700" />
-            <label htmlFor="formaDePago" className="block text-sm font-medium text-gray-800">
-              Forma de Pago
-            </label>
-          </div>
-          {enabledPaymentMethods.length > 0 ? (
-            <>
-              <select
-                id="formaDePago"
-                className={`block w-full border-0 bg-transparent py-2 pl-2 text-gray-600 focus:ring-0 sm:text-sm sm:leading-6 rounded-xl ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-inset ${themeClasses.accent.primary}`}
-                {...register("formaDePago")}
-              >
-                {enabledPaymentMethods.map((method) => (
-                  <option key={method.id} value={method.id}>
-                    {method.name}
-                  </option>
+        {/* ── Forma de entrega ── */}
+        <motion.div custom={1} variants={sectionVariants} initial="hidden" animate="visible">
+          <SectionCard>
+            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+              <Truck className="h-4 w-4 text-gray-400" />
+              Forma de entrega
+            </Label>
+            {enabledDeliveryMethods.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {enabledDeliveryMethods.map((method) => (
+                  <CardRadio
+                    key={method.id}
+                    value={method.id}
+                    selected={formaDeConsumir === method.id}
+                    label={method.name}
+                    sublabel={
+                      method.price && method.price > 0
+                        ? `+${formatPrice(method.price)}`
+                        : "Sin costo adicional"
+                    }
+                    icon={
+                      deliveryIcons[method.id] ||
+                      ((method as any).type === "delivery"
+                        ? <Truck className="h-4 w-4" />
+                        : <MapPin className="h-4 w-4" />)
+                    }
+                    onClick={() => setValue("formaDeConsumir", method.id as any)}
+                  />
                 ))}
-              </select>
-              {selectedPaymentMethod?.instructions && (
-                <div className={`mt-3 p-3 rounded-lg border ${themeClasses.background.secondary}`}>
-                  <p className="text-sm text-gray-600">
-                    <strong>Instrucciones:</strong> {selectedPaymentMethod.instructions}
-                  </p>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg border border-red-300 bg-red-50 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                <p className="text-red-700 text-sm">No hay métodos de entrega disponibles.</p>
+              </div>
+            )}
+            {errors.formaDeConsumir && (
+              <p className="text-xs text-red-500 mt-2">{errors.formaDeConsumir.message}</p>
+            )}
+
+            {/* ── Dirección (solo cuando se requiere) ── */}
+            <AnimatePresence>
+              {requiresAddress && (
+                <motion.div
+                  key="address"
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                  className="overflow-hidden"
+                >
+                  <Label
+                    htmlFor="direccion"
+                    className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"
+                  >
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                    Dirección de entrega
+                  </Label>
+                  <Textarea
+                    id="direccion"
+                    placeholder="Calle, número, piso, depto, referencias..."
+                    className="resize-none bg-gray-50 border-gray-200 focus-visible:ring-[var(--store-primary)]"
+                    rows={2}
+                    {...register("direccion")}
+                  />
+                  {errors.direccion && (
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.direccion.message}
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </SectionCard>
+        </motion.div>
+
+        {/* ── Forma de pago ── */}
+        <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible">
+          <SectionCard>
+            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+              <CreditCard className="h-4 w-4 text-gray-400" />
+              Forma de pago
+            </Label>
+            {enabledPaymentMethods.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {enabledPaymentMethods.map((method) => (
+                    <CardRadio
+                      key={method.id}
+                      value={method.id}
+                      selected={formaDePago === method.id}
+                      label={method.name}
+                      icon={paymentIcons[method.id] || <CreditCard className="h-4 w-4" />}
+                      onClick={() => setValue("formaDePago", method.id as any)}
+                    />
+                  ))}
+                </div>
+                <AnimatePresence>
+                  {selectedPaymentMethod?.instructions && (
+                    <motion.div
+                      key="instructions"
+                      initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                      animate={{ opacity: 1, height: "auto", marginTop: 10 }}
+                      exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                        <p className="text-sm text-gray-600">
+                          <strong className="font-medium">Instrucciones: </strong>
+                          {selectedPaymentMethod.instructions}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            ) : (
+              <div className="p-3 rounded-lg border border-red-300 bg-red-50 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                <p className="text-red-700 text-sm">No hay métodos de pago disponibles.</p>
+              </div>
+            )}
+            {errors.formaDePago && (
+              <p className="text-xs text-red-500 mt-2">{errors.formaDePago.message}</p>
+            )}
+          </SectionCard>
+        </motion.div>
+
+        {/* ── Notas adicionales ── */}
+        <motion.div custom={3} variants={sectionVariants} initial="hidden" animate="visible">
+          <SectionCard>
+            <Label
+              htmlFor="aclaracion"
+              className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3"
+            >
+              <MessageSquare className="h-4 w-4 text-gray-400" />
+              Notas adicionales
+              <span className="text-gray-400 font-normal text-xs">(opcional)</span>
+            </Label>
+            <Textarea
+              id="aclaracion"
+              placeholder="Preferencias, alergias, instrucciones especiales..."
+              className="resize-none bg-gray-50 border-gray-200 focus-visible:ring-[var(--store-primary)]"
+              rows={2}
+              {...register("aclaracion")}
+            />
+          </SectionCard>
+        </motion.div>
+
+        {/* ── Resumen final ── */}
+        <motion.div custom={4} variants={sectionVariants} initial="hidden" animate="visible">
+          <SectionCard>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Resumen del pedido</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-medium text-gray-700">{formatPrice(total)}</span>
+              </div>
+              {deliveryPrice > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Envío</span>
+                  <span className="font-medium text-gray-700">{formatPrice(deliveryPrice)}</span>
                 </div>
               )}
-            </>
-          ) : (
-            <div className="p-3 rounded-lg border border-red-300 bg-red-50">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-                <p className="text-red-700 text-sm">
-                  No hay métodos de pago disponibles.
-                </p>
+              <div className="border-t border-gray-100 pt-2 mt-2 flex justify-between items-center">
+                <span className="font-semibold text-gray-800">Total a pagar</span>
+                <span
+                  className="font-bold text-lg"
+                  style={{ color: "var(--store-primary)" }}
+                >
+                  {formatPrice(finalTotal)}
+                </span>
               </div>
             </div>
-          )}
-          {errors.formaDePago && (
-            <span className={`${themeClasses.status.error} text-xs`}>
-              {errors.formaDePago.message}
-            </span>
-          )}
-        </div>
+          </SectionCard>
+        </motion.div>
 
-        {/* Campo de aclaraciones */}
-        <div className="sm:col-span-4">
-          <div className="flex items-center gap-2 mb-3">
-            <MessageSquare className="h-5 w-5 text-gray-700" />
-            <label htmlFor="aclaracion" className="block text-sm font-medium text-gray-800">
-              Aclaración sobre el pedido
-            </label>
-          </div>
-          <textarea
-            id="aclaracion"
-            className={`block w-full border-0 bg-transparent py-2 pl-2 text-gray-600 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 rounded-xl shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-inset ${themeClasses.accent.primary}`}
-            placeholder="Notas adicionales sobre el pedido"
-            {...register("aclaracion")}
-          />
-        </div>
-
-        {/* Resumen del pedido - Fondo elegante */}
-        <div
-          className="p-4 rounded-lg"
-          style={{ backgroundColor: 'var(--store-accent, #1F2937)' }}
-        >
-          <h4 className="text-lg font-semibold text-white mb-3">
-            Resumen del pedido
-          </h4>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-300">Subtotal:</span>
-              <span className="text-white">${total}</span>
-            </div>
-            {deliveryPrice > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-300">Envío:</span>
-                <span className="text-white">${deliveryPrice}</span>
-              </div>
-            )}
-            <div className="border-t border-gray-600 pt-2 mt-2">
-              <div className="flex justify-between text-lg font-semibold">
-                <span className="text-white">Total:</span>
-                <span style={{ color: 'var(--store-primary, #EA580C)' }}>${finalTotal}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Botón de envío - Color primario */}
-        <button
-          type="submit"
-          disabled={isPending || enabledPaymentMethods.length === 0 || enabledDeliveryMethods.length === 0}
-          className="font-semibold px-4 py-4 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors w-full flex items-center justify-center gap-2 text-white text-lg shadow-md hover:opacity-90"
-          style={{ backgroundColor: 'var(--store-primary, #EA580C)' }}
-        >
-          {isPending ? (
-            <>
-              <LoadingSpinner size="sm" spinnerOnly className="text-white" />
-              Procesando pedido...
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="w-5 h-5" />
-              Confirmar Pedido
-            </>
-          )}
-        </button>
-
+        {/* ── Error general ── */}
         {(enabledPaymentMethods.length === 0 || enabledDeliveryMethods.length === 0) && (
-          <div className="p-3 rounded-lg border border-red-300 bg-red-50 mt-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              <p className="text-red-700 text-sm">
-                La tienda no tiene métodos de pago o entrega configurados.
-              </p>
-            </div>
+          <div className="p-3 rounded-xl border border-red-300 bg-red-50 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+            <p className="text-red-700 text-sm">
+              La tienda no tiene métodos de pago o entrega configurados.
+            </p>
           </div>
         )}
+
+        {/* ── Botón submit ── */}
+        <motion.div custom={5} variants={sectionVariants} initial="hidden" animate="visible">
+          <button
+            type="submit"
+            disabled={
+              isPending ||
+              enabledPaymentMethods.length === 0 ||
+              enabledDeliveryMethods.length === 0
+            }
+            className="w-full py-4 rounded-2xl font-semibold text-white text-base flex items-center justify-center gap-2.5 shadow-md transition-all duration-200 hover:opacity-90 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: "var(--store-primary)" }}
+          >
+            {isPending ? (
+              <>
+                <LoadingSpinner size="sm" spinnerOnly className="text-white" />
+                <span>Procesando pedido...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-5 h-5" />
+                <span>Confirmar Pedido</span>
+              </>
+            )}
+          </button>
+        </motion.div>
       </form>
     </div>
   );

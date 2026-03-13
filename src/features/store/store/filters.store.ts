@@ -8,7 +8,6 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 /**
  * Opciones de ordenamiento disponibles
@@ -22,6 +21,7 @@ interface FiltersState {
   searchTerm: string;
   selectedCategory: string;
   priceRange: [number, number];
+  priceRangeModified: boolean;
   sortBy: SortOption;
   onlyAvailable: boolean;
   isLoading: boolean;
@@ -48,6 +48,7 @@ const initialState: FiltersState = {
   searchTerm: '',
   selectedCategory: 'all',
   priceRange: [0, 10000],
+  priceRangeModified: false,
   sortBy: 'none',
   onlyAvailable: false,
   isLoading: false,
@@ -56,94 +57,80 @@ const initialState: FiltersState = {
 /**
  * Store de filtros usando Zustand con persistencia
  */
-export const useFiltersStore = create<FiltersState & FiltersActions>()
-  (persist(
-    (set, get) => ({
-      // Estado inicial
-      ...initialState,
-      
-      // Acciones
-      setSearchTerm: (term: string) => {
-        set({ searchTerm: term });
-      },
-      
-      setCategory: (category: string) => {
-        set({ selectedCategory: category });
-      },
-      
-      setPriceRange: (range: [number, number]) => {
-        set({ priceRange: range });
-      },
-      
-      setSortBy: (sort: SortOption) => {
-        set({ sortBy: sort });
-      },
-      
-      toggleAvailability: () => {
-        set((state) => ({ onlyAvailable: !state.onlyAvailable }));
-      },
-      
-      setLoading: (loading: boolean) => {
-        set({ isLoading: loading });
-      },
-      
-      clearFilters: () => {
-        const currentState = get();
-        set({
-          searchTerm: '',
-          selectedCategory: 'all',
-          sortBy: 'none',
-          onlyAvailable: false,
-          // Resetear el rango de precios al rango completo
-          priceRange: [0, currentState.priceRange[1]],
-        });
-      },
-      
-      resetPriceRange: (maxPrice: number) => {
-        set({ priceRange: [0, maxPrice] });
-      },
-    }),
-    {
-      name: 'store-filters', // Nombre para localStorage
-      partialize: (state) => ({
-        // Solo persistir algunos campos
-        selectedCategory: state.selectedCategory,
-        sortBy: state.sortBy,
-        onlyAvailable: state.onlyAvailable,
-      }),
-    }
-  ));
+export const useFiltersStore = create<FiltersState & FiltersActions>()(
+  (set, get) => ({
+    // Estado inicial
+    ...initialState,
+
+    // Acciones
+    setSearchTerm: (term: string) => {
+      set({ searchTerm: term });
+    },
+
+    setCategory: (category: string) => {
+      set({ selectedCategory: category });
+    },
+
+    setPriceRange: (range: [number, number]) => {
+      set({ priceRange: range, priceRangeModified: true });
+    },
+
+    setSortBy: (sort: SortOption) => {
+      set({ sortBy: sort });
+    },
+
+    toggleAvailability: () => {
+      set((state) => ({ onlyAvailable: !state.onlyAvailable }));
+    },
+
+    setLoading: (loading: boolean) => {
+      set({ isLoading: loading });
+    },
+
+    clearFilters: () => {
+      const currentState = get();
+      set({
+        searchTerm: '',
+        selectedCategory: 'all',
+        sortBy: 'none',
+        onlyAvailable: false,
+        priceRange: [0, currentState.priceRange[1]],
+        priceRangeModified: false,
+      });
+    },
+
+    resetPriceRange: (maxPrice: number) => {
+      set({ priceRange: [0, maxPrice], priceRangeModified: false });
+    },
+  })
+);
 
 /**
  * Hook personalizado para obtener filtros activos
  * @param maxPrice - Precio máximo de los productos para comparar el rango
  */
-export const useActiveFilters = (maxPrice: number = 10000) => {
+export const useActiveFilters = (_maxPrice: number = 10000) => {
   const {
     searchTerm,
     selectedCategory,
-    priceRange,
+    priceRangeModified,
     sortBy,
     onlyAvailable
   } = useFiltersStore();
-  
-  // Verificar si el rango de precios ha sido modificado del valor inicial
-  // Comparar con el rango completo [0, maxPrice] en lugar de valores hardcodeados
-  const isPriceRangeModified = priceRange[0] !== 0 || priceRange[1] !== maxPrice;
-  
-  const hasActiveFilters = 
+
+  const hasActiveFilters =
     searchTerm !== '' ||
     selectedCategory !== 'all' ||
-    isPriceRangeModified ||
+    priceRangeModified ||
     sortBy !== 'none' ||
     onlyAvailable;
-    
+
   return {
     hasActiveFilters,
     activeFiltersCount: [
       searchTerm !== '',
       selectedCategory !== 'all',
-      isPriceRangeModified,
+      priceRangeModified,
       sortBy !== 'none',
       onlyAvailable
     ].filter(Boolean).length
