@@ -59,7 +59,14 @@ const routeTitles: Record<string, string> = {
   "/dashboard/profile": "Configuración",
   "/dashboard/subscription": "Suscripción",
   "/dashboard/qr": "QR Menu",
-  "/dashboard/guides": "Guía de Usuario"
+  "/dashboard/guides": "Guía de Usuario",
+  "/dashboard/settings": "Configuración",
+  "/dashboard/settings/general": "General",
+  "/dashboard/settings/appearance": "Apariencia",
+  "/dashboard/settings/checkout": "Pagos y Entregas",
+  "/dashboard/settings/location": "Ubicación y Horarios",
+  "/dashboard/settings/schedule": "Horarios",
+  "/dashboard/settings/notifications": "Notificaciones",
 };
 
 /**

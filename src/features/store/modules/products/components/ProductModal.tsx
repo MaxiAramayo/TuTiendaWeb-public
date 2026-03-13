@@ -21,6 +21,7 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { formatPrice } from "@/features/products/utils/product.utils";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
+import { ImageGallery } from "@/components/ui/image-gallery";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ import { useCartStore } from "@/features/store/store/cart.store";
 import { useProductModalStore } from "@/features/store/store/product-modal.store";
 import { Product, Topics } from "@/shared/types/store";
 import { useThemeClasses, useThemeStyles } from "@/features/store/hooks/useStoreTheme";
-import { ImageWithLoader } from "../../../components/ui/ImageWithLoader";
+
 
 export function ProductModal() {
   const themeClasses = useThemeClasses();
@@ -108,29 +109,29 @@ export function ProductModal() {
 
   const productContent = (
     <div className="space-y-4">
-      {/* Imagen del producto */}
-      <div className="relative w-full h-64 rounded-md overflow-hidden bg-gray-50">
-        {product.imageUrl || product.image ? (
-          <ImageWithLoader
-            src={(product.imageUrl || product.image) as string}
-            alt={product.name}
-            className="object-cover"
-            fill
-            containerClassName="w-full h-full"
-            loaderSize="md"
-            useSkeletonBg={true}
-          />
-        ) : (
-          <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-            <ShoppingCart className="h-12 w-12 text-gray-300" />
+      {/* Galería de imágenes */}
+      {(() => {
+        const images = product.imageUrls && product.imageUrls.length > 0
+          ? product.imageUrls
+          : [product.imageUrl || product.image].filter(Boolean) as string[];
+        return (
+          <div className="relative">
+            <ImageGallery
+              images={images}
+              alt={product.name}
+              aspectRatio="aspect-video"
+              fallback={<ShoppingCart className="h-12 w-12 text-gray-300" />}
+              overlay={
+                !product.available ? (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">Agotado</span>
+                  </div>
+                ) : null
+              }
+            />
           </div>
-        )}
-        {!product.available && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-            <span className="text-white font-bold text-lg">Agotado</span>
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Información del producto */}
       <div>

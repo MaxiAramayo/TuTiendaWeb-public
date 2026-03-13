@@ -16,6 +16,8 @@ export interface Product {
   price: number;
   image?: string;
   imageUrl?: string; // Compatibilidad con ambas convenciones de nombres
+  /** Todas las URLs de imágenes del producto */
+  imageUrls?: string[];
   category?: string;
   available?: boolean;
   tags?: string[];

@@ -273,84 +273,71 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               {selectedProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg"
+                  className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      {product.image && (
-                        <div className="relative w-12 h-12 flex-shrink-0">
-                          <Image
-                            src={product.image}
-                            alt={product.name}
-                            fill
-                            className="object-cover rounded"
-                          />
+                  <div className="flex items-start gap-3">
+                    {product.image && (
+                      <div className="relative w-10 h-10 flex-shrink-0">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className="object-cover rounded"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h5 className="font-medium text-sm truncate">{product.name}</h5>
+                      <div className="text-xs text-gray-600">
+                        ${product.price.toFixed(2)}
+                        {product.topics && product.topics.length > 0 && <span> + extras</span>}
+                      </div>
+                      {product.aclaracion && (
+                        <p className="text-xs text-gray-500 mt-0.5">Nota: {product.aclaracion}</p>
+                      )}
+                      {product.topics && product.topics.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {product.topics.map((topic) => (
+                            <Badge key={topic.id} variant="outline" className="text-xs">
+                              {topic.name} (+${topic.price.toFixed(2)})
+                            </Badge>
+                          ))}
                         </div>
                       )}
-                      <div>
-                        <h5 className="font-medium">{product.name}</h5>
-                        <div className="text-sm text-gray-600">
-                          ${product.price.toFixed(2)}
-                          {product.topics && product.topics.length > 0 && (
-                            <span> + extras</span>
-                          )}
-                        </div>
-                        {product.aclaracion && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Nota: {product.aclaracion}
-                          </p>
-                        )}
-                        {product.topics && product.topics.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {product.topics.map((topic) => (
-                              <Badge key={topic.id} variant="outline" className="text-xs">
-                                {topic.name} (+${topic.price.toFixed(2)})
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRemoveProduct(product.id)}
+                      className="text-red-500 hover:text-red-700 flex-shrink-0 h-7 w-7 p-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Controles de cantidad */}
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-7 w-7 p-0"
                         onClick={() => onUpdateQuantity(product.id, Math.max(1, product.cantidad - 1))}
                       >
                         <Minus className="w-3 h-3" />
                       </Button>
-                      <span className="w-8 text-center font-medium">
-                        {product.cantidad}
-                      </span>
+                      <span className="w-8 text-center text-sm font-medium">{product.cantidad}</span>
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-7 w-7 p-0"
                         onClick={() => onUpdateQuantity(product.id, product.cantidad + 1)}
                       >
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
-
-                    {/* Precio total */}
-                    <div className="text-right min-w-[70px]">
-                      <div className="font-bold">
-                        ${(calculateProductPrice(product.price, product.topics) * product.cantidad).toFixed(2)}
-                      </div>
+                    <div className="font-bold text-sm">
+                      ${(calculateProductPrice(product.price, product.topics) * product.cantidad).toFixed(2)}
                     </div>
-
-                    {/* Botón eliminar */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onRemoveProduct(product.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -481,11 +468,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
             </div>
 
             {/* Botones de acción */}
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCancelAdd}>
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+              <Button variant="outline" onClick={handleCancelAdd} className="w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button onClick={handleConfirmAdd}>
+              <Button onClick={handleConfirmAdd} className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Agregar al pedido
               </Button>
@@ -508,42 +495,40 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[28rem] overflow-y-auto pr-1">
               {filteredProducts.map((product: Product) => (
                 <div
                   key={`product-${product.idProduct}`}
-                  className="border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                  className="border rounded-lg p-3 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer active:scale-[0.98]"
                   onClick={() => handleSelectProduct(product)}
                 >
-                  <div className="flex items-start gap-3">
-                    {product.image && (
-                      <div className="relative w-12 h-12 flex-shrink-0">
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          fill
-                          className="object-cover rounded"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h5 className="font-medium text-sm truncate">
-                        {product.name}
-                      </h5>
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {product.description}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="font-bold text-green-600">
-                          ${product.price.toFixed(2)}
-                        </span>
-                        {product.topics && product.topics.length > 0 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{product.topics.length} extras
-                          </Badge>
-                        )}
-                      </div>
+                  {product.image && (
+                    <div className="relative w-full aspect-video mb-3 rounded overflow-hidden bg-gray-100">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
+                  )}
+                  <h5 className="font-medium text-sm leading-snug mb-1">
+                    {product.name}
+                  </h5>
+                  {product.description && (
+                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">
+                      {product.description}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-green-600 text-sm">
+                      ${product.price.toFixed(2)}
+                    </span>
+                    {product.topics && product.topics.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{product.topics.length} extras
+                      </Badge>
+                    )}
                   </div>
                 </div>
               ))}

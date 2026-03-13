@@ -35,11 +35,6 @@ export default function LocationSettingsClient() {
 
   return (
     <div className="space-y-8 w-full">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-1">Ubicación y Horarios</h2>
-        <p className="text-sm text-gray-500">Configura la dirección física de tu tienda y cuándo estás abierto.</p>
-      </div>
-
       <AddressSection {...sectionProps} />
       <div className="h-px bg-gray-200" />
       <ScheduleSection {...sectionProps} />
