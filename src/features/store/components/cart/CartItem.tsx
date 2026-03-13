@@ -35,6 +35,7 @@ interface CartItemProps {
     cantidad: number;
     image?: string;
     topics?: Topics[];
+    availableTopics?: Topics[];
   };
   onQuantityChange: (id: string, action: "increase" | "decrease") => void;
   onRemove: (id: string) => void;
@@ -42,7 +43,9 @@ interface CartItemProps {
 }
 
 const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartItemProps) => {
-  const { id, name, price, cantidad, image, topics } = product;
+  const { id, name, price, cantidad, image, topics, availableTopics } = product;
+  // Para editar: mostrar todos los extras disponibles; si no hay, usar los seleccionados
+  const editableTopics = (availableTopics && availableTopics.length > 0) ? availableTopics : (topics ?? []);
   const [showTopicsModal, setShowTopicsModal] = useState(false);
   const [selectedTopics, setSelectedTopics] = useState<Topics[]>(topics || []);
   const [showTopics, setShowTopics] = useState(false);
@@ -117,24 +120,22 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
           {/* Precio unitario */}
           <p className="text-xs text-gray-400 mt-0.5">{formatPrice(price)} c/u</p>
 
-          {/* Tópicos seleccionados (colapsable) */}
-          {topics && topics.length > 0 && (
+          {/* Tópicos seleccionados (colapsable) + botón editar */}
+          {editableTopics.length > 0 && (
             <div className="mt-1">
-              <button
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                onClick={() => setShowTopics((v) => !v)}
-              >
-                <span>
-                  {topics.length} extra{topics.length !== 1 ? "s" : ""}
-                </span>
-                {showTopics ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-              </button>
+              {topics && topics.length > 0 && (
+                <button
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  onClick={() => setShowTopics((v) => !v)}
+                >
+                  <span>
+                    {topics.length} extra{topics.length !== 1 ? "s" : ""}
+                  </span>
+                  {showTopics ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+              )}
               <AnimatePresence>
-                {showTopics && (
+                {showTopics && topics && topics.length > 0 && (
                   <motion.ul
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
@@ -159,7 +160,7 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
                   style={{ color: "var(--store-primary)" }}
                   onClick={handleOpenModal}
                 >
-                  Editar extras
+                  {topics && topics.length > 0 ? "Editar extras" : "Agregar extras"}
                 </button>
               )}
             </div>
@@ -200,7 +201,7 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
             <DialogTitle>Editar extras — {name}</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            {topics?.map((topic) => (
+            {editableTopics.map((topic) => (
               <div key={topic.id} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Checkbox

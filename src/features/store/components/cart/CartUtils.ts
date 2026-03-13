@@ -82,6 +82,7 @@ export function formatearItemsCarrito(items: ProductInCart[]) {
     price: item.price,
     cantidad: item.cantidad,
     image: item.image,
-    topics: item.topics
+    topics: item.topics,
+    availableTopics: item.availableTopics,
   }));
 } 

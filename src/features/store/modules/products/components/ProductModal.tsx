@@ -87,12 +87,13 @@ export function ProductModal() {
   const handleAddToCart = () => {
     if (!product) return;
 
+    const availableTopics = product.topics ?? [];
     const productWithExtras: Product = {
       ...product,
       topics: selectedTopics.length > 0 ? selectedTopics : undefined,
     };
 
-    addToCart(productWithExtras, quantity, notes.trim() || undefined);
+    addToCart(productWithExtras, quantity, notes.trim() || undefined, availableTopics);
 
     toast({
       title: "Producto añadido",

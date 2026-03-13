@@ -43,6 +43,7 @@ export interface ProductInCart extends Product {
   cantidad: number;
   aclaracion?: string;
   id: string; // ID único en el carrito
+  availableTopics?: Topics[]; // Todos los extras disponibles para este producto
 }
 
 /**

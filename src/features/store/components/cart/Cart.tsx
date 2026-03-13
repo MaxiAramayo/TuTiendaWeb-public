@@ -22,7 +22,7 @@ interface CartProps {
     cantidad: number;
     image?: string;
     topics?: Topics[];
-    availableTopics?: Topics[]; // Para edición de tópicos
+    availableTopics?: Topics[];
   }[];
   total: number;
   onQuantityChange: (id: string, action: "increase" | "decrease") => void;
