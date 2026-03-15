@@ -33,12 +33,7 @@ export default function CheckoutSettingsClient() {
   };
 
   return (
-    <div className="space-y-8 w-full">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-1">Pagos y Entregas</h2>
-        <p className="text-sm text-gray-500">Configura cómo tus clientes pueden pagar y recibir sus pedidos.</p>
-      </div>
-
+    <div className="w-full">
       <PaymentDeliverySection {...sectionProps} />
     </div>
   );

@@ -18,11 +18,12 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  RefreshCw,
   Store,
-  Tag,
   Globe,
-  Save
+  Save,
+  MessageCircle,
+  Copy,
+  Check as CheckIcon,
 } from 'lucide-react';
 import { validateSlug as validateSlugZod } from '../../schemas/profile.schema';
 import { generateSlug } from '../../utils/profile.utils';
@@ -60,7 +61,32 @@ export function BasicInfoSection({
   isSaving = false,
 }: BasicInfoSectionProps) {
   const [isBasicSaving, setIsBasicSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { setProfile } = useProfileStore();
+
+  const storeUrl = formData.siteName
+    ? `tutiendaweb.com.ar/${formData.siteName}`
+    : 'tutiendaweb.com.ar/tu-tienda';
+
+  const whatsappMessage = `¡Hola! 👋 Bienvenido/a a ${formData.name || 'nuestra tienda'}.
+
+Podés ver todos nuestros productos y realizar tu pedido desde nuestra tienda digital:
+👉 https://${storeUrl}
+
+¿Cómo hacer tu pedido?
+1️⃣ Navegá y elegí los productos que te gustan
+2️⃣ Agregálos al carrito
+3️⃣ Completá el formulario con tus datos
+4️⃣ ¡Confirmá tu pedido y listo!
+
+Ante cualquier consulta, estamos a disposición. 😊`;
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(whatsappMessage).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [whatsappMessage]);
   const success = (message: string) => toast.success(message);
   const error = (message: string) => toast.error(message);
 
@@ -141,14 +167,6 @@ export function BasicInfoSection({
     setAutoSlug(false);
     updateField('siteName', value.toLowerCase());
   }, [updateField]);
-
-  const handleRegenerateSlug = useCallback(() => {
-    if (formData.name) {
-      const newSlug = generateSlug(formData.name);
-      updateField('siteName', newSlug);
-      setAutoSlug(true);
-    }
-  }, [formData.name, updateField]);
 
   const handleSectionSave = useCallback(async () => {
     if (!profile?.id) {
@@ -306,34 +324,22 @@ export function BasicInfoSection({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="siteName" className="text-sm font-semibold text-gray-700">URL personalizada *</Label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex flex-1 rounded-md shadow-sm">
-                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-sm">
-                    tutiendaweb.com.ar/
-                  </span>
-                  <Input
-                    id="siteName"
-                    value={formData.siteName || ''}
-                    onChange={(e) => handleSlugChange(e.target.value)}
-                    placeholder="mi-tienda"
-                    className={cn(
-                      'rounded-l-none',
-                      formState.errors.siteName && 'border-red-500 focus-visible:ring-red-500',
-                      slugValidation.isValid === true && 'border-green-500 focus-visible:ring-green-500',
-                      slugValidation.isValid === false && 'border-red-500 focus-visible:ring-red-500'
-                    )}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleRegenerateSlug}
-                  disabled={!formData.name}
-                  className="flex items-center gap-2 whitespace-nowrap"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Auto-generar
-                </Button>
+              <div className="flex flex-1 rounded-md shadow-sm">
+                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-sm whitespace-nowrap">
+                  tutiendaweb.com.ar/
+                </span>
+                <Input
+                  id="siteName"
+                  value={formData.siteName || ''}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  placeholder="mi-tienda"
+                  className={cn(
+                    'rounded-l-none',
+                    formState.errors.siteName && 'border-red-500 focus-visible:ring-red-500',
+                    slugValidation.isValid === true && 'border-green-500 focus-visible:ring-green-500',
+                    slugValidation.isValid === false && 'border-red-500 focus-visible:ring-red-500'
+                  )}
+                />
               </div>
 
               {/* Validation Status */}
@@ -397,6 +403,7 @@ export function BasicInfoSection({
 
         <div className="xl:col-span-4">
           <div className="sticky top-6 space-y-4">
+            {/* Estado de Configuración */}
             <Card className="border shadow-sm bg-blue-50/40">
               <CardHeader className="pb-3 border-b border-blue-100">
                 <CardTitle className="text-sm font-semibold text-blue-900">Estado de Configuración</CardTitle>
@@ -420,6 +427,48 @@ export function BasicInfoSection({
                     {formData.description ? 'Completo' : 'Opcional'}
                   </span>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Mensaje de bienvenida para WhatsApp Business */}
+            <Card className="border shadow-sm border-green-200 bg-green-50/30">
+              <CardHeader className="pb-3 border-b border-green-100">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-green-900">
+                  <MessageCircle className="w-4 h-4 text-green-600" />
+                  Mensaje de Bienvenida
+                </CardTitle>
+                <p className="text-xs text-green-700/70 mt-1">
+                  Copiá este texto y usalo como mensaje de bienvenida automático en WhatsApp Business.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <pre className="text-xs text-gray-700 bg-white border border-green-100 rounded-lg p-3 whitespace-pre-wrap break-words font-sans leading-relaxed max-h-64 overflow-y-auto">
+                  {whatsappMessage}
+                </pre>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCopy}
+                  className={cn(
+                    'w-full flex items-center justify-center gap-2 transition-all duration-200',
+                    copied
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-white border border-green-300 text-green-800 hover:bg-green-50'
+                  )}
+                  variant="outline"
+                >
+                  {copied ? (
+                    <>
+                      <CheckIcon className="w-3.5 h-3.5" />
+                      ¡Copiado!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      Copiar mensaje
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </div>

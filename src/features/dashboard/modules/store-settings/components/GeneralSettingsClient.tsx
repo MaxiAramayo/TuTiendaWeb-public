@@ -36,11 +36,6 @@ export default function GeneralSettingsClient() {
 
   return (
     <div className="space-y-8 w-full">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-1">General</h2>
-        <p className="text-sm text-gray-500">Administra la información básica y el contacto de tu negocio.</p>
-      </div>
-
       <BasicInfoSection {...sectionProps} />
       <div className="h-px bg-gray-200" />
       <ContactInfoSection {...sectionProps} />

@@ -161,6 +161,18 @@ function getDefaultPaymentMethods(): PaymentMethod[] {
 }
 
 /**
+ * Deduplica métodos de entrega por id, conservando la primera aparición
+ */
+function deduplicateDeliveryMethods(methods: DeliveryMethod[]): DeliveryMethod[] {
+  const seen = new Set<string>();
+  return methods.filter(m => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+}
+
+/**
  * Valores por defecto para métodos de entrega
  */
 function getDefaultDeliveryMethods(): DeliveryMethod[] {
@@ -384,9 +396,15 @@ export const getStoreSettings = cache(async (storeId: string): Promise<StoreSett
     const data = doc.data();
     const settings = data?.settings;
 
+    // Normalizar métodos de entrega: convertir id 'pickup' → 'retiro' y deduplicar
+    const rawDeliveryMethods: DeliveryMethod[] = settings?.deliveryMethods || getDefaultDeliveryMethods();
+    const normalizedDeliveryMethods = deduplicateDeliveryMethods(
+      rawDeliveryMethods.map(m => m.id === 'pickup' ? { ...m, id: 'retiro' } : m)
+    );
+
     return {
       paymentMethods: settings?.paymentMethods || getDefaultPaymentMethods(),
-      deliveryMethods: settings?.deliveryMethods || getDefaultDeliveryMethods(),
+      deliveryMethods: normalizedDeliveryMethods,
       currency: settings?.currency || 'ARS',
       language: settings?.language || 'es',
       orderSettings: {
@@ -481,6 +499,7 @@ export const getPublicProducts = cache(async (storeId: string): Promise<Product[
         price: productData.price,
         image: productData.imageUrls?.[0] || "",
         imageUrl: productData.imageUrls?.[0] || "",
+        imageUrls: productData.imageUrls || [],
         category: categoryName,
         available: productData.status === "active",
         tags: productData.tags || [],

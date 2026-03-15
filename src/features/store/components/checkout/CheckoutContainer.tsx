@@ -44,7 +44,8 @@ export function CheckoutContainer({ storeInfo, settings }: CheckoutContainerProp
         </p>
         <button
           onClick={() => router.push(`/${params.url}`)}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          className="px-6 py-2.5 text-white rounded-xl font-medium transition-opacity hover:opacity-90"
+          style={{ backgroundColor: 'var(--store-primary, #16a34a)' }}
         >
           Volver a la tienda
         </button>

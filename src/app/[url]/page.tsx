@@ -14,8 +14,6 @@ import ErrorNotAvailable from "@/features/store/ui/ErrorNotAvailable";
 import { HeaderWelcome } from '@/features/store/components/HeaderWelcome';
 import { StoreThemeProvider } from '@/features/store/components/ThemeProvider';
 import ProductList from "@/features/store/modules/products/components/ProductList";
-import { getServerSession } from "@/lib/auth/server-session";
-import { AdminFloatingButton } from "@/features/store/components/AdminFloatingButton";
 
 /**
  * Página principal de la tienda
@@ -50,8 +48,6 @@ export default async function Tienda({
   // Obtener productos de la tienda
   const storeId = storeData.id || storeData.uid || '';
   const products = await getStoreProducts(storeId);
-  const session = await getServerSession();
-  const isOwner = session?.userId === (storeData.metadata as any)?.ownerId || session?.storeId === storeId;
 
   return (
     <StoreThemeProvider themeData={storeData.theme}>
@@ -62,7 +58,6 @@ export default async function Tienda({
           fontFamily: 'var(--store-font-family, Inter), system-ui, sans-serif'
         }}
       >
-        {isOwner && <AdminFloatingButton />}
         <HeaderWelcome store={storeData} />
         <ProductList products={products} />
       </div>

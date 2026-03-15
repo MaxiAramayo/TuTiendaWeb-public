@@ -4,8 +4,7 @@
  * @module store/cartStore
  */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { Product, ProductInCart } from '@/shared/types/store';
+import { Product, ProductInCart, Topics } from '@/shared/types/store';
 import { calcularTotal, editarCantidadCart, eliminarDelCarrito } from '@/features/store/components/cart/CartUtils';
 
 // Tipos para el estado del carrito
@@ -21,7 +20,7 @@ interface CartState {
 interface CartActions {
   openCart: () => void;
   closeCart: () => void;
-  addToCart: (product: Product, quantity?: number, notes?: string) => void;
+  addToCart: (product: Product, quantity?: number, notes?: string, availableTopics?: Topics[]) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
@@ -54,74 +53,51 @@ const useCartStore = create<CartState & CartActions & CartSelectors>()(
     
     closeCart: () => set({ isOpen: false }),
     
-    addToCart: (product: Product, quantity: number = 1, notes?: string) => {
+    addToCart: (product: Product, quantity: number = 1, notes?: string, availableTopics?: Topics[]) => {
       try {
         set({ isLoading: true, error: null });
 
-        // Validaciones
-        if (!product || !product.idProduct) {
-          throw new Error('Producto inválido');
-        }
-
-        if (quantity < 1) {
-          throw new Error('La cantidad debe ser mayor a 0');
-        }
-
-        if (typeof product.price !== 'number' || product.price < 0) {
-          throw new Error('Precio del producto inválido');
-        }
+        if (!product || !product.idProduct) throw new Error('Producto inválido');
+        if (quantity < 1) throw new Error('La cantidad debe ser mayor a 0');
+        if (typeof product.price !== 'number' || product.price < 0) throw new Error('Precio del producto inválido');
 
         const { items } = get();
 
-        // Generar un identificador único basado en idProduct, tópicos y notas
-        const topicsIds = (product.topics && product.topics.length > 0)
-          ? product.topics.map(t => t.id).sort().join('-')
+        // Normalizar topics seleccionados para comparación
+        const selectedTopicIds = (product.topics && product.topics.length > 0)
+          ? product.topics.map(t => t.id).sort().join('|')
           : '';
-        const notesHash = notes ? `-n${notes.slice(0, 10)}` : '';
-        const uniqueId = `${product.idProduct}-${topicsIds}${notesHash}`;
 
-        // Buscar si ya existe un producto con la misma combinación de idProduct + tópicos + notas
+        // Buscar si ya existe un ítem con la misma combinación (idProduct + tópicos + notas)
         const existingItem = items.find(item => {
           if (item.idProduct !== product.idProduct) return false;
-          const itemTopicsIds = (item.topics && item.topics.length > 0)
-            ? item.topics.map(t => t.id).sort().join('-')
+          const itemTopicIds = (item.topics && item.topics.length > 0)
+            ? item.topics.map(t => t.id).sort().join('|')
             : '';
-          const itemNotes = item.aclaracion || '';
-          return itemTopicsIds === topicsIds && itemNotes === (notes || '');
+          return itemTopicIds === selectedTopicIds && (item.aclaracion || '') === (notes || '');
         });
 
         if (existingItem) {
-          // Si el producto ya existe con la misma combinación de tópicos y notas, actualizamos la cantidad
           const updatedItems = items.map(item =>
-            item === existingItem
-              ? { ...item, cantidad: item.cantidad + quantity }
-              : item
+            item === existingItem ? { ...item, cantidad: item.cantidad + quantity } : item
           );
-          set({ 
-            items: updatedItems,
-            total: calcularTotal(updatedItems),
-            isLoading: false
-          });
+          set({ items: updatedItems, total: calcularTotal(updatedItems), isLoading: false });
         } else {
-          // Si es una combinación nueva, la agregamos como ítem distinto
+          // ID único aleatorio: no determinista, evita colisiones al editar extras
+          const newItemId = `${product.idProduct}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
           const newItem: ProductInCart = {
             ...product,
-            id: uniqueId, // ID determinista
+            id: newItemId,
             cantidad: quantity,
-            aclaracion: notes || undefined
+            aclaracion: notes || undefined,
+            // Guardar todos los extras disponibles para poder editarlos desde el carrito
+            availableTopics: availableTopics ?? (product.topics ? [...product.topics] : []),
           };
           const updatedItems = [...items, newItem];
-          set({ 
-            items: updatedItems,
-            total: calcularTotal(updatedItems),
-            isLoading: false
-          });
+          set({ items: updatedItems, total: calcularTotal(updatedItems), isLoading: false });
         }
       } catch (error) {
-        set({ 
-          error: error instanceof Error ? error.message : 'Error al agregar al carrito',
-          isLoading: false 
-        });
+        set({ error: error instanceof Error ? error.message : 'Error al agregar al carrito', isLoading: false });
       }
     },
 
@@ -189,33 +165,22 @@ const useCartStore = create<CartState & CartActions & CartSelectors>()(
     },
 
     /**
-     * Actualiza los tópicos (extras) de un producto en el carrito
+     * Actualiza los tópicos (extras) de un producto en el carrito.
+     * El precio base del item nunca cambia — calcularTotal suma extras por separado.
      */
     updateTopics: (id: string, newTopics: any[]) => {
       try {
         set({ isLoading: true, error: null });
         const { items } = get();
-        const updatedItems = items.map(item => {
-          if (item.id !== id) return item;
-          // El price base es el precio original del producto (sin tópicos)
-          const basePrice = item.price - (item.topics?.reduce((acc, topic) => acc + (topic.price || 0), 0) || 0);
-          const extrasPrice = newTopics.reduce((acc, topic) => acc + (topic.price || 0), 0);
-          return {
+        const updatedItems = items.map(item =>
+          item.id !== id ? item : {
             ...item,
-            topics: newTopics,
-            price: basePrice + extrasPrice
-          };
-        });
-        set({
-          items: updatedItems,
-          total: calcularTotal(updatedItems),
-          isLoading: false
-        });
+            topics: newTopics.length > 0 ? newTopics : undefined,
+          }
+        );
+        set({ items: updatedItems, total: calcularTotal(updatedItems), isLoading: false });
       } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Error al actualizar extras',
-          isLoading: false
-        });
+        set({ error: error instanceof Error ? error.message : 'Error al actualizar extras', isLoading: false });
       }
     },
   })

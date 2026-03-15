@@ -62,7 +62,7 @@ const DEFAULT_PAYMENT_METHODS = [
  * Métodos de entrega predeterminados
  */
 const DEFAULT_DELIVERY_METHODS = [
-  { id: 'pickup', name: 'Retiro en local', enabled: true, price: 0 },
+  { id: 'retiro', name: 'Retiro en local', enabled: true, price: 0 },
   { id: 'delivery', name: 'Delivery', enabled: false, price: 0 },
 ];
 

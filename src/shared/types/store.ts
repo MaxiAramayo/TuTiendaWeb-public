@@ -16,6 +16,8 @@ export interface Product {
   price: number;
   image?: string;
   imageUrl?: string; // Compatibilidad con ambas convenciones de nombres
+  /** Todas las URLs de imágenes del producto */
+  imageUrls?: string[];
   category?: string;
   available?: boolean;
   tags?: string[];
@@ -41,6 +43,7 @@ export interface ProductInCart extends Product {
   cantidad: number;
   aclaracion?: string;
   id: string; // ID único en el carrito
+  availableTopics?: Topics[]; // Todos los extras disponibles para este producto
 }
 
 /**

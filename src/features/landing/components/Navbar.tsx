@@ -16,14 +16,14 @@ import CtaButton from './CtaButton';
 import { useAuthClient } from '@/features/auth/hooks/use-auth-client';
 
 /**
- * Enlaces principales de navegación
+ * Anclas de navegación — se prefijarán con "/" cuando no se esté en la home
  */
-const navLinks = [
-  { href: "#inicio", label: "Inicio" },
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#caracteristicas", label: "Características" },
-  { href: "#qr-demo", label: "Menú QR" },
-  { href: "#precios", label: "Precios" },
+const navAnchors = [
+  { anchor: "#inicio", label: "Inicio" },
+  { anchor: "#como-funciona", label: "Cómo funciona" },
+  { anchor: "#caracteristicas", label: "Características" },
+  { anchor: "#qr-demo", label: "Menú QR" },
+  { anchor: "#precios", label: "Precios" },
 ];
 
 /**
@@ -37,6 +37,12 @@ const Navbar = () => {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
   const { user, isLoading } = useAuthClient();
+
+  // En páginas internas los anclas deben llevar el prefijo "/" para volver a la home
+  const navLinks = navAnchors.map(({ anchor, label }) => ({
+    href: isHomePage ? anchor : `/${anchor}`,
+    label,
+  }));
 
   // Manejador para detectar scroll
   useEffect(() => {
@@ -89,7 +95,7 @@ const Navbar = () => {
             href="/"
             className="flex items-center font-bold text-2xl text-gray-900"
           >
-            <span className="text-purple-600">Tu</span>Tienda
+            <span className="text-purple-600">Tu</span>TiendaWeb
           </Link>
 
           {/* Navegación - Escritorio */}

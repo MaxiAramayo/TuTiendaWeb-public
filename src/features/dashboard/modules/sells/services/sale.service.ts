@@ -119,18 +119,6 @@ export async function getSales(
     query = query.where('metadata.createdAt', '<=', admin.firestore.Timestamp.fromDate(endDate));
   }
   
-  if (filter?.paymentMethod && filter.paymentMethod !== 'all') {
-    query = query.where('payment.method', '==', filter.paymentMethod);
-  }
-
-  if (filter?.deliveryMethod && filter.deliveryMethod !== 'all') {
-    query = query.where('delivery.method', '==', filter.deliveryMethod);
-  }
-
-  if (filter?.source && filter.source !== 'all') {
-    query = query.where('source', '==', filter.source);
-  }
-  
   if (filter?.limit) {
     query = query.limit(filter.limit);
   }
@@ -138,6 +126,19 @@ export async function getSales(
   const snapshot = await query.get();
   
   let sales = snapshot.docs.map(mapDocToSale);
+
+  // Filtros in-memory (evitan necesidad de índices compuestos adicionales)
+  if (filter?.paymentMethod && filter.paymentMethod !== 'all') {
+    sales = sales.filter(sale => sale.payment.method === filter.paymentMethod);
+  }
+
+  if (filter?.deliveryMethod && filter.deliveryMethod !== 'all') {
+    sales = sales.filter(sale => sale.delivery.method === filter.deliveryMethod);
+  }
+
+  if (filter?.source && filter.source !== 'all') {
+    sales = sales.filter(sale => sale.source === filter.source);
+  }
 
   // Filtro por nombre de cliente (local, Firestore no soporta búsqueda de texto)
   if (filter?.customerName) {
