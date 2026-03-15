@@ -136,11 +136,30 @@ export function ProductModal() {
 
       {/* Información del producto */}
       <div>
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">{product.name}</h2>
-          {product.category && <Badge variant="outline">{product.category}</Badge>}
+        <div className="flex w-full items-start justify-between gap-4">
+          <div className="flex flex-col gap-1.5 flex-1">
+            <h2 className="text-xl font-semibold leading-tight">{product.name}</h2>
+            {product.tags && product.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {product.tags.map((tag) => (
+                  <Badge 
+                    key={tag} 
+                    variant="secondary" 
+                    className="text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap bg-[var(--store-primary)]/10 text-[var(--store-primary)] hover:bg-[var(--store-primary)]/20 border-transparent transition-colors px-2 py-0.5"
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          {product.category && (
+            <Badge variant="outline" className="whitespace-nowrap shrink-0">
+              {product.category}
+            </Badge>
+          )}
         </div>
-        <p className={`text-lg font-bold mt-1 ${themeClasses.price.primary}`}>
+        <p className={`text-lg font-bold mt-2 ${themeClasses.price.primary}`}>
           {formatPrice(product.price)}
         </p>
       </div>

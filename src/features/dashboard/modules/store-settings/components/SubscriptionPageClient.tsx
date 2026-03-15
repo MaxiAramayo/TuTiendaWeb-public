@@ -54,16 +54,18 @@ interface SubscriptionPageClientProps {
 const PRO_PLAN = {
   id: 'pro',
   name: 'Profesional',
-  price: 4999,
+  price: 15000,
   period: 'mes',
-  description: 'Todo lo que necesitás para hacer crecer tu negocio online.',
+  description: 'Un solo plan con todo incluido. Sin límites artificiales, sin cobros ocultos.',
   features: [
-    { icon: Package, label: 'Productos ilimitados' },
-    { icon: Palette, label: 'Personalización completa de tu tienda' },
-    { icon: BarChart3, label: 'Analytics y reportes avanzados' },
-    { icon: Zap, label: 'Integración con WhatsApp y redes sociales' },
-    { icon: ShieldCheck, label: 'Sin marca de TuTiendaWeb visible' },
-    { icon: HeadphonesIcon, label: 'Soporte prioritario' },
+    { icon: Zap, label: 'Catálogo digital QR compartible por WhatsApp' },
+    { icon: Package, label: 'Productos y categorías ilimitadas' },
+    { icon: BarChart3, label: 'Gestión de ventas con reportes' },
+    { icon: Palette, label: 'Personalización completa (logo, banner, colores)' },
+    { icon: RefreshCw, label: 'Actualizaciones en tiempo real desde cualquier dispositivo' },
+    { icon: Crown, label: 'Panel de administración completo' },
+    { icon: CheckCircle2, label: 'Pedidos online integrados' },
+    { icon: HeadphonesIcon, label: 'Soporte por WhatsApp' },
   ],
 };
 
@@ -201,7 +203,12 @@ export default function SubscriptionPageClient({
       toast.success('Redirigiendo a MercadoPago...');
     } catch (error: any) {
       console.error('Error creando suscripcion:', error);
-      toast.error(error?.message ?? 'No se pudo generar el link de pago. Intentá de nuevo.');
+      const errorMessage = error?.message ?? '';
+      if (errorMessage.includes('Cannot operate between different countries')) {
+        toast.error('El email ingresado parece no estar registrado en MercadoPago Argentina o no es apto para generar cobros. Por favor, usá otra cuenta local válida.');
+      } else {
+        toast.error(errorMessage || 'No se pudo generar el link de pago. Intentá de nuevo.');
+      }
     } finally {
       setProcessingPayment(false);
     }
@@ -235,7 +242,8 @@ export default function SubscriptionPageClient({
         .join('\n')
     );
 
-    window.open(`https://wa.me/5491123456789?text=${text}`, '_blank');
+    const supportNumber = process.env.NEXT_PUBLIC_SUPPORT_NUMBER || '';
+    window.open(`https://wa.me/${supportNumber}?text=${text}`, '_blank');
   };
 
   const handleCancelSubscription = async () => {
@@ -349,17 +357,17 @@ export default function SubscriptionPageClient({
                     <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 mb-3 border-none px-3 py-1">
                       Plan Recomendado
                     </Badge>
-                    <CardTitle className="text-2xl font-bold text-purple-900">
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-purple-900">
                       {PRO_PLAN.name}
                     </CardTitle>
-                    <CardDescription className="mt-2 text-purple-700/80 text-base max-w-sm">
+                    <CardDescription className="mt-2 text-purple-700/80 text-sm sm:text-base max-w-sm">
                       {PRO_PLAN.description}
                     </CardDescription>
                   </div>
                   <div className="sm:text-right flex-shrink-0">
                     <div className="flex items-baseline sm:justify-end">
-                      <span className="text-4xl font-extrabold text-purple-900">${PRO_PLAN.price.toLocaleString('es-AR')}</span>
-                      <span className="text-lg text-purple-600 font-medium ml-1">/ {PRO_PLAN.period}</span>
+                      <span className="text-3xl sm:text-4xl font-extrabold text-purple-900">${PRO_PLAN.price.toLocaleString('es-AR')}</span>
+                      <span className="text-base sm:text-lg text-purple-600 font-medium ml-1">/ {PRO_PLAN.period}</span>
                     </div>
                   </div>
                 </div>
@@ -453,7 +461,7 @@ export default function SubscriptionPageClient({
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <Button
                     type="button"
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white"
                     onClick={refreshSubscriptionStatus}
                     disabled={checkingWebhook}
                   >
@@ -466,7 +474,7 @@ export default function SubscriptionPageClient({
                       <Button
                         type="button"
                         variant="outline"
-                        className="border-orange-200 text-orange-700 hover:bg-orange-100"
+                        className="w-full sm:w-auto border-orange-200 text-orange-700 hover:bg-orange-100"
                         disabled={cancellingSubscription}
                       >
                         {cancellingSubscription ? (
@@ -523,12 +531,12 @@ export default function SubscriptionPageClient({
                 </p>
                 <div className="bg-white/60 rounded-lg p-4 border border-green-100 flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Próxima facturación</p>
-                    <p className="font-semibold text-gray-900">{nextPaymentDate}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Próxima facturación</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">{nextPaymentDate}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Monto</p>
-                    <p className="font-semibold text-gray-900">${PRO_PLAN.price.toLocaleString('es-AR')}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Monto</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">${PRO_PLAN.price.toLocaleString('es-AR')}</p>
                   </div>
                 </div>
              </CardContent>
@@ -538,7 +546,7 @@ export default function SubscriptionPageClient({
                     <Button
                       type="button"
                       variant="ghost"
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      className="w-full sm:w-auto text-red-600 hover:bg-red-50 hover:text-red-700"
                       disabled={cancellingSubscription}
                     >
                       {cancellingSubscription ? (

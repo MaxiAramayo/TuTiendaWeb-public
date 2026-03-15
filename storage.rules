@@ -23,11 +23,11 @@ service firebase.storage {
     function isStoreOwner(storeId) {
       let storeData = firestore.get(/databases/(default)/documents/stores/$(storeId)).data;
       return isAuthenticated() &&
-             firestore.exists(/databases/(default)/documents/stores/$(storeId)) &&
+             storeData != null &&
              (
-               storeData.ownerId == request.auth.uid ||
-               storeData.userId == request.auth.uid ||
-               storeData.metadata.ownerId == request.auth.uid
+               storeData.get('ownerId', '') == request.auth.uid ||
+               storeData.get('userId', '') == request.auth.uid ||
+               storeData.get('metadata', {}).get('ownerId', '') == request.auth.uid
              );
     }
 

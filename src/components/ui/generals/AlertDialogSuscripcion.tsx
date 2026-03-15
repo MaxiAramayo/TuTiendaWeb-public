@@ -38,7 +38,7 @@ const AlertDialogSuscripcion = ({ suscripcion }: Props) => {
   };
 
   const handleContinue = () => {
-    const whatsappNumber = "+543853002537";
+    const whatsappNumber = process.env.NEXT_PUBLIC_SUPPORT_NUMBER || "";
     const whatsappMessage = "Hola, necesito renovar con mi suscripción.";
     window.open(
       `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
