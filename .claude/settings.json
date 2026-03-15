@@ -1,0 +1,9 @@
+{
+  "project": {
+    "name": "TuTiendaWeb",
+    "defaultModel": "sonnet",
+    "files": {
+      "primarySpec": "CLAUDE.md"
+    }
+  }
+}

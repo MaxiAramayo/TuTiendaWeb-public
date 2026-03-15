@@ -1,5 +1,9 @@
 /**
- * Componente de registro en múltiples pasos
+ * Componente de registro simplificado (solo datos del usuario)
+ * 
+ * El paso 2 (configuracion de tienda) fue movido al onboarding.
+ * 
+ * Flujo: Sign-up (email, password, nombre) -> /onboarding (9 slices)
  * 
  * @module features/auth/components/MultiStepRegister
  */
@@ -7,12 +11,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { UserRegistrationStep } from './UserRegistrationStep';
-import { StoreSetupStep } from './StoreSetupStep';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle } from 'lucide-react';
+import { registerAction, syncTokenAction } from '@/features/auth/actions/auth.actions';
+import { hybridRegister, refreshCurrentToken } from '@/features/auth/lib/hybrid-login';
 
 export interface UserData {
   email: string;
@@ -21,6 +23,7 @@ export interface UserData {
   terms: boolean;
 }
 
+// Keep StoreData exported for backward compatibility (other components may import it)
 export interface StoreData {
   whatsappNumber: string;
   name: string;
@@ -29,76 +32,63 @@ export interface StoreData {
 }
 
 /**
- * Componente principal de registro en pasos
+ * Componente principal de registro - paso unico
  */
 export const MultiStepRegister = () => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleUserDataComplete = (data: UserData) => {
-    setUserData(data);
-    setCurrentStep(2);
+  const handleUserDataComplete = async (data: UserData) => {
+    setIsLoading(true);
+
+    try {
+      const isGoogleUser = !data.password;
+
+      if (isGoogleUser) {
+        // For Google users, they're already authenticated
+        // Just redirect to onboarding
+        window.location.href = '/onboarding';
+        return;
+      }
+
+      // 1. Create user in Firebase Auth + Firestore
+      const registerFormData = new FormData();
+      registerFormData.append('email', data.email);
+      registerFormData.append('password', data.password);
+      registerFormData.append('displayName', data.displayName);
+
+      const registerResult = await registerAction(null, registerFormData);
+
+      if (!registerResult.success) {
+        if (registerResult.errors?.email) throw new Error(registerResult.errors.email[0]);
+        if (registerResult.errors?.password) throw new Error(registerResult.errors.password[0]);
+        throw new Error(registerResult.errors?._form?.[0] || 'Error al crear cuenta');
+      }
+
+      // 2. Hybrid login (Client Auth + Server Session)
+      await hybridRegister(data.email, data.password);
+
+      // 3. Sync token
+      const refreshedToken = await refreshCurrentToken();
+      if (refreshedToken) {
+        await syncTokenAction(refreshedToken);
+      }
+
+      // 4. Redirect to onboarding
+      window.location.href = '/onboarding';
+    } catch (error: any) {
+      console.error('Error en registro:', error);
+      toast.error(error.message || 'Error al crear la cuenta. Intentalo de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const handleStoreSetupComplete = () => {
-    setIsCompleted(true);
-    router.push('/dashboard');
-  };
-
-  const handleBackToStep1 = () => {
-    setCurrentStep(1);
-  };
-
-  const progress = currentStep === 1 ? 50 : 100;
-
-  if (isCompleted) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-bold text-gray-900">¡Cuenta creada!</h2>
-            <p className="text-gray-600">
-              Tu cuenta y tienda han sido creadas exitosamente.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
-      {/* Indicador de progreso */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm text-gray-600">
-          <span className={currentStep === 1 ? 'font-medium text-blue-600' : ''}>
-            Paso 1: Datos personales
-          </span>
-          <span className={currentStep === 2 ? 'font-medium text-blue-600' : ''}>
-            Paso 2: Configurar tienda
-          </span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Contenido del paso actual */}
-      {currentStep === 1 && (
-        <UserRegistrationStep 
-          onComplete={handleUserDataComplete}
-          initialData={userData}
-        />
-      )}
-      
-      {currentStep === 2 && userData && (
-        <StoreSetupStep 
-          userData={userData}
-          onComplete={handleStoreSetupComplete}
-          onBack={handleBackToStep1}
-        />
-      )}
+      <UserRegistrationStep
+        onComplete={handleUserDataComplete}
+        initialData={null}
+      />
     </div>
   );
 };

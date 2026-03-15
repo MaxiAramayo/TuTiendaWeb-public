@@ -1,80 +1,78 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // === FUNCIONES AUXILIARES ===
-    
-    // Verificar si el usuario está autenticado
+
+    // =========================================================================
+    // FUNCIONES AUXILIARES
+    // =========================================================================
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Verificar si el archivo es una imagen válida
+
+    // Imagen válida: content-type image/* y máximo 5 MB
     function isValidImage() {
       return request.resource.contentType.matches('image/.*') &&
-             request.resource.size < 5 * 1024 * 1024; // Máximo 5MB
+             request.resource.size < 5 * 1024 * 1024;
     }
-    
-    // Verificar si el usuario es propietario de la tienda
+
+    // El usuario es propietario de la tienda.
+    // Verifica los tres campos posibles (idéntico a firestore.rules) para
+    // ser consistente con documentos legacy (ownerId / userId) y actuales
+    // (metadata.ownerId). Si ninguno de los tres coincide, se deniega el acceso.
     function isStoreOwner(storeId) {
-      return isAuthenticated() && 
-             request.auth.uid != null &&
-             firestore.exists(/databases/(default)/documents/stores/$(storeId)) &&
-             firestore.get(/databases/(default)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+      let storeData = firestore.get(/databases/(default)/documents/stores/$(storeId)).data;
+      return isAuthenticated() &&
+             storeData != null &&
+             (
+               storeData.get('ownerId', '') == request.auth.uid ||
+               storeData.get('userId', '') == request.auth.uid ||
+               storeData.get('metadata', {}).get('ownerId', '') == request.auth.uid
+             );
     }
-    
-    // === REGLAS PARA IMÁGENES DE TIENDAS ===
-    
+
+    // =========================================================================
+    // IMÁGENES DE TIENDAS (logos, banners, productos, branding, etc.)
+    // La regla padre cubre todos los sub-paths — no se necesitan bloques
+    // específicos por subcarpeta (/products/, /branding/) ya que comparten
+    // exactamente las mismas condiciones.
+    // =========================================================================
+
     match /stores/{storeId}/{allPaths=**} {
-      // Lectura pública de todas las imágenes de tiendas (logos, banners, productos)
+      // Lectura pública (catálogo público consume estas URLs directamente)
       allow read: if true;
-      
-      // Solo el propietario de la tienda puede subir, actualizar y eliminar imágenes
+      // Solo el owner puede subir o actualizar imágenes
       allow write: if isStoreOwner(storeId) && isValidImage();
+      // Solo el owner puede eliminar imágenes
       allow delete: if isStoreOwner(storeId);
     }
-    
-    // === REGLAS ESPECÍFICAS PARA PRODUCTOS ===
-    
-    match /stores/{storeId}/products/{allPaths=**} {
-      // Lectura pública de imágenes de productos
-      allow read: if true;
-      
-      // Solo el propietario puede gestionar imágenes de productos
-      allow write: if isStoreOwner(storeId) && isValidImage();
-      allow delete: if isStoreOwner(storeId);
-    }
-    
-    // === REGLAS PARA LOGOS Y BANNERS DE TIENDA ===
-    
-    match /stores/{storeId}/branding/{allPaths=**} {
-      // Lectura pública de logos y banners
-      allow read: if true;
-      
-      // Solo el propietario puede gestionar branding
-      allow write: if isStoreOwner(storeId) && isValidImage();
-      allow delete: if isStoreOwner(storeId);
-    }
-    
-    // === REGLAS PARA AVATARES DE USUARIO ===
-    
+
+    // =========================================================================
+    // AVATARES DE USUARIO
+    // =========================================================================
+
     match /users/{userId}/avatar/{allPaths=**} {
-      // Solo el usuario puede ver y gestionar su avatar
-      allow read, write: if isAuthenticated() && request.auth.uid == userId && isValidImage();
+      allow read, write: if isAuthenticated() &&
+                            request.auth.uid == userId &&
+                            isValidImage();
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
-    
-    // === REGLAS PARA ARCHIVOS TEMPORALES ===
-    
+
+    // =========================================================================
+    // ARCHIVOS TEMPORALES (se eliminan automáticamente a las 24 h)
+    // =========================================================================
+
     match /temp/{userId}/{allPaths=**} {
-      // Archivos temporales solo para el usuario autenticado
-      // Se eliminan automáticamente después de 24 horas
-      allow read, write: if isAuthenticated() && request.auth.uid == userId && isValidImage();
+      allow read, write: if isAuthenticated() &&
+                            request.auth.uid == userId &&
+                            isValidImage();
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
-    
-    // === DENEGAR ACCESO A CUALQUIER OTRA RUTA ===
-    
+
+    // =========================================================================
+    // CATCH-ALL — denegar cualquier otra ruta no especificada
+    // =========================================================================
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

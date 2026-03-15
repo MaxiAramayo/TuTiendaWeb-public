@@ -7,9 +7,7 @@
 
 import React from "react";
 import type { ProductInCart } from "@/shared/types/store";
-import { useThemeClasses, useThemeStyles } from "../../hooks/useStoreTheme";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { ShoppingBag, ShoppingCart } from "lucide-react";
 import { ImageWithLoader } from "../../components/ui/ImageWithLoader";
 
@@ -19,9 +17,6 @@ interface OrderListProps {
 }
 
 export const OrderList = ({ carrito, total }: OrderListProps) => {
-  const themeClasses = useThemeClasses();
-  const themeStyles = useThemeStyles();
-
   // Validaciones defensivas
   const validCarrito = Array.isArray(carrito) ? carrito : [];
   const validTotal = typeof total === 'number' ? total : 0;
@@ -111,30 +106,22 @@ export const OrderList = ({ carrito, total }: OrderListProps) => {
           ))}
         </div>
 
-        <Separator />
-
-        {/* Total - Fondo oscuro elegante */}
-        <div
-          className="p-4 rounded-lg"
-          style={{ backgroundColor: 'var(--store-accent, #1F2937)' }}
-        >
-          <div className="flex justify-between items-center">
-            <span className="text-lg font-semibold text-white">
-              Total del Pedido:
-            </span>
-            <span
-              className="text-2xl font-bold"
-              style={{ color: 'var(--store-primary, #EA580C)' }}
-            >
-              ${validTotal}
-            </span>
+        {/* Total */}
+        <div className="flex items-center justify-between px-4 py-4 rounded-xl bg-gray-50 border border-gray-200 mt-1">
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+              Total a pagar
+            </p>
+            <p className="text-xs text-gray-400">
+              {validCarrito.reduce((s, i) => s + (i.cantidad || 1), 0)}{' '}
+              {validCarrito.reduce((s, i) => s + (i.cantidad || 1), 0) === 1 ? 'unidad' : 'unidades'}
+            </p>
           </div>
+          <p className="text-[1.75rem] font-extrabold text-gray-800 tabular-nums leading-none">
+            ${validTotal.toLocaleString('es-AR')}
+          </p>
         </div>
 
-        {/* Información adicional */}
-        <div className="text-center text-xs text-gray-500 mt-4">
-          Los precios incluyen impuestos. El costo de envío se calculará en el siguiente paso.
-        </div>
       </CardContent>
     </Card>
   );

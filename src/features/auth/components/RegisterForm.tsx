@@ -88,9 +88,9 @@ export const RegisterForm = () => {
         return;
       }
 
-      // 3. Redirigir a completar perfil
+      // 3. Redirigir al onboarding guiado
       toast.success('Cuenta creada correctamente');
-      router.push('/auth/complete-profile');
+      window.location.href = '/onboarding';
     } catch (error) {
       console.error('Error en registro:', error);
       toast.error('Error inesperado al crear la cuenta');

@@ -65,7 +65,7 @@ export const showSuccessToast = (message: string, options?: ToastOptions) => {
   
   toast.success(message, {
     duration: options?.duration || 3000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.success}`} />,
     action: options?.action ? {
       label: options.action.label,
@@ -82,7 +82,7 @@ export const showErrorToast = (message: string, options?: ToastOptions) => {
   
   toast.error(message, {
     duration: options?.duration || 5000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.error}`} />,
     action: options?.action ? {
       label: options.action.label,
@@ -99,7 +99,7 @@ export const showWarningToast = (message: string, options?: ToastOptions) => {
   
   toast.warning(message, {
     duration: options?.duration || 4000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.warning}`} />,
     action: options?.action ? {
       label: options.action.label,
@@ -116,7 +116,7 @@ export const showInfoToast = (message: string, options?: ToastOptions) => {
   
   toast.info(message, {
     duration: options?.duration || 3000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.info}`} />,
     action: options?.action ? {
       label: options.action.label,
@@ -133,7 +133,7 @@ export const showCartToast = (message: string, options?: ToastOptions) => {
   
   toast.success(message, {
     duration: options?.duration || 2000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.cart}`} />,
     action: options?.action ? {
       label: options.action.label,
@@ -150,7 +150,7 @@ export const showOrderToast = (message: string, options?: ToastOptions) => {
   
   toast.success(message, {
     duration: options?.duration || 4000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.order}`} />,
     action: options?.action ? {
       label: options.action.label,
@@ -167,7 +167,7 @@ export const showDeliveryToast = (message: string, options?: ToastOptions) => {
   
   toast.info(message, {
     duration: options?.duration || 5000,
-    position: options?.position || 'bottom-right',
+    position: options?.position || 'top-right',
     icon: <Icon className={`h-5 w-5 ${toastColors.delivery}`} />,
     action: options?.action ? {
       label: options.action.label,

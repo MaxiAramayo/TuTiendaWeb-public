@@ -67,30 +67,30 @@ function formatWhatsAppMessage({
   paymentMethod: string;
   notes?: string;
 }): string {
-  let message = `🛒 *NUEVO PEDIDO - ${storeName}*\n\n`;
-  message += `👤 *Cliente:* ${customerName}\n`;
-  message += `📦 *Entrega:* ${deliveryMethod === 'delivery' ? 'Delivery' : 'Retiro en local'}\n`;
+  let message = `*NUEVO PEDIDO - ${storeName}*\n\n`;
+  message += `*Cliente:* ${customerName}\n`;
+  message += `*Entrega:* ${deliveryMethod === 'delivery' ? 'Delivery' : 'Retiro en local'}\n`;
   
   if (deliveryMethod === 'delivery' && address) {
-    message += `📍 *Dirección:* ${address}\n`;
+    message += `*Dirección:* ${address}\n`;
   }
   
-  message += `💳 *Pago:* ${paymentMethod}\n\n`;
+  message += `*Pago:* ${paymentMethod}\n\n`;
   message += `*PRODUCTOS:*\n`;
-  message += `─────────────\n`;
+  message += `------------------------\n`;
   
   items.forEach(item => {
     const itemTotal = item.price * item.cantidad;
-    message += `• ${item.name} x${item.cantidad} - $${itemTotal}\n`;
+    message += `> ${item.cantidad}x ${item.name} - $${itemTotal}\n`;
     
     if (item.topics && item.topics.length > 0) {
       item.topics.forEach(topic => {
-        message += `  ↳ ${topic.name} (+$${topic.price})\n`;
+        message += `   + ${topic.name} (+$${topic.price})\n`;
       });
     }
   });
   
-  message += `─────────────\n`;
+  message += `------------------------\n`;
   message += `*Subtotal:* $${total - deliveryFee}\n`;
   
   if (deliveryFee > 0) {
@@ -100,7 +100,7 @@ function formatWhatsAppMessage({
   message += `*TOTAL:* $${total}\n`;
   
   if (notes) {
-    message += `\n📝 *Notas:* ${notes}`;
+    message += `\n*Notas:* ${notes}`;
   }
   
   return message;

@@ -20,7 +20,7 @@ import { useUserChange } from "@/shared/hooks/useUserChange";
 import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import ModernSidebar from "../components/ModernSidebar";
 import ModernTopBar from "../components/ModernTopBar";
-import Spinner from "@/components/ui/spinners/Spinner";
+import { DashboardFullSkeleton } from "../components/DashboardSkeleton";
 
 
 /**
@@ -76,29 +76,15 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
 
   // Redireccionar si no hay usuario después de la carga
   useEffect(() => {
-    if (isReady && !user) {
-      // Agregar un pequeño delay para evitar problemas de hidratación
-      const timer = setTimeout(() => {
-        router.replace("/sign-in"); // usar replace en lugar de push
-      }, 150);
-
-      return () => clearTimeout(timer);
+        if (isReady && !user) {
+      console.log('[ModernDashboardWrapper] No user after auth ready, redirecting to /sign-in');
+      router.replace("/sign-in");
     }
   }, [isReady, user, router]);
 
-  // Loading state durante la carga inicial
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Spinner />
-      </div>
-    );
-  }
-
-  // Si no hay usuario después de la carga, no renderizar nada
-  // (la redirección se encargará)
-  if (!isReady || !user) {
-    return null;
+  // Loading state: mostrar skeleton completo igual al layout real (sin flash)
+  if (isLoading || !isReady || !user) {
+    return <DashboardFullSkeleton />;
   }
 
   return (

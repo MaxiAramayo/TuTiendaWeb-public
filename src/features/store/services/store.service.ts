@@ -62,8 +62,8 @@ const DEFAULT_PAYMENT_METHODS = [
  * Métodos de entrega predeterminados
  */
 const DEFAULT_DELIVERY_METHODS = [
-  { id: 'pickup', name: 'Retiro en local', enabled: true, price: 0 },
-  { id: 'delivery', name: 'Delivery', enabled: false, price: 0 },
+  { id: 'retiro', name: 'Retiro en local', enabled: true, price: 0 },
+  { id: 'delivery', name: 'Delivery', enabled: true, price: 0 },
 ];
 
 // ============================================================================
@@ -271,6 +271,8 @@ export async function createStore(
       metadata: {
         ownerId: data.ownerId,
         active: true,
+        onboardingCompleted: false,
+        onboardingStep: 'welcome',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },

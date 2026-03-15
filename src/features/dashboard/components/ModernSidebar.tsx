@@ -14,7 +14,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,13 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Crown,
+  ChevronDown,
+  Palette,
+  MapPin,
+  CreditCard,
+  UserCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,11 +81,39 @@ const navigationItems = [
     description: "Administra tu inventario"
   },
   {
+    title: "Suscripción",
+    href: "/dashboard/subscription",
+    icon: Crown,
+    badge: null,
+    description: "Plan y facturación"
+  },
+  {
     title: "Configuración",
-    href: "/dashboard/profile",
     icon: Settings,
     badge: null,
-    description: "Ajustes de tu cuenta"
+    description: "Ajustes de tu cuenta",
+    subItems: [
+      {
+        title: "General",
+        href: "/dashboard/settings/general",
+        icon: UserCircle,
+      },
+      {
+        title: "Apariencia",
+        href: "/dashboard/settings/appearance",
+        icon: Palette,
+      },
+      {
+        title: "Ubicación",
+        href: "/dashboard/settings/location",
+        icon: MapPin,
+      },
+      {
+        title: "Pagos y Entregas",
+        href: "/dashboard/settings/checkout",
+        icon: CreditCard,
+      },
+    ]
   },
   {
     title: "QR Menu",
@@ -109,11 +143,35 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { storeSlug } = useCurrentStore();
+  const [loadingHref, setLoadingHref] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  // Clear loading when navigation completes
+  useEffect(() => {
+    setLoadingHref(null);
+    setProgress(0);
+  }, [pathname]);
+
+  // Animate progress bar when loading starts
+  useEffect(() => {
+    if (!loadingHref) return;
+    setProgress(0);
+    const t1 = setTimeout(() => setProgress(40), 20);
+    const t2 = setTimeout(() => setProgress(70), 300);
+    const t3 = setTimeout(() => setProgress(85), 800);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [loadingHref]);
+
+  const handleNavClick = (href: string) => {
+    if (href !== pathname) setLoadingHref(href);
+    if (window.innerWidth < 1024) toggleMobile();
+  };
 
   /**
    * Verifica si una ruta está activa
    */
-  const isActive = (href: string) => {
+  const isActive = (href?: string) => {
+    if (!href) return false;
     if (href === "/dashboard") {
       return pathname === "/dashboard";
     }
@@ -121,10 +179,30 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
   };
 
   /**
+   * Estado de los acordeones
+   */
+  const [openAccordion, setOpenAccordion] = React.useState<string | null>(
+    pathname.startsWith('/dashboard/settings') ? 'Configuración' : null
+  );
+
+  /**
    * Contenido del sidebar
    */
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
+      {/* Top progress bar */}
+      {loadingHref && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] h-[3px] pointer-events-none">
+          <div
+            className="h-full bg-blue-500 transition-all ease-out"
+            style={{
+              width: `${progress}%`,
+              transitionDuration: progress === 40 ? '200ms' : progress === 70 ? '400ms' : '600ms',
+              boxShadow: '0 0 8px rgba(59,130,246,0.7)',
+            }}
+          />
+        </div>
+      )}
       {/* Header */}
       <div className={cn(
         "flex items-center border-b border-gray-200 dark:border-gray-800 h-16",
@@ -174,29 +252,27 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {navigationItems.map((item) => {
-          const isItemActive = isActive(item.href);
+          const hasSubItems = !!item.subItems;
+          const isItemActive = item.href ? isActive(item.href) : (hasSubItems && item.subItems?.some(sub => isActive(sub.href)));
+          const isOpen = openAccordion === item.title;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => {
-                // Cerrar sidebar móvil al navegar
-                if (window.innerWidth < 1024) {
-                  toggleMobile();
-                }
-              }}
-              className={cn(
-                "flex items-center rounded-md transition-colors duration-200 group relative",
-                isCollapsed ? "justify-center py-2.5" : "px-3 py-2 space-x-3",
-                isItemActive
-                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-100"
-              )}
-            >
+          const isLoading = loadingHref === item.href;
+          const showActive = isItemActive && !hasSubItems;
+
+          const linkClasses = cn(
+            "flex items-center rounded-md transition-colors duration-200 group relative cursor-pointer w-full",
+            isCollapsed ? "justify-center py-2.5" : "px-3 py-2 space-x-3",
+            (showActive || isLoading)
+              ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400"
+              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-100",
+            (hasSubItems && isOpen) ? "bg-gray-50 dark:bg-gray-800/30" : ""
+          );
+
+          const innerContent = (
+            <>
               <item.icon className={cn(
                 "flex-shrink-0 transition-colors",
-                isItemActive
+                (showActive || isLoading)
                   ? "text-blue-700 dark:text-blue-400"
                   : "text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300",
                 "w-5 h-5"
@@ -204,13 +280,26 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
 
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 text-sm font-medium">
+                  <span className="flex-1 text-sm font-medium text-left">
                     {item.title}
                   </span>
-                  {item.badge && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 border-none">
-                      {item.badge}
-                    </Badge>
+                  {isLoading ? (
+                    <span className="flex items-center gap-[3px]">
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" />
+                    </span>
+                  ) : (
+                    <>
+                      {item.badge && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 border-none">
+                          {item.badge}
+                        </Badge>
+                      )}
+                      {hasSubItems && (
+                        <ChevronDown className={cn("w-4 h-4 transition-transform text-gray-400", isOpen && "rotate-180")} />
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -222,7 +311,64 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({
                   <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-800 rotate-45"></div>
                 </div>
               )}
-            </Link>
+            </>
+          );
+
+          return (
+            <div key={item.title}>
+              {hasSubItems ? (
+                <button
+                  onClick={() => setOpenAccordion(isOpen ? null : item.title)}
+                  className={linkClasses}
+                >
+                  {innerContent}
+                </button>
+              ) : (
+                <Link
+                  href={item.href!}
+                  onClick={() => handleNavClick(item.href!)}
+                  className={linkClasses}
+                >
+                  {innerContent}
+                </Link>
+              )}
+
+              {/* SubItems */}
+              {hasSubItems && isOpen && !isCollapsed && (
+                <div className="mt-1 ml-4 pl-4 border-l border-gray-200 dark:border-gray-800 space-y-1">
+                  {item.subItems?.map(sub => {
+                    const isSubActive = isActive(sub.href);
+                    const isSubLoading = loadingHref === sub.href;
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        onClick={() => handleNavClick(sub.href)}
+                        className={cn(
+                          "flex items-center space-x-3 px-3 py-2 rounded-md text-sm transition-colors",
+                          (isSubActive || isSubLoading)
+                            ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium"
+                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800/50"
+                        )}
+                      >
+                        <sub.icon className={cn(
+                          "w-4 h-4",
+                          (isSubActive || isSubLoading) ? "text-blue-700 dark:text-blue-400" : "text-gray-400"
+                        )} />
+                        <span className="flex-1">{sub.title}</span>
+                        {isSubLoading && (
+                          <span className="flex items-center gap-[3px]">
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" />
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

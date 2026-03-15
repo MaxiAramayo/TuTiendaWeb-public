@@ -161,6 +161,18 @@ function getDefaultPaymentMethods(): PaymentMethod[] {
 }
 
 /**
+ * Deduplica métodos de entrega por id, conservando la primera aparición
+ */
+function deduplicateDeliveryMethods(methods: DeliveryMethod[]): DeliveryMethod[] {
+  const seen = new Set<string>();
+  return methods.filter(m => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+}
+
+/**
  * Valores por defecto para métodos de entrega
  */
 function getDefaultDeliveryMethods(): DeliveryMethod[] {
@@ -384,9 +396,15 @@ export const getStoreSettings = cache(async (storeId: string): Promise<StoreSett
     const data = doc.data();
     const settings = data?.settings;
 
+    // Normalizar métodos de entrega: convertir id 'pickup' → 'retiro' y deduplicar
+    const rawDeliveryMethods: DeliveryMethod[] = settings?.deliveryMethods || getDefaultDeliveryMethods();
+    const normalizedDeliveryMethods = deduplicateDeliveryMethods(
+      rawDeliveryMethods.map(m => m.id === 'pickup' ? { ...m, id: 'retiro' } : m)
+    );
+
     return {
       paymentMethods: settings?.paymentMethods || getDefaultPaymentMethods(),
-      deliveryMethods: settings?.deliveryMethods || getDefaultDeliveryMethods(),
+      deliveryMethods: normalizedDeliveryMethods,
       currency: settings?.currency || 'ARS',
       language: settings?.language || 'es',
       orderSettings: {
@@ -439,6 +457,37 @@ export const getStoreCategories = cache(async (storeId: string): Promise<Map<str
 });
 
 /**
+ * Obtiene tags de una tienda
+ * 
+ * @param storeId - ID de la tienda
+ * @returns Map de tagId -> nombre del tag
+ */
+export const getStoreTags = cache(async (storeId: string): Promise<Map<string, string>> => {
+  try {
+    if (!storeId) return new Map();
+
+    const snapshot = await adminDb
+      .collection(STORES_COLLECTION)
+      .doc(storeId)
+      .collection('tags')
+      .get();
+
+    const tagsMap = new Map<string, string>();
+    snapshot.forEach((doc) => {
+      const tagData = doc.data();
+      if (tagData.name) {
+        tagsMap.set(doc.id, tagData.name);
+      }
+    });
+
+    return tagsMap;
+  } catch (error) {
+    console.error(`[PublicStoreService] Error getting tags for store ${storeId}:`, error);
+    return new Map();
+  }
+});
+
+/**
  * Obtiene productos públicos (activos) de una tienda
  * 
  * @param storeId - ID de la tienda
@@ -450,6 +499,9 @@ export const getPublicProducts = cache(async (storeId: string): Promise<Product[
 
     // Obtener categorías para mapear nombres
     const categoriesMap = await getStoreCategories(storeId);
+    
+    // Obtener tags para mapear nombres
+    const tagsMap = await getStoreTags(storeId);
 
     const snapshot = await adminDb
       .collection(STORES_COLLECTION)
@@ -473,6 +525,11 @@ export const getPublicProducts = cache(async (storeId: string): Promise<Product[
         price: variant.price
       })) || [];
 
+      // Mapear tags IDs a sus nombres reales
+      const mappedTags = (productData.tags || [])
+        .map(tagId => tagsMap.get(tagId))
+        .filter((tagName): tagName is string => Boolean(tagName));
+        
       // Mapear a estructura legacy para compatibilidad con componentes existentes
       const mappedProduct: Product = {
         idProduct: doc.id,
@@ -481,9 +538,10 @@ export const getPublicProducts = cache(async (storeId: string): Promise<Product[
         price: productData.price,
         image: productData.imageUrls?.[0] || "",
         imageUrl: productData.imageUrls?.[0] || "",
+        imageUrls: productData.imageUrls || [],
         category: categoryName,
         available: productData.status === "active",
-        tags: productData.tags || [],
+        tags: mappedTags,
         stock: productData.stockQuantity || 0,
         topics: topics.length > 0 ? topics : undefined
       };

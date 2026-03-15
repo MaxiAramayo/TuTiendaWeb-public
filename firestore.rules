@@ -1,32 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // === FUNCIONES AUXILIARES ===
-    
-    // Verificar si el usuario está autenticado
+
+    // =========================================================================
+    // FUNCIONES AUXILIARES
+    // =========================================================================
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Verificar si el usuario es propietario de la tienda
+
+    // El usuario es propietario de la tienda si coincide con alguno de los campos
+    // de ownership que puede tener el documento /stores/{storeId}:
+    //   - ownerId        → campo raíz (documentos legacy)
+    //   - userId         → campo raíz (documentos legacy)
+    //   - metadata.ownerId → campo canónico actual
     function isStoreOwner(storeId) {
-      return isAuthenticated() && 
-             request.auth.uid != null &&
+      let storeData = get(/databases/$(database)/documents/stores/$(storeId)).data;
+      return isAuthenticated() &&
              exists(/databases/$(database)/documents/stores/$(storeId)) &&
-             get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+             (
+               storeData.ownerId == request.auth.uid ||
+               storeData.userId == request.auth.uid ||
+               storeData.metadata.ownerId == request.auth.uid
+             );
     }
-    
-    // Verificar si los datos son válidos para una venta
+
+    // Validación de venta pública (schema actual de /sells/{sellId})
+    // NOTA: Esta función es defensa en profundidad. En la práctica, las ventas
+    // públicas se crean desde el Server Action `createPublicSaleAction` usando
+    // el Admin SDK, que bypasea estas reglas. La validación primaria ocurre
+    // en el Server Action con Zod (checkoutFormSchema + sell.schema.ts).
     function isValidSellData() {
-      return request.resource.data.keys().hasAll(['orderNumber', 'products', 'total', 'date']) &&
-             request.resource.data.products is list &&
-             request.resource.data.products.size() > 0 &&
-             request.resource.data.total is number &&
-             request.resource.data.total > 0;
+      return request.resource.data.keys().hasAll([
+               'orderNumber', 'storeId', 'source',
+               'customer', 'items', 'delivery',
+               'payment', 'totals', 'metadata'
+             ]) &&
+             request.resource.data.items is list &&
+             request.resource.data.items.size() > 0 &&
+             request.resource.data.totals.total is number &&
+             request.resource.data.totals.total >= 0 &&
+             request.resource.data.customer.name is string &&
+             request.resource.data.customer.name.size() > 0;
     }
-    
-    // Verificar si los datos son válidos para un producto
+
     function isValidProductData() {
       return request.resource.data.keys().hasAll(['name', 'price', 'storeId']) &&
              request.resource.data.name is string &&
@@ -34,106 +52,97 @@ service cloud.firestore {
              request.resource.data.price is number &&
              request.resource.data.price >= 0;
     }
-    
-    // Verificar si los datos son válidos para una categoría
+
     function isValidCategoryData() {
       return request.resource.data.keys().hasAll(['name', 'storeId']) &&
              request.resource.data.name is string &&
              request.resource.data.name.size() > 0;
     }
-    
-    // Verificar si los datos son válidos para un tag
+
     function isValidTagData() {
       return request.resource.data.keys().hasAll(['name', 'storeId']) &&
              request.resource.data.name is string &&
              request.resource.data.name.size() > 0;
     }
-    
-    // === REGLAS PARA STORES (TIENDAS) ===
-    
+
+    // =========================================================================
+    // TIENDAS
+    // =========================================================================
+
     match /stores/{storeId} {
-      // Solo el propietario puede leer, crear, actualizar y eliminar su tienda
-      allow read, write: if isStoreOwner(storeId);
-      
-      // Permitir lectura pública de información básica de la tienda (para catálogo público)
+      // Lectura pública (catálogo público)
       allow read: if true;
-      
-      // === PRODUCTOS ===
-      
+      // Solo el owner puede modificar la tienda
+      allow write: if isStoreOwner(storeId);
+
+      // ── Productos ──────────────────────────────────────────────────────────
       match /products/{productId} {
-        // Lectura pública de productos (para catálogo sin autenticación)
+        // Lectura pública (catálogo sin autenticación)
         allow read: if true;
-        
-        // Solo el propietario de la tienda puede crear, actualizar y eliminar productos
         allow create: if isStoreOwner(storeId) && isValidProductData();
         allow update: if isStoreOwner(storeId) && isValidProductData();
         allow delete: if isStoreOwner(storeId);
       }
-      
-      // === CATEGORÍAS ===
-      
+
+      // ── Categorías ─────────────────────────────────────────────────────────
       match /categories/{categoryId} {
-        // Lectura pública de categorías (para filtros en catálogo)
+        // Lectura pública (filtros en catálogo)
         allow read: if true;
-        
-        // Solo el propietario de la tienda puede gestionar categorías
         allow create: if isStoreOwner(storeId) && isValidCategoryData();
         allow update: if isStoreOwner(storeId) && isValidCategoryData();
         allow delete: if isStoreOwner(storeId);
       }
-      
-      // === TAGS ===
-      
+
+      // ── Tags ───────────────────────────────────────────────────────────────
       match /tags/{tagId} {
-        // Lectura pública de tags (para filtros en catálogo)
+        // Lectura pública (filtros en catálogo)
         allow read: if true;
-        
-        // Solo el propietario de la tienda puede gestionar tags
         allow create: if isStoreOwner(storeId) && isValidTagData();
         allow update: if isStoreOwner(storeId) && isValidTagData();
         allow delete: if isStoreOwner(storeId);
       }
-      
-      // === VENTAS ===
-      
+
+      // ── Ventas ─────────────────────────────────────────────────────────────
       match /sells/{sellId} {
-        // Crear ventas sin autenticación (para compras públicas)
-        allow create: if isValidSellData();
-        
-        // Solo el propietario de la tienda puede leer, actualizar y eliminar ventas
-        allow read: if isStoreOwner(storeId);
+        // Creación pública desde el catálogo (sin autenticación).
+        // Se verifica que el storeId del documento coincida con el storeId de la
+        // ruta para evitar que un documento creado en la ruta de tienda A
+        // apunte al storeId de tienda B.
+        allow create: if isValidSellData() &&
+                         request.resource.data.storeId == storeId;
+
+        // Solo el owner lee, modifica y elimina ventas del dashboard
+        allow read:   if isStoreOwner(storeId);
         allow update: if isStoreOwner(storeId);
         allow delete: if isStoreOwner(storeId);
       }
-      
-      // === CONFIGURACIONES ===
-      
+
+      // ── Configuraciones ────────────────────────────────────────────────────
       match /settings/{settingId} {
-        // Solo el propietario de la tienda puede gestionar configuraciones
         allow read, write: if isStoreOwner(storeId);
       }
 
-      // === NOTIFICACIONES ===
-
+      // ── Notificaciones ─────────────────────────────────────────────────────
+      // create/delete solo via Admin SDK (Firebase Functions) — bypasea estas rules.
       match /notifications/{notificationId} {
-        // Solo el propietario de la tienda puede leer y actualizar sus notificaciones
         allow read, update: if isStoreOwner(storeId);
-        // Las Functions (Admin SDK) crean notificaciones — no se necesita regla de create aquí
-        // ya que el Admin SDK bypasea las rules. Se deniega create desde el cliente.
         allow create, delete: if false;
       }
     }
-    
-    // === REGLAS PARA USUARIOS ===
-    
+
+    // =========================================================================
+    // USUARIOS
+    // =========================================================================
+
     match /users/{userId} {
-      // Solo el usuario puede acceder a sus propios datos
+      // Cada usuario solo puede acceder a sus propios datos
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
-    
-    // === REGLAS PARA COLECCIONES GLOBALES ===
-    
-    // Denegar acceso a cualquier otra colección no especificada
+
+    // =========================================================================
+    // CATCH-ALL — denegar todo lo no especificado explícitamente
+    // =========================================================================
+
     match /{document=**} {
       allow read, write: if false;
     }

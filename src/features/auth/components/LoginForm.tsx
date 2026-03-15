@@ -58,7 +58,7 @@ export const LoginForm = () => {
 
       if (result.success) {
         toast.success('Sesión iniciada correctamente');
-        router.push('/dashboard');
+        window.location.href = '/onboarding';
       } else {
         const errors = result.errors || {};
         if (errors._form) {

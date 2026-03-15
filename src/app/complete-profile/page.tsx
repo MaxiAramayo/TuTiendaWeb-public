@@ -4,29 +4,16 @@
  * @module app/complete-profile
  */
 
-import { Metadata } from 'next';
-import { GoogleProfileSetup } from '@/features/auth/components/GoogleProfileSetup';
-import { AuthLayout } from '@/features/auth/components/AuthLayout';
-import { Toaster } from 'sonner';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Completar perfil | TuTienda',
-  description: 'Completa tu perfil para comenzar a usar TuTienda',
+export const metadata = {
+  title: 'Onboarding | TuTienda',
+  description: 'Completa la configuracion guiada de tu tienda',
 };
 
 /**
  * Página para completar el perfil después del registro con Google
  */
 export default function CompleteProfilePage() {
-  return (
-    <>
-      <Toaster position="top-center" richColors />
-      <AuthLayout 
-        title="Completa tu perfil"
-        subtitle="Solo unos detalles más para comenzar con tu tienda"
-      >
-        <GoogleProfileSetup />
-      </AuthLayout>
-    </>
-  );
+  redirect('/onboarding');
 }

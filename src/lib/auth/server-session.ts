@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
-import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { adminAuth } from '@/lib/firebase/admin';
+import { findStoreIdByUserId } from '@/lib/auth/store-session';
 
 // ============================================================================
 // CONSTANTS
@@ -35,22 +36,6 @@ export interface ServerSession {
  * Buscar storeId en Firestore cuando no está en custom claims
  * Fallback para usuarios que existían antes de la migración a claims
  */
-async function findStoreIdByOwnerId(userId: string): Promise<string | null> {
-    try {
-        const storesRef = adminDb.collection('stores');
-        const snapshot = await storesRef.where('ownerId', '==', userId).limit(1).get();
-        
-        if (snapshot.empty) {
-            return null;
-        }
-        
-        return snapshot.docs[0].id;
-    } catch (error) {
-        console.error('[getServerSession] Error fetching storeId from Firestore:', error);
-        return null;
-    }
-}
-
 // ============================================================================
 // SERVER SESSION
 // ============================================================================
@@ -86,7 +71,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
         
         if (!storeId) {
             // Fallback: buscar en Firestore para usuarios sin claims
-            storeId = await findStoreIdByOwnerId(decodedToken.uid);
+            storeId = await findStoreIdByUserId(decodedToken.uid);
         }
 
         return {

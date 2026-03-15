@@ -211,7 +211,17 @@ export class ThemeService {
   private static getThemeCache(): Record<string, { theme: AdvancedThemeConfig; timestamp: number }> {
     try {
       const cached = localStorage.getItem(this.STORAGE_KEY);
-      return cached ? JSON.parse(cached) : {};
+      if (!cached || cached.trim() === '') {
+        return {};
+      }
+
+      try {
+        return JSON.parse(cached);
+      } catch (parseError) {
+        console.warn('[ThemeService] Invalid theme cache JSON, clearing cache:', parseError);
+        localStorage.removeItem(this.STORAGE_KEY);
+        return {};
+      }
     } catch (error) {
       return {};
     }

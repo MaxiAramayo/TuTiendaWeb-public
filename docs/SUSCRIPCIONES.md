@@ -2,7 +2,7 @@
 
 > **Para:** desarrollador que continúa la implementación
 > **Actualizado:** marzo 2026
-> **Estado general:** Flujo de pago funcional. Webhook operativo con validación de firma activa (secreto configurado, anti-replay de 5 min, sin bypass). Cancelación soft-cancel implementada. Reactivación sin nuevo pago implementada. UI del dashboard refleja todos los estados. Pendiente: deploy de functions actualizadas, test end-to-end con pago real.
+> **Estado general:** Flujo de pago funcional y estable para producción controlada. Webhook operativo con validación de firma activa (secreto configurado, anti-replay de 5 min, sin bypass), idempotencia de eventos, cancelación soft-cancel y reactivación sin nuevo pago. UI con input embebido para email comprador y redirección automática post-checkout. Pendiente: prueba E2E final con pago real y monitoreo 24h.
 
 ---
 
@@ -19,6 +19,7 @@
 9. [Bugs conocidos y pendientes](#9-bugs-conocidos-y-pendientes)
 10. [Pasos para llegar a producción](#10-pasos-para-llegar-a-producción)
 11. [Cómo testear el flujo de vencimiento localmente](#11-cómo-testear-el-flujo-de-vencimiento-localmente)
+12. [Auditoría de producción (marzo 2026)](#12-auditoría-de-producción-marzo-2026)
 
 ---
 
@@ -91,7 +92,7 @@ Los planes `basic` y `enterprise` están definidos en los tipos pero **no tienen
    subscription.startDate = now
    ```
 5. La función devuelve `{ initPoint, subscriptionId }`
-6. El frontend abre `initPoint` en `window.open(_blank)`
+6. El frontend redirige al `initPoint` en la misma pestaña (evita bloqueos de popup)
 7. Usuario paga en la ventana de MP
 8. MP llama al webhook `mpWebhook` con `type: "subscription_preapproval"` y `action: "updated"`
 9. El webhook actualiza Firestore con `active: true`, `paymentStatus: "authorized"`, `endDate: next_payment_date`
@@ -366,6 +367,8 @@ Callable Function — revierte el soft-cancel.
 
 Client Component que muestra el estado de la suscripción y maneja cancelación y reactivación.
 
+Incluye input embebido para `payer_email` (email de la cuenta compradora de Mercado Pago) antes de generar el link.
+
 **Estados de UI:**
 
 | Condición | Card mostrada |
@@ -389,13 +392,18 @@ const subscription = profile?.subscription || formData.subscription || { ... };
 - `reactivateSubscription({ storeId, userId })` → escribe `cancelAtPeriodEnd=false`
 - `createSubscription({ storeId, userId, userEmail, plan })` → devuelve `initPoint`
 
+**Comportamiento de checkout:**
+- Se valida email comprador en la UI.
+- Se crea el PreApproval y se redirige a MP en la misma pestaña.
+- No se usa `prompt` del navegador ni popup obligatorio.
+
 ---
 
 ### 6.2 `src/app/suscripcion/confirmacion/page.tsx`
 
 Página pública (sin auth) a la que MercadoPago redirige como `back_url` después del pago.
 
-**Por qué existe:** `back_url` de MP redirige en la misma pestaña donde el usuario pagó (no en la del dashboard). Si se apuntaba directo a `/dashboard/profile`, el usuario llegaba sin cookie y era redirigido a `/sign-in`. Esta página no requiere auth y le muestra un mensaje antes de que vaya al dashboard.
+**Por qué existe:** `back_url` de MP redirige en la misma pestaña donde el usuario pagó (no en la del dashboard). Si se apuntaba directo a `/dashboard/profile`, el usuario podía llegar sin cookie y ser redirigido a `/sign-in`. Esta página no requiere auth, muestra estado de transición y redirige automáticamente a `/dashboard/profile?section=subscription` en pocos segundos.
 
 ---
 
@@ -484,7 +492,7 @@ Notificaciones en `/stores/{storeId}/notifications/{notifId}`:
 | Página de confirmación post-MP | ✅ | `/suscripcion/confirmacion` |
 | Serialización de `cancelAtPeriodEnd` en server service | ✅ | `serializeProfile()` lo incluye |
 | UI de notificaciones (campana) | ✅ | `NotificationBell.tsx` con `onSnapshot` |
-| Reglas Firestore para `/notifications` | ✅ (pendiente deploy) | `firestore.rules` actualizado |
+| Reglas Firestore para `/notifications` | ✅ | Rules desplegadas con compatibilidad legacy de owner |
 
 ---
 
@@ -511,10 +519,10 @@ El tipo `trial` y el campo `trialUsed` están definidos pero no hay lógica que 
 
 ### PENDIENTE-02 — Webhook URL configurada en MP
 
-Verificar que la URL en el panel de MP apunte al endpoint correcto:
-```bash
-firebase functions:list --project tutiendaweb-dev
-```
+✅ Resuelto. Webhook de producción configurado hacia:
+`https://southamerica-east1-tutiendaweb-dev.cloudfunctions.net/mpWebhook`
+
+Topics activos: `subscription_preapproval`, `subscription_authorized_payment`, `payment`.
 
 ---
 
@@ -528,17 +536,17 @@ firebase functions:list --project tutiendaweb-dev
 
 En orden de prioridad:
 
-1. **Deploy Firestore rules** (fix `NotificationBell` permission error):
+1. ✅ **Deploy Firestore rules** (fix `NotificationBell` permission error):
    ```bash
    firebase deploy --only firestore:rules
    ```
 
-2. **Deploy functions actualizadas** (cancelSubscription reescrita + reactivateSubscription nueva + checkSubscriptions reescrito + mpWebhook corregido):
+2. ✅ **Deploy functions actualizadas** (cancelSubscription + reactivateSubscription + checkSubscriptions + mpWebhook + createSubscription):
    ```bash
    firebase deploy --only functions:cancelSubscription,functions:reactivateSubscription,functions:checkSubscriptions,functions:mpWebhook
    ```
 
-3. **Push código Next.js a Vercel** — incluye cambios en `SubscriptionSection.tsx`, `store.type.ts`, `profile.server-service.ts`, `NotificationBell.tsx`
+3. **Push código Next.js a Vercel** — incluye cambios en `SubscriptionSection.tsx`, `NotificationBell.tsx`, `suscripcion/confirmacion/page.tsx`, `suscripcion/confirmacion/AutoRedirectToSubscription.tsx`
 
 4. **Corregir Firestore del usuario de prueba** (`maxiaramayolazo@hotmail.com`):
    ```
@@ -547,9 +555,37 @@ En orden de prioridad:
    subscription.cancelAtPeriodEnd = false
    ```
 
-5. **Verificar URL del webhook en panel de MP**
+5. ✅ **Verificar URL del webhook en panel de MP**
 
-6. **Test en producción** — pagar con tarjeta real, verificar webhook, verificar Firestore, verificar UI del dashboard
+6. **Test en producción** — pagar con tarjeta real, verificar webhook, verificar Firestore, verificar UI del dashboard y redirección automática
+
+---
+
+## 12. Auditoría de producción (marzo 2026)
+
+### Hallazgos críticos corregidos
+
+1. Validación de owner incompleta en `cancelSubscription` / `reactivateSubscription`.
+  - Riesgo: un usuario autenticado podía intentar operar sobre `storeId` ajeno si el backend solo confiaba en `userId` enviado por cliente.
+  - Fix: validación server-side robusta con `auth.uid`, `auth.token.storeId` y fallback legacy (`ownerId`, `metadata.ownerId`, `userId`).
+
+2. Listener de notificaciones con `permission-denied` en tiendas legacy.
+  - Riesgo: error uncaught en dashboard y mala UX post-login.
+  - Fix: rules actualizadas con compatibilidad legacy de owner + manejo de error en `onSnapshot`.
+
+### Hallazgos de UX corregidos
+
+1. Flujo de pago dependía de popup/prompt del navegador.
+  - Fix: input de `payer_email` embebido en la card de suscripción y redirección en misma pestaña.
+
+2. Confirmación post-MP no reflejaba bien el estado y exigía acción manual.
+  - Fix: redirección automática al dashboard con `preapproval_id` para refresco de estado.
+
+### Riesgos residuales (no bloqueantes)
+
+1. Trial aún no implementado end-to-end.
+2. Testing sandbox puede fallar si collector/payer no son test users compatibles.
+3. Se recomienda observabilidad adicional (alerta cuando webhook recibe 401 repetidos por firma inválida).
 
 ---
 

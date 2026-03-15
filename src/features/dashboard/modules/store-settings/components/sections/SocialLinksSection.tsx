@@ -158,22 +158,10 @@ export function SocialLinksSection({
           <h3 className="text-xl font-bold text-gray-900">Redes Sociales</h3>
           <p className="text-sm text-gray-500 mt-1">Conecta tus redes sociales para mayor alcance</p>
         </div>
-        <Button
-          onClick={handleSectionSave}
-          disabled={isCurrentlySaving || !formState.isDirty}
-          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[140px]"
-        >
-          {isCurrentlySaving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          <span>{isCurrentlySaving ? 'Guardando...' : 'Guardar cambios'}</span>
-        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-8">
+        <div className="xl:col-span-8 space-y-6">
           <Card className="border shadow-sm">
             <CardHeader className="bg-gray-50/50 border-b pb-4">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -284,7 +272,8 @@ export function SocialLinksSection({
         </div>
 
         {/* Sidebar Info */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="xl:col-span-4 space-y-6">
+          <div className="xl:sticky xl:top-6 space-y-6">
           <Card className="border shadow-sm bg-indigo-50/50">
             <CardHeader className="pb-3 border-b border-indigo-100">
               <CardTitle className="text-sm font-bold text-indigo-900 flex items-center gap-2">
@@ -321,7 +310,23 @@ export function SocialLinksSection({
               <p className="text-sm text-red-800">{formState.errors.socialLinks}</p>
             </div>
           )}
+          </div>
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSectionSave}
+          disabled={isCurrentlySaving || !formState.isDirty}
+          className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
+        >
+          {isCurrentlySaving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{isCurrentlySaving ? 'Guardando...' : 'Guardar cambios'}</span>
+        </Button>
       </div>
     </div>
   );

@@ -173,19 +173,6 @@ export function ContactInfoSection({
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Información de contacto</h2>
           <p className="text-xs sm:text-sm text-gray-500">Configura cómo los clientes pueden contactarte</p>
         </div>
-        <Button
-          onClick={handleSectionSave}
-          disabled={isSectionSaving || !formState.isDirty}
-          className="flex items-center justify-center space-x-2 w-full sm:w-auto"
-          size="sm"
-        >
-          {isSectionSaving ? (
-            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-          ) : (
-            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-          )}
-          <span className="text-xs sm:text-sm">{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
-        </Button>
       </div>
 
       {/* WhatsApp - Diseño Moderno */}
@@ -330,6 +317,22 @@ export function ContactInfoSection({
           ))}
         </div>
       </motion.div>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSectionSave}
+          disabled={isSectionSaving || !formState.isDirty}
+          className="flex items-center justify-center space-x-2 w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700"
+          size="sm"
+        >
+          {isSectionSaving ? (
+            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+          ) : (
+            <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+          )}
+          <span className="text-xs sm:text-sm">{isSectionSaving ? 'Guardando...' : 'Guardar cambios'}</span>
+        </Button>
+      </div>
     </div>
   );
 }

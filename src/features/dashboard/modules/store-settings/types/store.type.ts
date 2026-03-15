@@ -347,8 +347,7 @@ export type ProfileSection =
   | 'schedule'
   | 'social'
   | 'theme'
-  | 'settings'
-  | 'subscription';
+  | 'settings';
 
 /**
  * Estadísticas del perfil
