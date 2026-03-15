@@ -20,7 +20,7 @@ import { useUserChange } from "@/shared/hooks/useUserChange";
 import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import ModernSidebar from "../components/ModernSidebar";
 import ModernTopBar from "../components/ModernTopBar";
-import Spinner from "@/components/ui/spinners/Spinner";
+import { DashboardFullSkeleton } from "../components/DashboardSkeleton";
 
 
 /**
@@ -82,29 +82,9 @@ const ModernDashboardWrapper = ({ children }: ModernDashboardWrapperProps) => {
     }
   }, [isReady, user, router]);
 
-  // Loading state durante la carga inicial
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner />
-          <p className="text-sm text-gray-500">Cargando tu panel...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Si no hay usuario después de la carga, no renderizar nada
-  // (la redirección se encargará)
-  if (!isReady || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner />
-          <p className="text-sm text-gray-500">Redirigiendo...</p>
-        </div>
-      </div>
-    );
+  // Loading state: mostrar skeleton completo igual al layout real (sin flash)
+  if (isLoading || !isReady || !user) {
+    return <DashboardFullSkeleton />;
   }
 
   return (

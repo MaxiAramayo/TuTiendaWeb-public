@@ -210,8 +210,8 @@ export const CheckoutForm = ({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       nombre: "",
-      formaDeConsumir: enabledDeliveryMethods[0]?.id || "retiro",
-      formaDePago: enabledPaymentMethods[0]?.id || "efectivo",
+      formaDeConsumir: (enabledDeliveryMethods[0]?.id ?? "retiro") as CheckoutFormData['formaDeConsumir'],
+      formaDePago: (enabledPaymentMethods[0]?.id ?? "efectivo") as CheckoutFormData['formaDePago'],
       direccion: "",
       aclaracion: "",
     },
