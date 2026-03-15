@@ -69,16 +69,18 @@ interface SubscriptionSectionProps {
 const PRO_PLAN = {
   id: 'pro',
   name: 'Profesional',
-  price: 4999,
+  price: 15000,
   period: 'mes',
-  description: 'Todo lo que necesitás para hacer crecer tu negocio online.',
+  description: 'Un solo plan con todo incluido. Sin límites artificiales, sin cobros ocultos.',
   features: [
-    { icon: Package, label: 'Productos ilimitados' },
-    { icon: Palette, label: 'Personalización completa de tu tienda' },
-    { icon: BarChart3, label: 'Analytics y reportes avanzados' },
-    { icon: Zap, label: 'Integración con WhatsApp y redes sociales' },
-    { icon: ShieldCheck, label: 'Sin marca de TuTiendaWeb visible' },
-    { icon: HeadphonesIcon, label: 'Soporte prioritario' },
+    { icon: Zap, label: 'Catálogo digital QR compartible por WhatsApp' },
+    { icon: Package, label: 'Productos y categorías ilimitadas' },
+    { icon: BarChart3, label: 'Gestión de ventas con reportes' },
+    { icon: Palette, label: 'Personalización completa (logo, banner, colores)' },
+    { icon: RefreshCw, label: 'Actualizaciones en tiempo real desde cualquier dispositivo' },
+    { icon: Crown, label: 'Panel de administración completo' },
+    { icon: CheckCircle2, label: 'Pedidos online integrados' },
+    { icon: HeadphonesIcon, label: 'Soporte por WhatsApp' },
   ],
 };
 
@@ -280,7 +282,8 @@ export function SubscriptionSection({
         .join('\n')
     );
 
-    window.open(`https://wa.me/5491123456789?text=${text}`, '_blank');
+    const supportNumber = process.env.NEXT_PUBLIC_SUPPORT_NUMBER || '';
+    window.open(`https://wa.me/${supportNumber}?text=${text}`, '_blank');
   };
 
   /** Cancela la suscripción activa llamando a la Firebase Function */

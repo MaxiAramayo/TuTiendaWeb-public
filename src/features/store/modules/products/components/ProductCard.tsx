@@ -76,16 +76,21 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
             </p>
 
             {/* Tags del producto */}
-            {product.productTags && product.productTags.length > 0 && (
-              <div className="mt-1.5">
-                <ProductTagList
-                  tags={product.productTags}
-                  maxTags={2}
-                  size="sm"
-                  variant="outline"
-                  showIcon={false}
-                  className="gap-1"
-                />
+            {product.tags && product.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {product.tags.slice(0, 2).map((tag) => (
+                  <span 
+                    key={tag} 
+                    className="text-[9px] uppercase tracking-wider font-semibold whitespace-nowrap bg-[var(--store-primary)]/10 text-[var(--store-primary)] px-1.5 py-0.5 rounded-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {product.tags.length > 2 && (
+                  <span className="text-[9px] uppercase tracking-wider font-semibold whitespace-nowrap bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-sm">
+                    +{product.tags.length - 2}
+                  </span>
+                )}
               </div>
             )}
           </div>

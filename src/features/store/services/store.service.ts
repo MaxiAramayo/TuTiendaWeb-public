@@ -63,7 +63,7 @@ const DEFAULT_PAYMENT_METHODS = [
  */
 const DEFAULT_DELIVERY_METHODS = [
   { id: 'retiro', name: 'Retiro en local', enabled: true, price: 0 },
-  { id: 'delivery', name: 'Delivery', enabled: false, price: 0 },
+  { id: 'delivery', name: 'Delivery', enabled: true, price: 0 },
 ];
 
 // ============================================================================

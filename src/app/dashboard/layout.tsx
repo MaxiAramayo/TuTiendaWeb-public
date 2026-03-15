@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth/server-session';
 import ClientHardRedirect from '@/components/navigation/ClientHardRedirect';
 import { findStoreIdByUserId, getStoreOnboardingState } from '@/lib/auth/store-session';
+import { profileServerService } from "@/features/dashboard/modules/store-settings/services/server/profile.server-service";
+import AccessDeniedView from "@/components/ui/generals/AccessDeniedView";
 
 /**
  * Layout de Dashboard - Route Component (Server Component)
@@ -31,6 +33,31 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   if (!onboarding.completed) {
     return <ClientHardRedirect to="/onboarding" title="Retomando tu onboarding" description="Detectamos que todavía faltan pasos para terminar tu tienda." />;
+  }
+
+  // Verificar la suscripción
+  const profile = await profileServerService.getProfile(storeId);
+  const subscription = profile?.subscription;
+  
+  const now = Date.now();
+  const isPro = subscription?.plan === 'pro' && subscription?.active;
+  const isOnTrial = subscription?.plan === 'trial' && subscription?.active;
+  
+  const endDateMs = subscription?.endDate ? new Date(subscription.endDate as string).getTime() : 0;
+  const graceUntilMs = subscription?.graceUntil ? new Date(subscription.graceUntil as string).getTime() : 0;
+  
+  // Tiene acceso si: Es Pro activo, O está en Trial y no expiró, O tiene días de gracia activos, O es plan gratuito
+  // Nota: Asumo que si plan es 'free' tiene acceso (ajusta según las reglas de negocio, aquí bloqueamos solo si no cumple ninguna de las de arriba Y NO ES free)
+  const isFree = subscription?.plan === 'free';
+  
+  const hasValidAccess = 
+    isFree ||
+    isPro || 
+    (isOnTrial && endDateMs > now) || 
+    (graceUntilMs > now);
+
+  if (!hasValidAccess) {
+    return <AccessDeniedView supportNumber={process.env.NEXT_PUBLIC_SUPPORT_NUMBER} />;
   }
 
   return <DashboardLayout>{children}</DashboardLayout>;
