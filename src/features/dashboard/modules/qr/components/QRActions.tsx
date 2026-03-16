@@ -1,394 +1,311 @@
 /**
- * Componente para las acciones del código QR
- * 
- * Refactorizado para seguir arquitectura Server-First:
- * - Eliminada dependencia de User (usa storeProfile.basicInfo.name)
- * - Datos vienen del Server Component via props
- * 
+ * Panel de acciones del QR — descarga, compartir, copiar.
+ *
  * @module features/dashboard/modules/qr/components
  */
 
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Download,
-  RefreshCw,
-  Share2,
-  Printer,
-  Smartphone,
-  Monitor,
   Copy,
+  Share2,
   ExternalLink,
-  CheckCircle
+  CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { QRActionsProps } from "../types/qr-types";
 import toast from "react-hot-toast";
 
-/**
- * Componente para las acciones disponibles del código QR
- */
 export function QRActions({
   isGenerating,
   qrDataURL,
   storeProfile,
   onUpdateQR,
-  onDownloadPDF
+  onDownloadPDF,
 }: QRActionsProps) {
   const [copied, setCopied] = useState(false);
-  const [shared, setShared] = useState(false);
 
-  const storeName = storeProfile.basicInfo?.name || 'Mi Tienda';
-  const slug = storeProfile.basicInfo?.slug;
+  const slug       = storeProfile.basicInfo?.slug;
+  const storeName  = storeProfile.basicInfo?.name || "Mi Tienda";
+  const accent     = storeProfile.theme?.primaryColor || "#c9973a";
+  const cartaURL   = `https://tutiendaweb.com.ar/carta/${slug}`;
+  const catalogURL = `https://tutiendaweb.com.ar/${slug}`;
 
-  /**
-   * Copia la URL al portapapeles
-   */
   const handleCopyURL = async () => {
-    if (slug) {
-      const url = `https://tutiendaweb.com.ar/${slug}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        toast.success('URL copiada al portapapeles');
-        setTimeout(() => setCopied(false), 2000);
-      } catch (error) {
-        console.error('Error al copiar URL:', error);
-        toast.error('Error al copiar la URL');
-      }
+    try {
+      await navigator.clipboard.writeText(cartaURL);
+      setCopied(true);
+      toast.success("Link copiado");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Error al copiar");
     }
   };
 
-  /**
-   * Comparte el QR usando Web Share API
-   */
   const handleShare = async () => {
-    if (slug) {
-      const url = `https://tutiendaweb.com.ar/${slug}`;
-      const shareData = {
-        title: `Menú Digital - ${storeName}`,
-        text: `¡Mira el menú digital de ${storeName}!`,
-        url: url
-      };
-
-      try {
-        if (navigator.share) {
-          await navigator.share(shareData);
-          setShared(true);
-          toast.success('Compartido exitosamente');
-          setTimeout(() => setShared(false), 2000);
-        } else {
-          // Fallback para navegadores sin Web Share API
-          await navigator.clipboard.writeText(url);
-          toast.success('URL copiada para compartir');
-        }
-      } catch (error) {
-        console.error('Error al compartir:', error);
-        toast.error('Error al compartir');
-      }
-    }
-  };
-
-  /**
-   * Imprime el código QR
-   */
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('No se pudo abrir la ventana de impresión');
-      return;
-    }
-
-    const qrContainer = document.getElementById('qr-container');
-    if (!qrContainer) {
-      toast.error('No se encontró el código QR para imprimir');
-      return;
-    }
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>QR Code - ${storeName}</title>
-          <style>
-            body {
-              margin: 0;
-              padding: 20px;
-              font-family: 'Arial', sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              background: white;
-            }
-            .qr-print-container {
-              background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-              padding: 40px;
-              border-radius: 20px;
-              text-align: center;
-              box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-              max-width: 400px;
-              width: 100%;
-            }
-            .store-name {
-              color: white;
-              font-size: 28px;
-              font-weight: bold;
-              margin-bottom: 10px;
-            }
-            .badge {
-              color: white;
-              background: rgba(255,255,255,0.2);
-              padding: 8px 16px;
-              border-radius: 20px;
-              font-size: 14px;
-              display: inline-block;
-              margin-bottom: 30px;
-            }
-            .qr-wrapper {
-              background: white;
-              padding: 30px;
-              border-radius: 20px;
-              display: inline-block;
-              margin-bottom: 30px;
-            }
-            .info-section {
-              color: white;
-              font-size: 14px;
-              margin-bottom: 10px;
-              background: rgba(255,255,255,0.1);
-              padding: 10px;
-              border-radius: 10px;
-            }
-            .url-section {
-              color: white;
-              background: rgba(255,255,255,0.15);
-              padding: 15px;
-              border-radius: 15px;
-              font-family: monospace;
-              font-size: 12px;
-              word-break: break-all;
-            }
-            @media print {
-              body { margin: 0; }
-              .qr-print-container { box-shadow: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="qr-print-container">
-            <div class="store-name">${storeName}</div>
-            <div class="badge">Menú Digital</div>
-            <div class="qr-wrapper">
-              ${qrContainer.querySelector('.bg-white')?.innerHTML || ''}
-            </div>
-            ${storeProfile.contactInfo?.whatsapp ? `<div class="info-section">WhatsApp: ${storeProfile.contactInfo.whatsapp}</div>` : ''}
-            <div class="url-section">tutiendaweb.com.ar/${slug || 'mi-tienda'}</div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-
-    // Esperar a que cargue antes de imprimir
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-      toast.success('Enviado a impresión');
-    }, 500);
-  };
-
-  /**
-   * Abre vista móvil en nueva ventana
-   */
-  const handleMobileView = () => {
-    if (slug) {
-      const url = `https://tutiendaweb.com.ar/${slug}`;
-      const mobileWindow = window.open(url, '_blank', 'width=375,height=667,scrollbars=yes,resizable=yes');
-      if (mobileWindow) {
-        toast.success('Vista móvil abierta');
+    const shareData = {
+      title: `Menú — ${storeName}`,
+      text: `Mirá el menú de ${storeName}`,
+      url: cartaURL,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
       } else {
-        toast.error('No se pudo abrir la vista móvil');
+        await navigator.clipboard.writeText(cartaURL);
+        toast.success("URL copiada para compartir");
       }
+    } catch {
+      toast.error("Error al compartir");
     }
   };
 
   return (
-    <div className="w-full max-w-2xl space-y-6">
-      {/* Primary Actions */}
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Acciones del Código QR
-          </h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Update QR */}
-            <Button
-              onClick={onUpdateQR}
-              variant="outline"
-              className="flex items-center space-x-2 h-12"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Actualizar QR</span>
-            </Button>
-
-            {/* Download PDF */}
-            <Button
-              onClick={onDownloadPDF}
-              disabled={isGenerating || !qrDataURL || !slug}
-              className="flex items-center space-x-2 h-12"
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  <span>Generando...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  <span>Descargar PDF</span>
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* Open Menu Button */}
-          <div className="mt-4">
-            <Button
-              onClick={() => {
-                if (slug) {
-                  window.open(`https://tutiendaweb.com.ar/${slug}`, '_blank');
-                }
+      {/* ── Primary: Descargar PDF ── */}
+      <button
+        onClick={onDownloadPDF}
+        disabled={isGenerating || !qrDataURL || !slug}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          width: "100%",
+          height: 52,
+          borderRadius: 14,
+          border: "none",
+          background: accent,
+          color: "#fff",
+          fontSize: 14,
+          fontWeight: 600,
+          letterSpacing: "0.01em",
+          cursor: isGenerating || !qrDataURL || !slug ? "not-allowed" : "pointer",
+          opacity: isGenerating || !qrDataURL || !slug ? 0.45 : 1,
+          transition: "opacity 0.15s, transform 0.1s",
+          fontFamily: "inherit",
+        }}
+        onMouseEnter={(e) => { if (!isGenerating) (e.currentTarget as HTMLButtonElement).style.opacity = "0.88"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = isGenerating || !qrDataURL || !slug ? "0.45" : "1"; }}
+      >
+        {isGenerating ? (
+          <>
+            <div
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTopColor: "white",
+                animation: "spin 0.7s linear infinite",
               }}
-              disabled={!slug}
-              variant="secondary"
-              className="w-full flex items-center space-x-2 h-12"
+            />
+            <span>Generando PDF…</span>
+          </>
+        ) : (
+          <>
+            <Download style={{ width: 16, height: 16 }} />
+            <span>Descargar PDF para imprimir</span>
+          </>
+        )}
+      </button>
+
+      {/* ── Secondary: Copiar / Compartir ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <button
+          onClick={handleCopyURL}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 7,
+            height: 42,
+            borderRadius: 12,
+            border: "1.5px solid rgba(0,0,0,0.09)",
+            background: "white",
+            color: copied ? "#16a34a" : "#374151",
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: "pointer",
+            transition: "border-color 0.15s, color 0.15s",
+            fontFamily: "inherit",
+          }}
+        >
+          {copied ? (
+            <CheckCircle2 style={{ width: 15, height: 15 }} />
+          ) : (
+            <Copy style={{ width: 15, height: 15 }} />
+          )}
+          <span>{copied ? "Copiado" : "Copiar link"}</span>
+        </button>
+
+        <button
+          onClick={handleShare}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 7,
+            height: 42,
+            borderRadius: 12,
+            border: "1.5px solid rgba(0,0,0,0.09)",
+            background: "white",
+            color: "#374151",
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: "pointer",
+            transition: "border-color 0.15s",
+            fontFamily: "inherit",
+          }}
+        >
+          <Share2 style={{ width: 15, height: 15 }} />
+          <span>Compartir</span>
+        </button>
+      </div>
+
+      {/* ── Ver catálogo completo ── */}
+      <a
+        href={catalogURL}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          fontSize: 12,
+          color: "#9ca3af",
+          textDecoration: "none",
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "#6b7280")}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "#9ca3af")}
+      >
+        <ExternalLink style={{ width: 13, height: 13 }} />
+        Ver catálogo completo (con carrito y pedidos)
+      </a>
+
+      {/* ── Divider ── */}
+      <div style={{ height: 1, background: "rgba(0,0,0,0.06)" }} />
+
+      {/* ── Info box ── */}
+      <div
+        style={{
+          borderRadius: 14,
+          padding: "14px 16px",
+          background: `rgba(${hexToRGBString(accent)}, 0.06)`,
+          border: `1px solid rgba(${hexToRGBString(accent)}, 0.18)`,
+        }}
+      >
+        <p
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            marginBottom: 8,
+            color: blendAccent(accent, 0.5),
+          }}
+        >
+          ¿Cómo usar el QR?
+        </p>
+        <ol
+          style={{
+            margin: 0,
+            paddingLeft: 0,
+            listStyle: "none",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          {[
+            "Descargá el PDF y llevalo a imprimir",
+            "Colocá el cartel en cada mesa de tu local",
+            "Tus clientes escanean y ven el menú — el mozo toma el pedido",
+          ].map((step, i) => (
+            <li
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                fontSize: 12,
+                color: "#6b7280",
+              }}
             >
-              <ExternalLink className="w-4 h-4" />
-              <span>Ver Menú Digital</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <span
+                style={{
+                  flexShrink: 0,
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: accent,
+                  color: "white",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 1,
+                }}
+              >
+                {i + 1}
+              </span>
+              {step}
+            </li>
+          ))}
+        </ol>
+      </div>
 
-      {/* Secondary Actions */}
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Opciones de Compartir
-          </h3>
+      {/* ── Actualizar QR ── */}
+      <button
+        onClick={onUpdateQR}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 5,
+          fontSize: 11,
+          color: "#9ca3af",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+          fontFamily: "inherit",
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#9ca3af")}
+      >
+        <RefreshCw style={{ width: 11, height: 11 }} />
+        Actualizar código QR
+      </button>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 qr-actions-grid">
-            {/* Copy URL */}
-            <Button
-              onClick={handleCopyURL}
-              variant="ghost"
-              size="sm"
-              className={`flex items-center space-x-2 h-10 action-button ${copied ? 'success-state' : ''}`}
-            >
-              {copied ? (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Copiado</span>
-                  <span className="sm:hidden">✓</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span className="hidden sm:inline">Copiar</span>
-                  <span className="sm:hidden">📋</span>
-                </>
-              )}
-            </Button>
-
-            {/* Share */}
-            <Button
-              onClick={handleShare}
-              variant="ghost"
-              size="sm"
-              className={`flex items-center space-x-2 h-10 action-button ${shared ? 'success-state' : ''}`}
-            >
-              {shared ? (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Compartido</span>
-                  <span className="sm:hidden">✓</span>
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Compartir</span>
-                  <span className="sm:hidden">📤</span>
-                </>
-              )}
-            </Button>
-
-            {/* Print */}
-            <Button
-              onClick={handlePrint}
-              variant="ghost"
-              size="sm"
-              className="flex items-center space-x-2 h-10 action-button"
-            >
-              <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Imprimir</span>
-              <span className="sm:hidden">🖨️</span>
-            </Button>
-
-            {/* Mobile View */}
-            <Button
-              onClick={handleMobileView}
-              variant="ghost"
-              size="sm"
-              className="flex items-center space-x-2 h-10 action-button"
-            >
-              <Smartphone className="w-4 h-4" />
-              <span className="hidden sm:inline">Móvil</span>
-              <span className="sm:hidden">📱</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Usage Tips */}
-      <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center space-x-2">
-            <Monitor className="w-5 h-5" />
-            <span>Consejos de Uso</span>
-          </h3>
-
-          <div className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
-            <div className="flex items-start space-x-2">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <p>
-                <strong>Para imprimir:</strong> Descarga el PDF para obtener la mejor calidad de impresión
-              </p>
-            </div>
-
-            <div className="flex items-start space-x-2">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <p>
-                <strong>Para mostrar en pantalla:</strong> Usa el código QR directamente desde esta página
-              </p>
-            </div>
-
-            <div className="flex items-start space-x-2">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <p>
-                <strong>Tamaño recomendado:</strong> Mínimo 3x3 cm para que sea fácil de escanear
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Spin keyframe */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+}
+
+// ─── small local helpers (no exports needed) ───────────────────────────────
+function hexToRGBString(hex: string): string {
+  const c = hex.replace("#", "");
+  return [
+    parseInt(c.substring(0, 2), 16),
+    parseInt(c.substring(2, 4), 16),
+    parseInt(c.substring(4, 6), 16),
+  ].join(", ");
+}
+
+function blendAccent(hex: string, darken = 0): string {
+  const c = hex.replace("#", "");
+  const factor = 1 - darken;
+  const r = Math.round(parseInt(c.substring(0, 2), 16) * factor);
+  const g = Math.round(parseInt(c.substring(2, 4), 16) * factor);
+  const b = Math.round(parseInt(c.substring(4, 6), 16) * factor);
+  return `rgb(${r},${g},${b})`;
 }
 
 export default QRActions;

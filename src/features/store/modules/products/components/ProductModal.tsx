@@ -32,7 +32,7 @@ import { Product, Topics } from "@/shared/types/store";
 import { useThemeClasses, useThemeStyles } from "@/features/store/hooks/useStoreTheme";
 
 
-export function ProductModal() {
+export function ProductModal({ readOnly = false }: { readOnly?: boolean } = {}) {
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
 
@@ -172,29 +172,31 @@ export function ProductModal() {
       {/* Extras/Tópicos si existen */}
       {product.topics && product.topics.length > 0 && (
         <div className="space-y-3">
-          <div>
-            <p className="text-sm font-medium text-gray-700">Extras</p>
-          </div>
-
+          <p className="text-sm font-medium text-gray-700">Extras disponibles</p>
           <div className="flex flex-col gap-2">
             {product.topics.map((topic) => (
               <div
                 key={topic.id}
                 className="flex w-full bg-white p-2 rounded-md shadow-sm border border-gray-100"
               >
-                <input
-                  type="checkbox"
-                  id={topic.id}
-                  onChange={() => handleTopicChange(topic.id)}
-                  className="ml-2"
-                  checked={selectedTopics.some(t => t.id === topic.id)}
-                />
-                <div className="flex justify-between w-full px-2">
-                  <label htmlFor={topic.id} className="text-gray-600 cursor-pointer text-sm font-medium">
+                {!readOnly && (
+                  <input
+                    type="checkbox"
+                    id={topic.id}
+                    onChange={() => handleTopicChange(topic.id)}
+                    className="ml-2"
+                    checked={selectedTopics.some(t => t.id === topic.id)}
+                  />
+                )}
+                <div className={`flex justify-between w-full ${!readOnly ? "px-2" : "px-1"}`}>
+                  <label
+                    htmlFor={readOnly ? undefined : topic.id}
+                    className={`text-gray-600 text-sm font-medium ${!readOnly ? "cursor-pointer" : ""}`}
+                  >
                     {topic.name}
                   </label>
                   <span className={`font-bold text-sm ${themeClasses.price.primary}`}>
-                    {formatPrice(topic.price)}
+                    +{formatPrice(topic.price)}
                   </span>
                 </div>
               </div>
@@ -203,21 +205,23 @@ export function ProductModal() {
         </div>
       )}
 
-      {/* Notas/Aclaraciones del producto */}
-      <div className="space-y-2">
-        <label htmlFor="product-notes" className="text-sm font-medium text-gray-700">
-          Notas o aclaraciones (opcional)
-        </label>
-        <Textarea
-          id="product-notes"
-          placeholder="Ej: Sin cebolla, bien cocido, etc."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="resize-none border-gray-200 focus:border-[var(--store-primary)] focus:ring-[var(--store-primary)] transition-colors"
-          rows={2}
-          maxLength={200}
-        />
-      </div>
+      {/* Notas/Aclaraciones — solo en modo normal */}
+      {!readOnly && (
+        <div className="space-y-2">
+          <label htmlFor="product-notes" className="text-sm font-medium text-gray-700">
+            Notas o aclaraciones (opcional)
+          </label>
+          <Textarea
+            id="product-notes"
+            placeholder="Ej: Sin cebolla, bien cocido, etc."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="resize-none border-gray-200 focus:border-[var(--store-primary)] focus:ring-[var(--store-primary)] transition-colors"
+            rows={2}
+            maxLength={200}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -269,9 +273,11 @@ export function ProductModal() {
             </DialogDescription>
           </DialogHeader>
           {productContent}
-          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            {actionBar}
-          </DialogFooter>
+          {!readOnly && (
+            <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+              {actionBar}
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     );
@@ -289,9 +295,11 @@ export function ProductModal() {
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {productContent}
         </div>
-        <DrawerFooter className="flex-shrink-0 pt-4 pb-6 border-t bg-white">
-          {actionBar}
-        </DrawerFooter>
+        {!readOnly && (
+          <DrawerFooter className="flex-shrink-0 pt-4 pb-6 border-t bg-white">
+            {actionBar}
+          </DrawerFooter>
+        )}
       </DrawerContent>
     </Drawer>
   );

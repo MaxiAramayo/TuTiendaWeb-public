@@ -18,6 +18,7 @@ import type { ProductInCart } from "@/shared/types/store";
 import type { StoreSettings } from "@/features/store/types/store.types";
 import { checkoutFormSchema, type CheckoutFormData } from "../../schemas/checkout.schema";
 import { processCheckoutAction } from "../../actions/checkout.actions";
+import { buildWhatsAppUrl, formatWhatsAppMessage } from "../../utils/whatsapp.utils";
 import { useCartStore } from "@/features/store/store/cart.store";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -239,10 +240,27 @@ export const CheckoutForm = ({
     }
   }, [requiresAddress, setValue]);
 
-  const onSubmit = handleSubmit(async (data) => {
+  const onSubmit = handleSubmit((data) => {
     if (!carrito || carrito.length === 0) {
       toast.error("No puedes realizar un pedido sin productos en el carrito");
       return;
+    }
+
+    // Abrir WhatsApp sincrónicamente aquí para preservar el gesto del usuario en iOS Safari.
+    // window.open() es bloqueado si se llama después de un await o desde un useEffect.
+    if (whatsapp) {
+      const message = formatWhatsAppMessage({
+        customerName: data.nombre,
+        storeName,
+        items: carrito,
+        total: finalTotal,
+        deliveryFee: deliveryPrice,
+        deliveryMethod: data.formaDeConsumir,
+        address: data.direccion,
+        paymentMethod: data.formaDePago,
+        notes: data.aclaracion,
+      });
+      window.open(buildWhatsAppUrl(whatsapp, message), "_blank");
     }
 
     startTransition(async () => {

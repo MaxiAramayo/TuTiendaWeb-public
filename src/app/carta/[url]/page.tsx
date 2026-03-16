@@ -45,7 +45,7 @@ export default async function Carta({
     <StoreThemeProvider themeData={storeData.theme}>
       <div className="bg-gray-100 h-screen overflow-auto">
         <HeaderWelcome store={storeData} />
-        <ProductList products={products} />
+        <ProductList products={products} readOnly />
       </div>
     </StoreThemeProvider>
   );

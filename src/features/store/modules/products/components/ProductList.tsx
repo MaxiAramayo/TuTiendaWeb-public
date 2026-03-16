@@ -52,12 +52,13 @@ const cardVariants = {
 
 interface ProductListProps {
   products: Product[];
+  readOnly?: boolean;
 }
 
 /**
  * Componente principal para mostrar la lista de productos con filtros
  */
-const ProductList = ({ products }: ProductListProps) => {
+const ProductList = ({ products, readOnly = false }: ProductListProps) => {
   // Store de filtros
   const {
     searchTerm,
@@ -181,6 +182,7 @@ const ProductList = ({ products }: ProductListProps) => {
                       <ProductCard
                         product={product}
                         onOpenModal={handleOpenModal}
+                        readOnly={readOnly}
                       />
                     </motion.div>
                   ))}
@@ -217,13 +219,13 @@ const ProductList = ({ products }: ProductListProps) => {
       </div>
 
       {/* Modal de producto */}
-      <ProductModal />
+      <ProductModal readOnly={readOnly} />
 
-      {/* Carrito de compras */}
-      <CartDrawer />
+      {/* Carrito de compras — oculto en modo carta */}
+      {!readOnly && <CartDrawer />}
 
-      {/* Botón flotante del carrito */}
-      <CartFloatingButton />
+      {/* Botón flotante del carrito — oculto en modo carta */}
+      {!readOnly && <CartFloatingButton />}
     </div>
   );
 };

@@ -1,27 +1,13 @@
 import { adminDb } from '@/lib/firebase/admin';
 
 export async function findStoreIdByUserId(userId: string): Promise<string | null> {
-  const byMetadataOwner = await adminDb
+  const snap = await adminDb
     .collection('stores')
     .where('metadata.ownerId', '==', userId)
     .limit(1)
     .get();
 
-  if (!byMetadataOwner.empty) {
-    return byMetadataOwner.docs[0].id;
-  }
-
-  const byRootOwner = await adminDb
-    .collection('stores')
-    .where('ownerId', '==', userId)
-    .limit(1)
-    .get();
-
-  if (!byRootOwner.empty) {
-    return byRootOwner.docs[0].id;
-  }
-
-  return null;
+  return snap.empty ? null : snap.docs[0].id;
 }
 
 export async function getStoreOnboardingState(storeId: string) {

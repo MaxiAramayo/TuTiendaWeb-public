@@ -14,6 +14,7 @@ import { getPublicStoreById, getStoreSettings } from '../services/public-store.s
 import { createPublicSaleAction } from '@/features/dashboard/modules/sells/actions/sale.actions';
 import type { CreateSaleData, SaleItem } from '@/features/dashboard/modules/sells/schemas/sell.schema';
 import type { ProductInCart } from '@/shared/types/store';
+import { formatWhatsAppMessage, formatWhatsAppNumber } from '../utils/whatsapp.utils';
 
 // ============================================================================
 // TYPES
@@ -42,84 +43,6 @@ export interface ProcessCheckoutInput {
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-/**
- * Formatea el mensaje para WhatsApp
- */
-function formatWhatsAppMessage({
-  customerName,
-  storeName,
-  items,
-  total,
-  deliveryFee,
-  deliveryMethod,
-  address,
-  paymentMethod,
-  notes
-}: {
-  customerName: string;
-  storeName: string;
-  items: ProductInCart[];
-  total: number;
-  deliveryFee: number;
-  deliveryMethod: string;
-  address?: string;
-  paymentMethod: string;
-  notes?: string;
-}): string {
-  let message = `*NUEVO PEDIDO - ${storeName}*\n\n`;
-  message += `*Cliente:* ${customerName}\n`;
-  message += `*Entrega:* ${deliveryMethod === 'delivery' ? 'Delivery' : 'Retiro en local'}\n`;
-  
-  if (deliveryMethod === 'delivery' && address) {
-    message += `*Dirección:* ${address}\n`;
-  }
-  
-  message += `*Pago:* ${paymentMethod}\n\n`;
-  message += `*PRODUCTOS:*\n`;
-  message += `------------------------\n`;
-  
-  items.forEach(item => {
-    const itemTotal = item.price * item.cantidad;
-    message += `> ${item.cantidad}x ${item.name} - $${itemTotal}\n`;
-    
-    if (item.topics && item.topics.length > 0) {
-      item.topics.forEach(topic => {
-        message += `   + ${topic.name} (+$${topic.price})\n`;
-      });
-    }
-  });
-  
-  message += `------------------------\n`;
-  message += `*Subtotal:* $${total - deliveryFee}\n`;
-  
-  if (deliveryFee > 0) {
-    message += `*Envío:* $${deliveryFee}\n`;
-  }
-  
-  message += `*TOTAL:* $${total}\n`;
-  
-  if (notes) {
-    message += `\n*Notas:* ${notes}`;
-  }
-  
-  return message;
-}
-
-/**
- * Formatea número de WhatsApp para enlaces internacionales
- */
-function formatWhatsAppNumber(phone: string): string {
-  let cleaned = phone.replace(/\s+/g, '');
-  
-  if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
-  } else if (!cleaned.startsWith('54')) {
-    cleaned = `54${cleaned}`;
-  }
-  
-  return cleaned;
-}
 
 /**
  * Convierte items del carrito a items de venta

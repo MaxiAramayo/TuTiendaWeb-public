@@ -9,7 +9,7 @@
 "use client";
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { CheckCircle, Smartphone, QrCode, Coffee } from 'lucide-react';
+import { CheckCircle, Smartphone, QrCode, Share2 } from 'lucide-react';
 
 // Datos de los pasos
 interface Step {
@@ -36,7 +36,7 @@ const steps: Step[] = [
     id: 3,
     title: "Comparte con tus clientes",
     description: "Comparte el QR en redes sociales, WhatsApp o materiales digitales. Tus clientes escanean y acceden a tu catálogo al instante.",
-    icon: <Coffee className="w-10 h-10 text-purple-600" />
+    icon: <Share2 className="w-10 h-10 text-purple-600" />
   },
   {
     id: 4,

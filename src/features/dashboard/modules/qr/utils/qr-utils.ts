@@ -18,11 +18,19 @@ export const DEFAULT_QR_CONFIG: QRConfig = {
 };
 
 /**
- * Genera la URL de la tienda usando el slug
+ * Genera la URL del catálogo completo de la tienda (con carrito y pedidos)
  */
 export const generateStoreURL = (slug: string): string => {
   if (!slug) return '';
   return `tutiendaweb.com.ar/${slug}`;
+};
+
+/**
+ * Genera la URL de la carta (menú de solo lectura para QR de mesa)
+ */
+export const generateCartaURL = (slug: string): string => {
+  if (!slug) return '';
+  return `tutiendaweb.com.ar/carta/${slug}`;
 };
 
 /**

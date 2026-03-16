@@ -81,11 +81,9 @@ export const GoogleButton = ({
           window.location.href = '/onboarding';
         }
       } else {
-        // Usuario existente con tienda
-        if (!onNewUser) {
-          toast.success('Sesión iniciada correctamente');
-          window.location.href = '/onboarding';
-        }
+        // Usuario existente con tienda — siempre redirigir al dashboard
+        toast.success('Sesión iniciada correctamente');
+        window.location.href = '/dashboard';
       }
     } catch (error: any) {
       console.error('Error en autenticación con Google:', error);
@@ -93,13 +91,21 @@ export const GoogleButton = ({
       // Manejo específico para errores de Firebase
       if (error?.code === 'auth/popup-closed-by-user') {
         toast.error('Inicio de sesión cancelado');
-      } else if (error?.code === 'auth/api-key-not-valid') {
-        toast.error('Error de configuración. Verifica variables de entorno');
       } else if (error?.code === 'auth/cancelled-popup-request') {
-        // Usuario cerró el popup, no mostrar error
-        console.log('Popup cerrado por el usuario');
+        // Usuario abrió múltiples popups, ignorar silenciosamente
+        console.log('Popup cancelado por nueva solicitud');
+      } else if (error?.code === 'auth/unauthorized-domain') {
+        toast.error('Dominio no autorizado. Contactá al soporte.');
+      } else if (error?.code === 'auth/popup-blocked') {
+        toast.error('El popup fue bloqueado. Permití popups en tu navegador e intentá de nuevo.');
+      } else if (error?.code === 'auth/operation-not-allowed') {
+        toast.error('Google Sign-In no está habilitado. Contactá al soporte.');
+      } else if (error?.code === 'auth/api-key-not-valid') {
+        toast.error('Error de configuración. Contactá al soporte.');
+      } else if (error?.code === 'auth/network-request-failed') {
+        toast.error('Error de conexión. Verificá tu internet e intentá de nuevo.');
       } else {
-        toast.error('Error al iniciar sesión con Google');
+        toast.error('Error al iniciar sesión con Google. Intentá de nuevo.');
       }
     } finally {
       setIsLoading(false);
