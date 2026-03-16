@@ -101,6 +101,8 @@ export interface ProductCardProps {
   product: Product;
   /** Función para manejar la apertura del modal de producto */
   onOpenModal: (product: Product) => void;
+  /** Modo solo lectura: oculta botones de carrito (ej: carta para QR) */
+  readOnly?: boolean;
 }
 
 /**

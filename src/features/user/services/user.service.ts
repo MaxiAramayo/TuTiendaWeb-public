@@ -339,7 +339,7 @@ export async function getOrCreateUserFromGoogle(
         }
 
         // Usuario NO existe: crear nuevo
-        const displayName = name || email.split('@');
+        const displayName = name || email.split('@')[0];
 
         await createUserInFirestore(uid, {
             email,

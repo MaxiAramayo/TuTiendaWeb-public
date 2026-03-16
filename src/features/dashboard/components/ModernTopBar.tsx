@@ -18,8 +18,8 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Menu,
-  User,
-  Settings,
+  SlidersHorizontal,
+  Paintbrush,
   ChevronDown,
   Crown
 } from "lucide-react";
@@ -212,21 +212,21 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
 
               <DropdownMenuItem asChild>
                 <Link
-                  href="/dashboard/profile"
+                  href="/dashboard/settings/general"
                   className="flex items-center cursor-pointer"
                 >
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Perfil</span>
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  <span>Configuración general</span>
                 </Link>
               </DropdownMenuItem>
 
               <DropdownMenuItem asChild>
                 <Link
-                  href="/dashboard/profile"
+                  href="/dashboard/settings/appearance"
                   className="flex items-center cursor-pointer"
                 >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Configuración</span>
+                  <Paintbrush className="mr-2 h-4 w-4" />
+                  <span>Apariencia</span>
                 </Link>
               </DropdownMenuItem>
 

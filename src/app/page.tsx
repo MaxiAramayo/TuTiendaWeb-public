@@ -14,8 +14,6 @@ import Navbar from "@/features/landing/components/Navbar";
 import HeroSection from "@/features/landing/sections/HeroSection";
 import FeaturesSection from "@/features/landing/sections/FeaturesSection";
 import StepsSection from "@/features/landing/sections/StepsSection";
-import QrDemoSection from "@/features/landing/sections/QrDemoSection";
-
 import PricingSection from "@/features/landing/sections/PricingSection";
 
 import { Footer } from "@/features/landing/components/Footer";
@@ -39,8 +37,6 @@ export default function Page() {
         <HeroSection />
         <StepsSection />
         <FeaturesSection />
-        <QrDemoSection />
-
         <PricingSection />
 
       </main>

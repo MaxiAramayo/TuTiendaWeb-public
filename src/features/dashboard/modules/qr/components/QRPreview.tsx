@@ -1,10 +1,8 @@
 /**
- * Componente para mostrar el preview del código QR
- * 
- * Refactorizado para seguir arquitectura Server-First:
- * - Eliminada dependencia de User (usa storeProfile.basicInfo.name)
- * - Datos vienen del Server Component via props
- * 
+ * Vista previa del código QR — diseño premium imprimible.
+ *
+ * Usa el color primario de la tienda como acento y soporta logo.
+ *
  * @module features/dashboard/modules/qr/components
  */
 
@@ -12,118 +10,274 @@
 
 import React from "react";
 import QRCode from "qrcode.react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Store, MapPin } from "lucide-react";
 import { QRPreviewProps } from "../types/qr-types";
-import { DEFAULT_QR_CONFIG } from "../utils/qr-utils";
 
-/**
- * Componente para mostrar el preview del código QR con información de la tienda
- */
-export function QRPreview({
-  storeProfile,
-  storeURL,
-  qrDataURL,
-  onQRUpdate
-}: QRPreviewProps) {
-  const storeName = storeProfile.basicInfo?.name || 'Mi Tienda';
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+/** Convierte hex a RGB tuple */
+function hexToRGB(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return [r, g, b];
+}
+
+/** Mezcla un color hex con alpha sobre fondo oscuro (#0d0d0d) */
+function alphaOnDark(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRGB(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ─────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────
+
+export function QRPreview({ storeProfile, storeURL }: QRPreviewProps) {
+  const storeName   = storeProfile.basicInfo?.name  || "Mi Tienda";
+  const slug        = storeProfile.basicInfo?.slug  || "";
+  const accent      = storeProfile.theme?.primaryColor || "#c9973a";
+  const logoUrl     = storeProfile.theme?.logoUrl;
+  const description = storeProfile.basicInfo?.description || "";
 
   return (
-    <div className="flex flex-col items-center space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="flex items-center justify-center space-x-2">
-          <Store className="w-6 h-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Código QR de tu Menú
-          </h1>
-        </div>
-        <p className="text-gray-600 dark:text-gray-400 max-w-md">
-          Comparte este código QR con tus clientes para que accedan fácilmente a tu menú digital actualizado
-        </p>
-      </div>
+    <>
+      {/* Google Fonts — Cormorant Garamond (display) + DM Sans (body) */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+      `}</style>
 
-      {/* QR Container */}
-      <Card
+      {/*
+        ┌─────────────────────────────────────────┐
+        │  id="qr-container" — elemento imprimible │
+        └─────────────────────────────────────────┘
+      */}
+      <div
         id="qr-container"
-        className="bg-gradient-to-br from-slate-800 to-slate-900 border-0 shadow-2xl max-w-md mx-auto qr-container-pdf"
         style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          minHeight: '500px',
-          printColorAdjust: 'exact',
-          WebkitPrintColorAdjust: 'exact'
+          position: "relative",
+          background: "#0d0d0d",
+          borderRadius: "26px",
+          padding: "48px 36px 40px",
+          width: "360px",
+          boxSizing: "border-box",
+          boxShadow: `0 0 0 1px ${alphaOnDark(accent, 0.18)}, 0 40px 80px rgba(0,0,0,0.5)`,
+          overflow: "hidden",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
         }}
       >
-        <CardContent className="p-10 flex flex-col items-center justify-center space-y-8">
-          {/* Store Name */}
-          <div className="text-center space-y-3">
-            <h2 className="text-3xl font-bold text-white leading-tight">
-              {storeName}
-            </h2>
-            <div className="inline-flex items-center px-4 py-2 bg-white/20 rounded-full border border-white/30">
-              <span className="text-white font-medium text-sm">Menú Digital</span>
+        {/* ── Noise texture overlay ── */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0.025,
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+            backgroundSize: "128px 128px",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* ── Corner brackets ── */}
+        {(
+          [
+            { top: 14, left: 14 },
+            { top: 14, right: 14 },
+            { bottom: 14, left: 14 },
+            { bottom: 14, right: 14 },
+          ] as React.CSSProperties[]
+        ).map((pos, i) => (
+          <div
+            key={i}
+            aria-hidden
+            style={{
+              position: "absolute",
+              ...pos,
+              width: 22,
+              height: 22,
+              borderTop: i < 2 ? `1.5px solid ${alphaOnDark(accent, 0.55)}` : undefined,
+              borderBottom: i >= 2 ? `1.5px solid ${alphaOnDark(accent, 0.55)}` : undefined,
+              borderLeft: i % 2 === 0 ? `1.5px solid ${alphaOnDark(accent, 0.55)}` : undefined,
+              borderRight: i % 2 === 1 ? `1.5px solid ${alphaOnDark(accent, 0.55)}` : undefined,
+            }}
+          />
+        ))}
+
+        {/* ── Logo (si existe) ── */}
+        {logoUrl && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "18px",
+                background: "transparent",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: `0 0 0 1px ${alphaOnDark(accent, 0.3)}`,
+                padding: "4px",
+              }}
+            >
+              {/* Sin crossOrigin: Firebase Storage no tiene CORS configurado.
+                  El PDF usa /api/image-proxy para resolver el taint del canvas. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt={storeName}
+                loading="eager"
+                style={{ objectFit: "contain", width: 64, height: 64, borderRadius: "14px" }}
+              />
             </div>
           </div>
+        )}
 
-          {/* QR Code */}
-          <div className="bg-white p-2 rounded-3xl shadow-2xl">
+        {/* ── Nombre de la tienda ── */}
+        <h2
+          style={{
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: storeName.length > 18 ? "26px" : "32px",
+            fontWeight: 700,
+            color: accent,
+            textAlign: "center",
+            margin: 0,
+            lineHeight: 1.1,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {storeName}
+        </h2>
+
+        {/* ── Descripción de la tienda ── */}
+        {description && (
+          <p
+            style={{
+              textAlign: "center",
+              color: "rgba(255,255,255,0.7)",
+              fontSize: "13px",
+              lineHeight: 1.4,
+              margin: "12px auto 0",
+              maxWidth: "90%",
+              fontWeight: 300,
+            }}
+          >
+            {description.length > 80 ? description.substring(0, 80) + "..." : description}
+          </p>
+        )}
+
+        {/* ── Divider ornamental ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            margin: "24px auto 20px",
+            width: "80%",
+          }}
+        >
+          <div style={{ flex: 1, height: 1.5, background: alphaOnDark(accent, 0.25) }} />
+          <div
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: alphaOnDark(accent, 0.7),
+            }}
+          />
+          <div style={{ flex: 1, height: 1.5, background: alphaOnDark(accent, 0.25) }} />
+        </div>
+
+        {/* ── Tagline ── */}
+        <p
+          style={{
+            textAlign: "center",
+            color: "rgba(255,255,255,0.4)",
+            fontSize: "10px",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            margin: "0 0 26px",
+            fontWeight: 500,
+          }}
+        >
+          Escaneá para ver el menú
+        </p>
+
+        {/* ── QR Code ── */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+          <div
+            style={{
+              background: "white",
+              padding: "18px",
+              borderRadius: "20px",
+              boxShadow: `0 0 0 2px ${alphaOnDark(accent, 0.2)}, 0 16px 40px rgba(0,0,0,0.5)`,
+              lineHeight: 0,
+            }}
+          >
             <QRCode
               id="qr-code"
               value={storeURL}
-              size={DEFAULT_QR_CONFIG.size}
-              level={DEFAULT_QR_CONFIG.level}
-              includeMargin={DEFAULT_QR_CONFIG.includeMargin}
-              fgColor={DEFAULT_QR_CONFIG.fgColor}
-              bgColor={DEFAULT_QR_CONFIG.bgColor}
+              size={210}
+              level="H"
+              includeMargin={false}
+              fgColor="#0d0d0d"
+              bgColor="#ffffff"
               renderAs="canvas"
             />
           </div>
+        </div>
 
-          {/* Store Info */}
-          <div className="space-y-4 text-center max-w-sm">
-            {storeProfile.contactInfo?.whatsapp && (
-              <div className="flex items-center justify-center space-x-3 bg-white/10 rounded-lg p-3">
-                <Store className="w-5 h-5 text-white/80 flex-shrink-0" />
-                <p className="text-white/90 text-sm leading-relaxed font-medium">
-                  WhatsApp: {storeProfile.contactInfo.whatsapp}
-                </p>
-              </div>
-            )}
-            {storeProfile.basicInfo?.description && (
-              <div className="flex items-center justify-center space-x-3 bg-white/10 rounded-lg p-3">
-                <MapPin className="w-5 h-5 text-white/80 flex-shrink-0" />
-                <p className="text-white/90 text-sm leading-relaxed font-medium">
-                  {storeProfile.basicInfo.description}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* URL Display */}
-          <div className="bg-white/15 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/20">
-            <p className="text-white/90 text-xs font-mono tracking-wide">
-              {storeURL}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Info Card */}
-      <Card className="w-full max-w-md">
-        <CardContent className="p-4">
-          <div className="text-center space-y-2">
-            <h3 className="font-semibold text-gray-900 dark:text-white">
-              ¿Cómo usar el código QR?
-            </h3>
-            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-              <p>1. Descarga el PDF para imprimir</p>
-              <p>2. Muestra el código en pantalla</p>
-              <p>3. Los clientes escanean para ver tu menú</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        {/* ── URL ── */}
+        <div
+          style={{
+            background: alphaOnDark(accent, 0.08),
+            border: `1px solid ${alphaOnDark(accent, 0.2)}`,
+            borderRadius: "14px",
+            padding: "14px 18px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4px",
+            boxShadow: `inset 0 1px 0 ${alphaOnDark(accent, 0.1)}`,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "9px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              color: alphaOnDark(accent, 0.8),
+              letterSpacing: "0.1em",
+            }}
+          >
+            Menú Digital
+          </span>
+          <span
+            style={{
+              fontFamily: "'DM Mono', 'Courier New', monospace",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: accent,
+              letterSpacing: "0.04em",
+            }}
+          >
+            tutiendaweb.com.ar/carta/{slug}
+          </span>
+        </div>
+      </div>
+    </>
   );
 }
 

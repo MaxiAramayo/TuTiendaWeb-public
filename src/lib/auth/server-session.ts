@@ -1,32 +1,15 @@
 import { cookies } from 'next/headers';
 import { adminAuth } from '@/lib/firebase/admin';
 import { findStoreIdByUserId } from '@/lib/auth/store-session';
+import type { ServerSession } from '@/features/auth/auth.types';
+
+export type { ServerSession };
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const COOKIE_NAME = 'session';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-/**
- * Session del servidor (con custom claims)
- * Retornado por getServerSession()
- */
-export interface ServerSession {
-    userId: string;
-    email: string;
-    displayName: string;
-    photoURL: string | null;
-    emailVerified: boolean;
-    
-    // Custom Claims (desde token JWT o Firestore fallback)
-    storeId: string | null;
-    role: 'owner' | 'admin' | 'employee' | null;
-}
 
 // ============================================================================
 // HELPERS

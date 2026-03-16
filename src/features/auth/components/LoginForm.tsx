@@ -58,7 +58,8 @@ export const LoginForm = () => {
 
       if (result.success) {
         toast.success('Sesión iniciada correctamente');
-        window.location.href = '/onboarding';
+        // El dashboard layout redirige a /onboarding si el usuario aún no completó el setup
+        window.location.href = '/dashboard';
       } else {
         const errors = result.errors || {};
         if (errors._form) {

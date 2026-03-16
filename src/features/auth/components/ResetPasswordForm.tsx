@@ -40,12 +40,31 @@ export const ResetPasswordForm = () => {
   const onSubmit = async (data: ResetPasswordFormValues) => {
     try {
       setIsLoading(true);
-      await sendPasswordResetEmail(auth, data.email);
+
+      // actionCodeSettings redirige al usuario de vuelta al sign-in
+      // después de que Firebase procese el reset de contraseña
+      await sendPasswordResetEmail(auth, data.email, {
+        url: `${window.location.origin}/sign-in`,
+        handleCodeInApp: false,
+      });
+
       setEmailSent(true);
-      toast.success('Se ha enviado un correo para restablecer tu contraseña');
+      toast.success('Correo enviado. Revisá tu bandeja de entrada.');
     } catch (error: any) {
       console.error('Error al restablecer contraseña:', error);
-      toast.error(error.message || 'Error al enviar el correo');
+
+      if (error?.code === 'auth/user-not-found') {
+        // Por seguridad no revelar si el email existe o no — mostrar éxito igualmente
+        setEmailSent(true);
+      } else if (error?.code === 'auth/invalid-email') {
+        toast.error('El formato del email no es válido.');
+      } else if (error?.code === 'auth/too-many-requests') {
+        toast.error('Demasiados intentos. Esperá unos minutos e intentá de nuevo.');
+      } else if (error?.code === 'auth/network-request-failed') {
+        toast.error('Error de conexión. Verificá tu internet e intentá de nuevo.');
+      } else {
+        toast.error('No se pudo enviar el correo. Intentá de nuevo.');
+      }
     } finally {
       setIsLoading(false);
     }
