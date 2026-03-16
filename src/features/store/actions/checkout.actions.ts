@@ -1,8 +1,8 @@
 /**
  * Server Actions para Checkout
- * 
+ *
  * Mutaciones del proceso de checkout ejecutadas en el servidor
- * 
+ *
  * @module features/store/actions/checkout.actions
  */
 'use server';
@@ -20,7 +20,7 @@ import { formatWhatsAppMessage, formatWhatsAppNumber } from '../utils/whatsapp.u
 // TYPES
 // ============================================================================
 
-type ActionResponse<T = unknown> = 
+type ActionResponse<T = unknown> =
   | { success: true; data: T }
   | { success: false; errors: Record<string, string[]> };
 
@@ -71,7 +71,7 @@ function cartToSaleItems(cartItems: ProductInCart[]): SaleItem[] {
 
 /**
  * Procesa el checkout y crea la orden
- * 
+ *
  * @param input - Datos del checkout
  * @returns Resultado con datos de la orden o errores
  */
@@ -84,26 +84,26 @@ export async function processCheckoutAction(
     // 1. VALIDATE FORM DATA
     const formValidation = checkoutFormSchema.safeParse(formData);
     if (!formValidation.success) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         errors: formValidation.error.flatten().fieldErrors as Record<string, string[]>
       };
     }
 
     // 2. VALIDATE CART
     if (!cartItems || cartItems.length === 0) {
-      return { 
-        success: false, 
-        errors: { _form: ['El carrito está vacío'] } 
+      return {
+        success: false,
+        errors: { _form: ['El carrito está vacío'] }
       };
     }
 
     // 3. GET STORE DATA
     const store = await getPublicStoreById(storeId);
     if (!store) {
-      return { 
-        success: false, 
-        errors: { _form: ['Tienda no encontrada'] } 
+      return {
+        success: false,
+        errors: { _form: ['Tienda no encontrada'] }
       };
     }
 
@@ -141,10 +141,10 @@ export async function processCheckoutAction(
 
     // 6. CREATE SALE
     const saleResult = await createPublicSaleAction(storeId, saleData);
-    
+
     if (!saleResult.success) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         errors: saleResult.errors || { _form: ['Error al crear la orden'] }
       };
     }
@@ -153,7 +153,7 @@ export async function processCheckoutAction(
     // Soportar ambas estructuras: nueva (contactInfo.whatsapp) y legacy (whatsapp)
     const storeName = store.basicInfo?.name || store.name || 'Mi Tienda';
     const whatsapp = store.contactInfo?.whatsapp || store.whatsapp || '';
-    
+
     const whatsappMessage = formatWhatsAppMessage({
       customerName: formValidation.data.nombre,
       storeName,
@@ -185,16 +185,16 @@ export async function processCheckoutAction(
 
   } catch (error) {
     console.error('[CheckoutAction] Error processing checkout:', error);
-    return { 
-      success: false, 
-      errors: { _form: ['Error al procesar el pedido'] } 
+    return {
+      success: false,
+      errors: { _form: ['Error al procesar el pedido'] }
     };
   }
 }
 
 /**
  * Valida los datos del formulario de checkout
- * 
+ *
  * @param formData - Datos del formulario
  * @returns Resultado de validación
  */
@@ -202,16 +202,16 @@ export async function validateCheckoutFormAction(
   formData: unknown
 ): Promise<ActionResponse<CheckoutFormData>> {
   const validation = checkoutFormSchema.safeParse(formData);
-  
+
   if (!validation.success) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       errors: validation.error.flatten().fieldErrors as Record<string, string[]>
     };
   }
 
-  return { 
-    success: true, 
-    data: validation.data 
+  return {
+    success: true,
+    data: validation.data
   };
 }
