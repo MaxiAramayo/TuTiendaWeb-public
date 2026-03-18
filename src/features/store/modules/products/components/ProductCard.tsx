@@ -10,7 +10,7 @@ import { ProductTagList } from '../../../components/ui/ProductTagBadge';
 import { useThemeClasses } from '../../../hooks/useStoreTheme';
 import { ImageWithLoader } from "../../../components/ui/ImageWithLoader";
 
-const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
+const ProductCard = ({ product, onOpenModal, readOnly = false }: ProductCardProps) => {
   const { addToCart, openCart } = useCartStore();
   const { showCart, messages } = useStoreToast();
   const themeClasses = useThemeClasses();
@@ -99,16 +99,18 @@ const ProductCard = ({ product, onOpenModal }: ProductCardProps) => {
             <p className={`font-bold text-base ${themeClasses.price.primary}`}>
               ${product.price}
             </p>
-            <Button
-              size="sm"
-              variant="ghost"
-              className={`p-1 h-8 w-8 rounded-full ${themeClasses.background.primary} hover:bg-[var(--store-primary)]/90 transition-all duration-300 hover:scale-110 shadow-sm`}
-              disabled={product.available === false}
-              onClick={handleQuickAddToCart}
-              title="Añadir al carrito"
-            >
-              <ShoppingCart className="h-4 w-4 text-white" />
-            </Button>
+            {!readOnly && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className={`p-1 h-8 w-8 rounded-full ${themeClasses.background.primary} hover:bg-[var(--store-primary)]/90 transition-all duration-300 hover:scale-110 shadow-sm`}
+                disabled={product.available === false}
+                onClick={handleQuickAddToCart}
+                title="Añadir al carrito"
+              >
+                <ShoppingCart className="h-4 w-4 text-white" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@
  */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -134,7 +134,6 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
 }) => {
   const router = useRouter();
   const { showOrder, showError } = useStoreToast();
-  const [isResending, setIsResending] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
 
   // Defensive destructuring
@@ -169,22 +168,14 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
       ? { name: paymentMethod }
       : paymentMethod;
 
-  // ── Handlers ──────────────────────────────────
+  // ── Derived ───────────────────────────────────
 
-  const handleResendWhatsApp = async () => {
-    setIsResending(true);
-    try {
-      if (whatsappNumber && whatsappMessage) {
-        const clean = whatsappNumber.replace(/\s+/g, "");
-        window.open(`https://wa.me/${clean}?text=${encodeURIComponent(whatsappMessage)}`);
-      }
-      showOrder("Mensaje reenviado a WhatsApp", { duration: 3000 });
-    } catch {
-      showError("Error al reenviar mensaje", { duration: 3000 });
-    } finally {
-      setIsResending(false);
-    }
-  };
+  const whatsappUrl =
+    whatsappNumber && whatsappMessage
+      ? `https://wa.me/${whatsappNumber.replace(/\s+/g, "")}?text=${encodeURIComponent(whatsappMessage)}`
+      : null;
+
+  // ── Handlers ──────────────────────────────────
 
   const handleCopyMessage = async () => {
     try {
@@ -211,19 +202,6 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
       minute: "2-digit",
     }).format(d);
 
-  // Open WhatsApp automatically on mount
-  useEffect(() => {
-    if (whatsappNumber && whatsappMessage) {
-      const clean = whatsappNumber.replace(/\s+/g, "");
-      const timer = setTimeout(() => {
-        window.open(
-          `https://wa.me/${clean}?text=${encodeURIComponent(whatsappMessage)}`,
-          "_blank"
-        );
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ────────────────────────────────────
 
@@ -567,21 +545,33 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
               style={{ color: "var(--store-primary)" }}
             />
             <p className="relative text-xs leading-relaxed" style={{ color: "#475569" }}>
-              Tu pedido fue enviado por WhatsApp al comercio. Si no lo recibiste,
-              podés reenviarlo desde acá.
+              Tu pedido fue enviado por WhatsApp. Si no se abrió automáticamente,
+              tocá el botón para reenviarlo.
             </p>
           </div>
 
-          {/* Primary CTA — WhatsApp */}
-          <Button
-            onClick={handleResendWhatsApp}
-            disabled={isResending}
-            className="w-full h-12 text-[15px] font-semibold rounded-2xl gap-2.5 text-white transition-opacity hover:opacity-90"
-            style={{ backgroundColor: "var(--store-primary)" }}
-          >
-            <MessageCircle className="w-5 h-5" />
-            {isResending ? "Enviando..." : "Reenviar a WhatsApp"}
-          </Button>
+          {/* Primary CTA — WhatsApp (native <a> for iOS Safari compatibility) */}
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-full h-12 text-[15px] font-semibold rounded-2xl gap-2.5 text-white transition-opacity hover:opacity-90 active:opacity-80"
+              style={{ backgroundColor: "var(--store-primary)" }}
+            >
+              <MessageCircle className="w-5 h-5" />
+              Reenviar por WhatsApp
+            </a>
+          ) : (
+            <Button
+              disabled
+              className="w-full h-12 text-[15px] font-semibold rounded-2xl gap-2.5 text-white"
+              style={{ backgroundColor: "var(--store-primary)" }}
+            >
+              <MessageCircle className="w-5 h-5" />
+              Reenviar por WhatsApp
+            </Button>
+          )}
 
           {/* Secondary actions */}
           <div className="flex gap-2.5">

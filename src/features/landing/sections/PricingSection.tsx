@@ -10,7 +10,12 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Check, ShoppingCart, Shield } from "lucide-react";
+import { Check, ShoppingCart, Shield, MessageCircle } from "lucide-react";
+
+const SUPPORT_NUMBER = process.env.NEXT_PUBLIC_SUPPORT_NUMBER ?? "";
+const WHATSAPP_URL = SUPPORT_NUMBER
+  ? `https://wa.me/${SUPPORT_NUMBER}?text=${encodeURIComponent("Hola! Tengo una consulta sobre TuTiendaWeb 👋")}`
+  : null;
 
 const features = [
   "Catálogo digital QR compartible por WhatsApp",
@@ -77,6 +82,12 @@ const PricingSection = () => {
                 Todo lo que necesitás para digitalizar tu negocio
               </p>
 
+              {/* Trial badge */}
+              <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-sm font-semibold px-3 py-1.5 rounded-full mb-5">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                7 días de prueba gratis · Sin tarjeta de crédito
+              </div>
+
               {/* Precio */}
               <div className="mb-8">
                 <div className="flex items-baseline">
@@ -93,10 +104,13 @@ const PricingSection = () => {
               {/* CTA */}
               <Link
                 href="/sign-up"
-                className="block w-full py-4 px-6 bg-purple-600 hover:bg-purple-700 text-white text-center font-semibold rounded-xl transition-colors focus:outline-none focus:ring-4 focus:ring-purple-300 mb-8 text-lg"
+                className="block w-full py-4 px-6 bg-purple-600 hover:bg-purple-700 text-white text-center font-semibold rounded-xl transition-colors focus:outline-none focus:ring-4 focus:ring-purple-300 mb-3 text-lg"
               >
-                Empezar ahora
+                Empezar prueba gratis
               </Link>
+              <p className="text-center text-xs text-gray-400 mb-6">
+                Después del período de prueba: {formattedPrice}/mes
+              </p>
 
               {/* Features */}
               <div className="border-t border-gray-100 pt-6">
@@ -150,12 +164,24 @@ const PricingSection = () => {
           <p className="text-gray-600 mb-4">
             ¿Tenés dudas antes de empezar?
           </p>
-          <a
-            href="#contacto"
-            className="inline-block px-6 py-3 bg-white text-purple-600 font-medium rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors focus:ring-4 focus:ring-purple-100"
-          >
-            Hablá con nosotros
-          </a>
+          {WHATSAPP_URL ? (
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg shadow-sm transition-colors focus:ring-4 focus:ring-green-200"
+            >
+              <MessageCircle size={18} />
+              Hablá con nosotros por WhatsApp
+            </a>
+          ) : (
+            <a
+              href="mailto:tutiendaweboficial@gmail.com"
+              className="inline-block px-6 py-3 bg-white text-purple-600 font-medium rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors focus:ring-4 focus:ring-purple-100"
+            >
+              Hablá con nosotros
+            </a>
+          )}
         </motion.div>
       </div>
     </section>

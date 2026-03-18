@@ -17,23 +17,15 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { adminAuth } from '@/lib/firebase/admin';
-import { createUserInFirestore } from '@/features/user/services/user.service';
+import { createUserInFirestore, getOrCreateUserFromGoogle } from '@/features/user/services/user.service';
 import { createStore } from '@/features/store/services/store.service';
 import { setUserClaims, revokeUserTokens } from '@/features/auth/services/server/auth.service';
 import { getServerSession } from '@/lib/auth/server-session';
 import { loginSchema } from '@/features/auth/schemas/login.schema';
 import { registerServerSchema } from '@/features/auth/schemas/register.schema';
-import { resetPasswordSchema } from '@/features/auth/schemas/reset-password.schema';
 import { completeRegistrationSchema } from '@/features/auth/schemas/complete-registration.schema';
 import type { StoreType } from '@/features/auth/schemas/store-setup.schema';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-type ActionResponse<T = unknown> =
-    | { success: true; data: T }
-    | { success: false; errors: Record<string, string[]> };
+import type { ActionResponse } from '@/features/auth/auth.types';
 
 // ============================================================================
 // COOKIE HELPERS
@@ -163,7 +155,19 @@ export async function createSessionAction(
 
         console.log(`[CreateSessionAction] Session created for user: ${decodedToken.uid}`);
 
-        // 3. RETURN SUCCESS
+        // 3. ENSURE FIRESTORE USER EXISTS (for Google OAuth sign-ins)
+        // Email/password users are created in registerAction; Google users need this step.
+        const signInProvider = (decodedToken as any).firebase?.sign_in_provider;
+        if (signInProvider === 'google.com') {
+            try {
+                await getOrCreateUserFromGoogle(decodedToken);
+            } catch (firestoreError) {
+                // Non-blocking: log but don't fail the session creation
+                console.error('[CreateSessionAction] Could not sync Google user to Firestore:', firestoreError);
+            }
+        }
+
+        // 4. RETURN SUCCESS
         return {
             success: true,
             data: { userId: decodedToken.uid },
@@ -421,72 +425,22 @@ export async function clearSessionAction(): Promise<void> {
 }
 
 // ============================================================================
-// RESET PASSWORD ACTION
+// RESET PASSWORD ACTION (deprecated — ahora se usa sendPasswordResetEmail desde el Client SDK)
 // ============================================================================
 
 /**
- * Reset Password Action - Enviar email de recuperación
- * 
- * ⚠️  IMPORTANTE: Solo genera el link, NO lo envía
- * Firebase Admin SDK NO puede enviar emails directamente
- * Debes configurar Firebase Email Templates
- * 
- * @param prevState - Estado previo
- * @param formData - FormData con email
- * @returns ActionResponse vacío
+ * @deprecated Usar sendPasswordResetEmail del Firebase Client SDK directamente.
+ * Ver ResetPasswordForm.tsx — envía el email a través del Client SDK de Firebase
+ * usando los email templates configurados en Firebase Console.
  */
 export async function resetPasswordAction(
-    prevState: any,
-    formData: FormData
+    _prevState: any,
+    _formData: FormData
 ): Promise<ActionResponse<null>> {
-    try {
-        // 1. PARSE FormData
-        const rawData = {
-            email: formData.get('email'),
-        };
-
-        // 2. VALIDATE
-        const validation = resetPasswordSchema.safeParse(rawData);
-
-        if (!validation.success) {
-            return {
-                success: false,
-                errors: validation.error.flatten().fieldErrors,
-            };
-        }
-
-        const { email } = validation.data;
-
-        // 3. GENERATE RESET LINK
-        const resetLink = await adminAuth.generatePasswordResetLink(email);
-
-        console.log(`[ResetPasswordAction] Reset link generated for: ${email}`);
-        console.log(`[ResetPasswordAction] Link: ${resetLink}`);
-
-        // TODO: Enviar email con el link (usando SendGrid, Resend, etc)
-        // Por ahora solo lo logueamos
-
-        // 4. RETURN SUCCESS
-        return {
-            success: true,
-            data: null,
-        };
-    } catch (error: any) {
-        console.error('[ResetPasswordAction] Error:', error);
-
-        if (error.code === 'auth/user-not-found') {
-            // Por seguridad, no revelamos si el email existe o no
-            return {
-                success: true,
-                data: null,
-            };
-        }
-
-        return {
-            success: false,
-            errors: { _form: ['Error al enviar email. Intenta nuevamente.'] },
-        };
-    }
+    return {
+        success: false,
+        errors: { _form: ['Usar el formulario de la página de reset password.'] },
+    };
 }
 
 // ============================================================================

@@ -116,7 +116,7 @@ const FeaturesSection = () => {
             Características que transforman la experiencia
           </h2>
           <p className="text-xl text-gray-600">
-            Todo lo que necesitas para digitalizar y optimizar tu restaurante 
+            Todo lo que necesitás para digitalizar y hacer crecer tu comercio
             en una plataforma simple e intuitiva
           </p>
         </motion.div>
@@ -211,8 +211,8 @@ const FeaturesSection = () => {
               />
             </div>
             
-            {/* Elemento decorativo */}
-            <div className="absolute -bottom-6 -left-6 bg-purple-600 text-white p-4 rounded-lg shadow-lg">
+            {/* Elemento decorativo — oculto en mobile para evitar overflow */}
+            <div className="hidden md:block absolute -bottom-6 -left-6 bg-purple-600 text-white p-4 rounded-lg shadow-lg">
               <p className="font-semibold">Catálogo profesional</p>
               <p className="text-sm">Productos organizados y atractivos</p>
             </div>
@@ -238,10 +238,10 @@ const FeaturesSection = () => {
               />
             </div>
             
-            {/* Elemento decorativo */}
-            <div className="absolute -top-6 -right-6 bg-green-600 text-white p-4 rounded-lg shadow-lg">
-              <p className="font-semibold">WhatsApp Business</p>
-              <p className="text-sm">Pedidos directos y automáticos</p>
+            {/* Elemento decorativo — oculto en mobile para evitar overflow */}
+            <div className="hidden md:block absolute -top-6 -right-6 bg-green-600 text-white p-4 rounded-lg shadow-lg">
+              <p className="font-semibold">Pedidos por WhatsApp</p>
+              <p className="text-sm">El cliente te escribe directo al chat</p>
             </div>
           </motion.div>
           

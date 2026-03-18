@@ -1,164 +1,139 @@
 /**
- * Servicio para generar PDFs con códigos QR
- * Dibuja todo el diseño de la card QR, adaptando altura al contenido
- * y eliminando cualquier tipo `any`.
+ * Servicio para generar PDFs con códigos QR.
+ *
+ * Captura el DOM de la vista previa con html2canvas para que el PDF sea
+ * idéntico a lo que se ve en pantalla.
+ *
+ * Solución CORS: las imágenes de Firebase Storage se fetchean a través de
+ * /api/image-proxy en el onclone para que html2canvas pueda usarlas sin
+ * que el canvas quede "tainted" (sin poder llamar a toDataURL).
  *
  * @module features/dashboard/modules/qr/services
  */
-import jsPDF from 'jspdf'
-import { StoreProfile } from '@/features/dashboard/modules/store-settings/types/store.type'
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { StoreProfile } from "@/features/dashboard/modules/store-settings/types/store.type";
 
-// --- Tipos auxiliares ---
-type RGB = [number, number, number]
-interface InfoItem { text: string; isURL: boolean }
-
-// --- Colores tipados como tupla para evitar TS2556 ---
-const COLORS: Record<'cardBg'|'badgeBg'|'boxBg'|'text', RGB> = {
-  cardBg:  [30, 41, 59],   // slate‑800
-  badgeBg: [71, 85, 105],  // slate‑600
-  boxBg:   [51, 65, 85],   // slate‑700
-  text:    [255, 255, 255] // blanco
+/** Convierte una URL externa a data:URL pasando por el proxy server-side */
+async function toDataURLViaProxy(externalUrl: string): Promise<string> {
+  const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(externalUrl)}`;
+  const response = await fetch(proxyUrl);
+  if (!response.ok) throw new Error(`Proxy error ${response.status}`);
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
-// --- Espaciados y tamaños fijos de layout (no la altura total) ---
-const S = {
-  cardWidth:       120,
-  marginTop:       30,
-  sidePadding:     12.5,
-  cardRadius:      12,
-  titleFont:       20,
-  titleLineH:      7,
-  gapBeforeTitle:  20,
-  badgeFont:       10,
-  badgeHeight:     12,
-  badgeRadius:     6,
-  gapTitleBadge:   10,
-  qrSize:          45,
-  qrPadding:       4,
-  qrRadius:        8,
-  gapBadgeQR:      10,
-  gapAfterQR:      15,
-  boxFont:         9,
-  urlFont:         8,
-  boxLineH:        4,
-  boxVPadding:     8,
-  boxRadius:       4,
-  gapBetweenBoxes: 5,
-  bottomMargin:    15
+/** Retorna true si la URL es externa (no es relativa ni data:) */
+function isExternalUrl(src: string): boolean {
+  return src.startsWith("http://") || src.startsWith("https://");
 }
 
 export class QRPDFService {
-  /**
-   * Genera PDF usando datos del perfil de la tienda
-   */
   static async generatePDFFromStore(storeProfile: StoreProfile): Promise<void> {
     if (!storeProfile.basicInfo?.name || !storeProfile.basicInfo?.slug) {
-      throw new Error('Datos del perfil de tienda incompletos')
+      throw new Error("Datos del perfil de tienda incompletos");
     }
 
-    // 1) Obtener el QR desde el canvas
-    const canvasEl = document.getElementById('qr-code')
-    if (!(canvasEl instanceof HTMLCanvasElement)) {
-      throw new Error('Canvas QR no encontrado o inválido')
-    }
-    const qrDataURL = canvasEl.toDataURL('image/png', 1.0)
-
-    // 2) Inicializar jsPDF
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
-    const pageW = pdf.internal.pageSize.getWidth()
-    const cardX = (pageW - S.cardWidth) / 2
-    const cardY = S.marginTop
-
-    // 3) Preparar los textos dinámicos
-    const items: InfoItem[] = []
-    if (storeProfile.contactInfo?.whatsapp) {
-      items.push({ text: `WhatsApp: ${storeProfile.contactInfo.whatsapp}`, isURL: false })
-    }
-    if (storeProfile.basicInfo.description) {
-      items.push({ text: storeProfile.basicInfo.description, isURL: false })
-    }
-    // URL siempre va al final
-    items.push({ text: `https://tutiendaweb.com.ar/${storeProfile.basicInfo.slug}`, isURL: true })
-
-    // 4) Medir título (cast a string[] para tipar correctamente)
-    pdf.setFont('helvetica', 'bold').setFontSize(S.titleFont)
-    const titleLines: string[] =
-      (pdf.splitTextToSize(storeProfile.basicInfo.name, S.cardWidth - 2 * S.sidePadding) as string[])
-    const titleH = titleLines.length * S.titleLineH
-
-    // 5) Medir cada caja de info
-    const boxHeights: number[] = items.map((item: InfoItem) => {
-      pdf.setFont(item.isURL ? 'courier' : 'helvetica', 'normal')
-      pdf.setFontSize(item.isURL ? S.urlFont : S.boxFont)
-      const maxW = S.cardWidth - 2 * S.sidePadding
-      const lines: string[] = (pdf.splitTextToSize(item.text, maxW) as string[])
-      return Math.max(12, lines.length * S.boxLineH + S.boxVPadding)
-    })
-
-    // 6) Calcular altura total de la card (¡sin mínimo fijo!)
-    const hTitleBlock = S.gapBeforeTitle + titleH + S.gapTitleBadge + S.badgeHeight + S.gapBadgeQR
-    const hQRBlock    = S.qrSize + 2 * S.qrPadding + S.gapAfterQR
-    const hBoxes      = boxHeights.reduce((a, b) => a + b, 0) + boxHeights.length * S.gapBetweenBoxes
-    const cardH       = hTitleBlock + hQRBlock + hBoxes + S.bottomMargin
-
-    // 7) Dibujar fondo de la card
-    pdf.setFillColor(...COLORS.cardBg)
-    pdf.roundedRect(cardX, cardY, S.cardWidth, cardH, S.cardRadius, S.cardRadius, 'F')
-
-    // 8) Pintar título
-    pdf.setTextColor(...COLORS.text)
-    pdf.setFont('helvetica','bold').setFontSize(S.titleFont)
-    let cursorY = cardY + S.gapBeforeTitle
-    for (const line of titleLines) {
-      const w = pdf.getTextWidth(line)
-      pdf.text(line, cardX + (S.cardWidth - w) / 2, cursorY)
-      cursorY += S.titleLineH
+    const containerEl = document.getElementById("qr-container");
+    if (!containerEl) {
+      throw new Error("Contenedor QR no encontrado en el DOM");
     }
 
-    // 9) Badge "Menú Digital"
-    pdf.setFont('helvetica','normal').setFontSize(S.badgeFont)
-    const badgeText = 'Menú Digital'
-    const btW = pdf.getTextWidth(badgeText)
-    const badgeW = btW + 20
-    const badgeX = cardX + (S.cardWidth - badgeW) / 2
-    const badgeY = cursorY + S.gapTitleBadge
-    pdf.setFillColor(...COLORS.badgeBg)
-    pdf.roundedRect(badgeX, badgeY, badgeW, S.badgeHeight, S.badgeRadius, S.badgeRadius, 'F')
-    pdf.setTextColor(...COLORS.text)
-    pdf.text(badgeText, badgeX + (badgeW - btW) / 2, badgeY + 8)
+    try {
+      // ── Captura con html2canvas ──────────────────────────────────────────
+      // scale 3 → ~1080px de ancho → ~270 DPI al imprimir en A4 con márgenes
+      // useCORS: true → intenta CORS para imágenes que sí lo soporten
+      // onclone → para imágenes externas (Firebase) las fetchea via proxy
+      const canvas = await html2canvas(containerEl, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#0d0d0d",
+        logging: false,
+        onclone: async (clonedDoc) => {
+          // Buscamos el contenedor clonado por id para máxima compatibilidad
+          const clonedContainer = clonedDoc.getElementById("qr-container");
+          if (!clonedContainer) return;
 
-    // 10) Contenedor y código QR
-    const qrX = cardX + (S.cardWidth - (S.qrSize + 2*S.qrPadding)) / 2
-    const qrY = badgeY + S.badgeHeight + S.gapBadgeQR
-    pdf.setFillColor(255, 255, 255)
-    pdf.roundedRect(qrX, qrY, S.qrSize + 2*S.qrPadding, S.qrSize + 2*S.qrPadding, S.qrRadius, S.qrRadius, 'F')
-    pdf.addImage(qrDataURL, 'PNG', qrX + S.qrPadding, qrY + S.qrPadding, S.qrSize, S.qrSize)
+          const imgs = Array.from(
+            clonedContainer.querySelectorAll<HTMLImageElement>("img")
+          );
 
-    // 11) Dibujar cajas de información (sin iconos), con tipado en cada ciclo
-    let infoY = qrY + S.qrSize + 2*S.qrPadding + S.gapAfterQR
-    items.forEach((item: InfoItem, idx: number) => {
-      const hBox = boxHeights[idx]
-      pdf.setFillColor(...COLORS.boxBg)
-      pdf.roundedRect(cardX + S.sidePadding, infoY, S.cardWidth - 2*S.sidePadding, hBox, S.boxRadius, S.boxRadius, 'F')
+          await Promise.all(
+            imgs.map(async (img) => {
+              const src = img.getAttribute("src") || "";
 
-      pdf.setTextColor(...COLORS.text)
-      pdf.setFont(item.isURL ? 'courier' : 'helvetica','normal')
-      pdf.setFontSize(item.isURL ? S.urlFont : S.boxFont)
+              if (isExternalUrl(src)) {
+                // Reemplazar con data:URL del proxy para evitar canvas taint
+                try {
+                  const dataUrl = await toDataURLViaProxy(src);
+                  img.src = dataUrl;
+                  // Esperar a que cargue el nuevo src
+                  await new Promise<void>((resolve) => {
+                    if (img.complete && img.naturalWidth > 0) {
+                      resolve();
+                    } else {
+                      img.onload = () => resolve();
+                      img.onerror = () => resolve(); // continúa aunque falle
+                    }
+                  });
+                } catch {
+                  // Si el proxy falla, ocultar la imagen para no bloquear el PDF
+                  img.style.visibility = "hidden";
+                }
+              } else {
+                // Imagen local o data: → solo esperar que esté cargada
+                await new Promise<void>((resolve) => {
+                  if (img.complete && img.naturalWidth > 0) {
+                    resolve();
+                  } else {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve();
+                  }
+                });
+              }
+            })
+          );
+        },
+      });
 
-      const lines: string[] = (pdf.splitTextToSize(item.text, S.cardWidth - 2*S.sidePadding) as string[])
-      let ty = infoY + 6
-      lines.forEach((line: string) => {
-        const lw = pdf.getTextWidth(line)
-        const tx = cardX + S.sidePadding + (S.cardWidth - 2*S.sidePadding - lw)/2
-        pdf.text(line, tx, ty)
-        ty += S.boxLineH
-      })
+      const imgData = canvas.toDataURL("image/png", 1.0);
 
-      infoY += hBox + S.gapBetweenBoxes
-    })
+      // ── Generar PDF A4 ───────────────────────────────────────────────────
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
-    // 12) Guardar el PDF
-    const fileName = `qr-${storeProfile.basicInfo.slug}.pdf`
-    pdf.save(fileName)
+      const pdfWidth  = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Usar las dimensiones del canvas para calcular el aspect ratio
+      // (evita getImageProperties que cambió en jsPDF 3.x)
+      const aspectRatio = canvas.height / canvas.width;
+
+      const margin       = 28; // mm de margen a cada lado
+      const maxImgWidth  = pdfWidth - margin * 2;
+      const maxImgHeight = pdfHeight - margin * 2;
+
+      let renderWidth  = maxImgWidth;
+      let renderHeight = renderWidth * aspectRatio;
+
+      if (renderHeight > maxImgHeight) {
+        renderHeight = maxImgHeight;
+        renderWidth  = renderHeight / aspectRatio;
+      }
+
+      // Centrar en la página
+      const x = (pdfWidth - renderWidth) / 2;
+      const y = (pdfHeight - renderHeight) / 2;
+
+      pdf.addImage(imgData, "PNG", x, y, renderWidth, renderHeight);
+      pdf.save(`menu-qr-${storeProfile.basicInfo.slug}.pdf`);
+    } catch (error) {
+      console.error("[QRPDFService] Error generando PDF:", error);
+      throw new Error("No se pudo generar el PDF. Intentá de nuevo.");
+    }
   }
 }

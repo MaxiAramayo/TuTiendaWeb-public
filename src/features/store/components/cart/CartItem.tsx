@@ -102,7 +102,7 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
         {/* Info + controles */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-semibold text-gray-800 leading-tight truncate">
+            <h3 className="text-sm font-semibold text-gray-800 leading-tight truncate min-w-0">
               {name}
             </h3>
             {/* Botón eliminar */}
