@@ -47,6 +47,16 @@ async function setSessionCookie(idToken: string): Promise<void> {
 
 async function deleteSessionCookie(): Promise<void> {
     const cookieStore = await cookies();
+    // Sobreescribir con valor vacío y maxAge 0 antes de borrar,
+    // para garantizar que el browser reciba el header Set-Cookie de expiración
+    // independientemente del método de borrado del runtime.
+    cookieStore.set(COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 0,
+        path: '/',
+    });
     cookieStore.delete(COOKIE_NAME);
 }
 
@@ -397,12 +407,9 @@ export async function completeRegistrationAction(
 export async function logoutAction(): Promise<void> {
     try {
         await deleteSessionCookie();
-
-        console.log('[LogoutAction] Session cookie deleted');
-
         revalidatePath('/');
-    } catch (error) {
-        console.error('[LogoutAction] Error:', error);
+    } catch {
+        // Error silenciado: se redirige igualmente para no dejar al usuario trabado
     }
 
     redirect('/');
@@ -417,10 +424,9 @@ export async function logoutAction(): Promise<void> {
 export async function clearSessionAction(): Promise<void> {
     try {
         await deleteSessionCookie();
-        console.log('[ClearSessionAction] Session cookie deleted');
         revalidatePath('/');
-    } catch (error) {
-        console.error('[ClearSessionAction] Error:', error);
+    } catch {
+        // Error silenciado intencionalmente
     }
 }
 
@@ -476,7 +482,6 @@ export async function syncTokenAction(
         // 2. UPDATE COOKIE
         await setSessionCookie(idToken);
 
-        console.log(`[SyncTokenAction] Token synced for user: ${decodedToken.uid}`);
 
         // 3. RETURN SUCCESS
         return {

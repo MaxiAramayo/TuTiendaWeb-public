@@ -33,7 +33,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSelector } from "./ProductSelector";
 import { ProductInCart } from "@/shared/types/store";
-import { Product as ProductDocument } from "@/shared/types/firebase.types";
+import { Product as ProductDocument, Category } from "@/shared/types/firebase.types";
 import { z } from "zod";
 import { toast } from "sonner";
 
@@ -89,6 +89,8 @@ interface SellFormProps {
   readOnly?: boolean;
   /** Productos disponibles para seleccionar */
   products: ProductDocument[];
+  /** Categorías para mostrar nombres en lugar de IDs en el selector */
+  categories?: Category[];
 }
 
 /**
@@ -102,6 +104,7 @@ export const SellForm: React.FC<SellFormProps> = ({
   onCancel,
   readOnly = false,
   products = [],
+  categories = [],
 }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -467,6 +470,7 @@ export const SellForm: React.FC<SellFormProps> = ({
         {/* Selector de Productos */}
         <ProductSelector
           products={products}
+          categories={categories}
           selectedProducts={selectedProducts}
           onAddProduct={handleAddProduct}
           onUpdateQuantity={handleUpdateQuantity}

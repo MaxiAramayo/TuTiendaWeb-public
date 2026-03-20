@@ -78,9 +78,8 @@ export function AuthSyncProvider({ children }: { children: React.ReactNode }) {
                     try {
                         const idToken = await firebaseUser.getIdToken();
                         await syncTokenAction(idToken);
-                        console.log('[AuthSyncProvider] Token synced');
-                    } catch (error) {
-                        console.error('[AuthSyncProvider] Error syncing token:', error);
+                    } catch {
+                        // Error silenciado: si falla el sync, el usuario deberá reautenticarse
                     }
                 } else {
                     // =====================================================
@@ -93,10 +92,9 @@ export function AuthSyncProvider({ children }: { children: React.ReactNode }) {
                     // 2. Limpiar sesión del servidor
                     try {
                         isLoggingOut.current = true;
-                        await clearSessionAction(); // Usar clearSessionAction en vez de logoutAction
-                        console.log('[AuthSyncProvider] Session cleared');
-                    } catch (error) {
-                        console.error('[AuthSyncProvider] Error clearing session:', error);
+                        await clearSessionAction();
+                    } catch {
+                        // Error silenciado intencionalmente
                     } finally {
                         isLoggingOut.current = false;
                     }

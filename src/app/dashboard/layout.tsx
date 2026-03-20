@@ -38,22 +38,24 @@ export default async function Layout({ children }: { children: React.ReactNode }
   // Verificar la suscripción
   const profile = await profileServerService.getProfile(storeId);
   const subscription = profile?.subscription;
-  
+
   const now = Date.now();
   const isPro = subscription?.plan === 'pro' && subscription?.active;
   const isOnTrial = subscription?.plan === 'trial' && subscription?.active;
-  
+
   const endDateMs = subscription?.endDate ? new Date(subscription.endDate as string).getTime() : 0;
   const graceUntilMs = subscription?.graceUntil ? new Date(subscription.graceUntil as string).getTime() : 0;
-  
+
   // Tiene acceso si: Es Pro activo, O está en Trial y no expiró, O tiene días de gracia activos, O es plan gratuito
-  // Nota: Asumo que si plan es 'free' tiene acceso (ajusta según las reglas de negocio, aquí bloqueamos solo si no cumple ninguna de las de arriba Y NO ES free)
   const isFree = subscription?.plan === 'free';
-  
-  const hasValidAccess = 
+  // Pago iniciado pero aún no confirmado: mantener acceso para no bloquear al usuario durante el proceso
+  const isPendingPayment = subscription?.paymentStatus === 'pending' && !!subscription?.billing?.pendingPlan;
+
+  const hasValidAccess =
     isFree ||
-    isPro || 
-    (isOnTrial && endDateMs > now) || 
+    isPro ||
+    (isOnTrial && endDateMs > now) ||
+    isPendingPayment ||
     (graceUntilMs > now);
 
   if (!hasValidAccess) {
