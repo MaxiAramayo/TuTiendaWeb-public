@@ -78,6 +78,7 @@ export function SellsPageClient({
         sell={sale}
         storeId={storeId || ""}
         products={products}
+        categories={categories}
         readOnly={true}
         onCancel={() => router.push("/dashboard/sells")}
       />
@@ -91,6 +92,7 @@ export function SellsPageClient({
       sell={sale}
       storeId={storeId || ""}
       products={products}
+      categories={categories}
       onSuccess={() => router.push("/dashboard/sells")}
       onCancel={() => router.push("/dashboard/sells")}
     />

@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
+import { clearSessionAction } from "@/features/auth/actions/auth.actions";
 import Image from "next/image";
 import { AlertCircle } from "lucide-react";
 
@@ -66,11 +67,15 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
       }
 
       // 1. Sign out de Firebase Client SDK
-      // Esto dispara onIdTokenChanged en AuthSyncProvider
-      // que se encarga de limpiar Zustand y la cookie del servidor
+      // Esto dispara onIdTokenChanged(null) en AuthSyncProvider que resetea el store.
       await signOut(auth);
 
-      // 2. Redirigir manualmente ya que logoutAction se ejecuta en AuthSyncProvider
+      // 2. Eliminar la cookie de sesión del servidor directamente.
+      // No delegamos esto solo al AuthSyncProvider porque window.location.href puede
+      // navegar antes de que el listener asíncrono del provider termine.
+      await clearSessionAction();
+
+      // 3. Hard redirect — previene cualquier estado cacheado en memoria
       window.location.href = '/';
     } catch (error) {
       console.error("Error al cerrar sesión:", error);

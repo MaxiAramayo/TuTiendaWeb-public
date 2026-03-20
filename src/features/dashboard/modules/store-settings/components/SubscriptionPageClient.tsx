@@ -116,7 +116,9 @@ export default function SubscriptionPageClient({
 
   const isPro = subscription.plan === 'pro' && subscription.active;
   const isOnTrial = subscription.plan === 'trial' && subscription.active;
-  const isPendingConfirmation = subscription.plan === 'pro' && subscription.paymentStatus === 'pending';
+  // paymentStatus="pending" con pendingPlan indica que el usuario inició el pago pero aún no lo confirmó.
+  // El plan real se promueve recién cuando llega el webhook "authorized".
+  const isPendingConfirmation = subscription.paymentStatus === 'pending' && !!subscription.billing?.pendingPlan;
 
   const endDateMs = subscription.endDate
     ? (subscription.endDate as any).toDate
