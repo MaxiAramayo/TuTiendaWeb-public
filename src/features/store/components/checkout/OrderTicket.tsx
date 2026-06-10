@@ -142,7 +142,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
     orderNumber,
     customerName = "Cliente",
     deliveryMethod = "pickup",
-    paymentMethod = "cash",
+    paymentMethod = "efectivo",
     address = "",
     notes = "",
     products = [],
