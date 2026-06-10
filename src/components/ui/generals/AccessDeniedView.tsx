@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, MessageCircle, Crown, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { AlertCircle, MessageCircle, Crown, ArrowRight, Loader2 } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase/client';
 import { clearSessionAction } from '@/features/auth/actions/auth.actions';
 
 interface AccessDeniedViewProps {
@@ -12,7 +13,7 @@ interface AccessDeniedViewProps {
 }
 
 export default function AccessDeniedView({ supportNumber }: AccessDeniedViewProps) {
-  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleWhatsApp = () => {
     const text = encodeURIComponent(
@@ -22,9 +23,27 @@ export default function AccessDeniedView({ supportNumber }: AccessDeniedViewProp
     window.open(`https://wa.me/${number}?text=${text}`, '_blank');
   };
 
+  /**
+   * Cierre de sesión completo:
+   * 1. signOut(auth) — limpia el Firebase Client SDK (evita que AuthSyncProvider re-cree la cookie)
+   * 2. clearSessionAction() — elimina la cookie httpOnly del servidor directamente,
+   *    sin depender del timing del AuthSyncProvider
+   * 3. window.location.href — hard redirect para limpiar cualquier estado en memoria
+   */
   const handleLogout = async () => {
-    await clearSessionAction();
-    router.push('/sign-in');
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await signOut(auth);
+    } catch {
+      // Ignorar: puede que el usuario ya estuviera deslogueado en el client SDK
+    }
+    try {
+      await clearSessionAction();
+    } catch {
+      // Ignorar: la cookie puede que ya no existiera
+    }
+    window.location.href = '/sign-in';
   };
 
   return (
@@ -43,19 +62,19 @@ export default function AccessDeniedView({ supportNumber }: AccessDeniedViewProp
           <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-100 text-sm">
             Para continuar usando la plataforma y habilitar tu catálogo público nuevamente, necesitas regularizar tu suscripción.
           </div>
-          
+
           <div className="flex flex-col gap-3">
-             <Button 
-               onClick={() => router.push('/dashboard/subscription')} 
+             <Button
+               onClick={() => { window.location.href = '/dashboard/subscription'; }}
                className="w-full bg-purple-600 hover:bg-purple-700 h-12 text-base font-medium shadow-sm transition-all text-white"
              >
                <Crown className="w-5 h-5 mr-2" />
                Regularizar Suscripción
              </Button>
-             
-             <Button 
-               onClick={handleWhatsApp} 
-               variant="outline" 
+
+             <Button
+               onClick={handleWhatsApp}
+               variant="outline"
                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 h-12 text-base"
              >
                <MessageCircle className="w-5 h-5 mr-2 text-green-600" />
@@ -64,12 +83,22 @@ export default function AccessDeniedView({ supportNumber }: AccessDeniedViewProp
           </div>
         </CardContent>
         <CardFooter className="flex justify-center border-t border-gray-100 pt-6">
-           <Button 
-             variant="ghost" 
+           <Button
+             variant="ghost"
              onClick={handleLogout}
+             disabled={isLoggingOut}
              className="text-gray-500 hover:text-gray-700"
            >
-             Cerrar sesión <ArrowRight className="w-4 h-4 ml-2" />
+             {isLoggingOut ? (
+               <>
+                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                 Cerrando sesión...
+               </>
+             ) : (
+               <>
+                 Cerrar sesión <ArrowRight className="w-4 h-4 ml-2" />
+               </>
+             )}
            </Button>
         </CardFooter>
       </Card>

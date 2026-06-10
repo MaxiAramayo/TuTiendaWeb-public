@@ -169,6 +169,8 @@ export interface SubscriptionInfoRaw {
     provider: 'mercadopago' | 'stripe';
     customerId?: string;
     subscriptionId?: string;
+    /** Plan contratado pendiente de pago. Se promueve a plan cuando el webhook authorized llega. */
+    pendingPlan?: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
     payerEmail?: string;
     autoRenew: boolean;
   };
@@ -199,6 +201,8 @@ export interface SubscriptionInfo {
     provider: 'mercadopago' | 'stripe';
     customerId?: string;
     subscriptionId?: string;
+    /** Plan contratado pendiente de pago. Se promueve a plan cuando el webhook authorized llega. */
+    pendingPlan?: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
     payerEmail?: string;
     autoRenew: boolean;
   };
