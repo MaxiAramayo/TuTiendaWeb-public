@@ -66,7 +66,7 @@ Un único plan de pago implementado:
 |-------|-------|
 | ID interno | `pro` |
 | Nombre | Profesional |
-| Precio | ARS 4.999/mes |
+| Precio | ARS 15.000/mes |
 | Frecuencia | Mensual, recurrente automático |
 | Proveedor | MercadoPago PreApproval |
 

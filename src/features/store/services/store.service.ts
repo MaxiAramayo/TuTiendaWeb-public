@@ -53,8 +53,8 @@ const DEFAULT_THEME = {
  * Métodos de pago predeterminados
  */
 const DEFAULT_PAYMENT_METHODS = [
-  { id: 'cash', name: 'Efectivo', enabled: true },
-  { id: 'transfer', name: 'Transferencia', enabled: true },
+  { id: 'efectivo', name: 'Efectivo', enabled: true },
+  { id: 'transferencia', name: 'Transferencia', enabled: true },
   { id: 'mercadopago', name: 'Mercado Pago', enabled: false },
 ];
 
