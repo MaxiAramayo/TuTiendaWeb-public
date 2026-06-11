@@ -106,12 +106,14 @@ export default function SubscriptionPageClient({
 
   const returnedPreapprovalId = searchParams.get('preapproval_id');
 
+  // Fallback defensivo: si no hay subscription, representar "sin acceso" (trial vencido).
+  // En la práctica siempre hay subscription (la crea createStore).
   const subscription = profile?.subscription || {
     active: false,
-    plan: 'free' as const,
+    plan: 'trial' as const,
     startDate: new Date().toISOString(),
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    trialUsed: false,
+    endDate: new Date().toISOString(),
+    trialUsed: true,
   };
 
   const isPro = subscription.plan === 'pro' && subscription.active;
@@ -229,7 +231,7 @@ export default function SubscriptionPageClient({
   const handleWhatsApp = () => {
     const storeName = profile?.basicInfo?.name || 'Sin nombre';
     const email = user?.email ?? userEmail ?? '';
-    const planLabel = isPro ? 'Profesional (activo)' : isOnTrial ? 'Período de prueba' : 'Gratuito';
+    const planLabel = isPro ? 'Profesional (activo)' : isOnTrial ? 'Período de prueba' : 'Sin plan activo';
 
     const text = encodeURIComponent(
       [
@@ -696,7 +698,7 @@ export default function SubscriptionPageClient({
                       ? 'Profesional'
                       : isOnTrial
                       ? 'Período de prueba'
-                      : 'Gratuito'}
+                      : 'Prueba finalizada'}
                   </p>
                 </div>
                 <div className="text-right">

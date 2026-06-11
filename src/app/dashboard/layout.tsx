@@ -46,13 +46,13 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const endDateMs = subscription?.endDate ? new Date(subscription.endDate as string).getTime() : 0;
   const graceUntilMs = subscription?.graceUntil ? new Date(subscription.graceUntil as string).getTime() : 0;
 
-  // Tiene acceso si: Es Pro activo, O está en Trial y no expiró, O tiene días de gracia activos, O es plan gratuito
-  const isFree = subscription?.plan === 'free';
   // Pago iniciado pero aún no confirmado: mantener acceso para no bloquear al usuario durante el proceso
   const isPendingPayment = subscription?.paymentStatus === 'pending' && !!subscription?.billing?.pendingPlan;
 
+  // Tiene acceso si: es Pro activo, O está en Trial vigente (no venció),
+  // O tiene un pago en proceso, O está en período de gracia. No existe plan "free":
+  // un trial vencido o un pro suspendido quedan con active=false → sin acceso.
   const hasValidAccess =
-    isFree ||
     isPro ||
     (isOnTrial && endDateMs > now) ||
     isPendingPayment ||
