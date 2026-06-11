@@ -502,7 +502,7 @@ export async function updatePaymentDeliveryAction(
 export async function updateSubscriptionAction(
   subscription: {
     active: boolean;
-    plan?: 'free' | 'basic' | 'premium' | 'enterprise';
+    plan?: 'trial' | 'pro';
     billing?: {
       provider?: 'mercadopago' | 'stripe';
       autoRenew?: boolean;

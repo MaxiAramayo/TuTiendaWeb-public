@@ -159,7 +159,12 @@ export interface Store {
   };
   subscription: {
     active: boolean;
-    plan: 'free' | 'basic' | 'premium' | 'enterprise';
+    plan: 'trial' | 'pro';
+    paymentStatus: 'trial' | 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
+    trialUsed: boolean;
+    startDate: admin.firestore.Timestamp;
+    endDate: admin.firestore.Timestamp;
+    billing: { provider: 'mercadopago' | 'none'; autoRenew: boolean };
   };
   metadata: {
     ownerId: string;
@@ -261,13 +266,19 @@ export async function createStore(
         currency: 'ARS',
       },
       
-      // Suscripción — trial de 7 días desde el momento del registro
+      // Suscripción — trial de 7 días inicializado con Timestamps de Firestore.
+      // Esta es la fuente de verdad del trial; la Cloud Function initTrial solo
+      // actúa como red de seguridad si el store se crea sin subscription.
       subscription: {
         active: true,
         plan: 'trial',
-        trialUsed: true,
-        startDate: new Date().toISOString(),
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        paymentStatus: 'trial',
+        trialUsed: false,
+        startDate: admin.firestore.Timestamp.now(),
+        endDate: admin.firestore.Timestamp.fromMillis(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        ),
+        billing: { provider: 'none', autoRenew: false },
       },
       
       // Metadata
@@ -284,6 +295,21 @@ export async function createStore(
     const docRef = await adminDb
       .collection(STORES_COLLECTION)
       .add(storeData);
+
+    // Notificación de bienvenida del trial (subcolección notifications).
+    // Se crea acá porque createStore es la fuente de verdad del trial; initTrial
+    // (red de seguridad) no la emite cuando el store ya viene con plan asignado.
+    // Es best-effort: si falla, no debe abortar el registro (el store ya existe).
+    try {
+      await docRef.collection('notifications').add({
+        type: 'trial_started',
+        message: '¡Bienvenido a TuTiendaWeb! Tenés 7 días de prueba gratuita para explorar todas las funciones.',
+        read: false,
+        createdAt: admin.firestore.Timestamp.now(),
+      });
+    } catch (notifError) {
+      console.error('[StoreService] Welcome notification failed (non-fatal):', notifError);
+    }
 
     const doc = await docRef.get();
 

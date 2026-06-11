@@ -87,7 +87,7 @@ export interface NotificationsConfig {
 /**
  * Planes de suscripción disponibles
  */
-export type SubscriptionPlan = 'free' | 'basic' | 'premium' | 'enterprise';
+export type SubscriptionPlan = 'trial' | 'pro';
 
 /**
  * Configuraciones de suscripción
@@ -321,6 +321,6 @@ export const DEFAULT_NOTIFICATIONS_CONFIG: NotificationsConfig = {
  * Configuraciones por defecto para suscripción
  */
 export const DEFAULT_SUBSCRIPTION_CONFIG: SubscriptionConfig = {
-  plan: 'free',
+  plan: 'trial',
   gracePeriodDays: 7
 };

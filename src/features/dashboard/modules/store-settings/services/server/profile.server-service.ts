@@ -85,10 +85,10 @@ interface StoreProfileRaw {
   subscription?: {
     active: boolean;
     plan: string;
-    startDate: Timestamp | { _seconds: number; _nanoseconds: number };
-    endDate: Timestamp | { _seconds: number; _nanoseconds: number };
-    lastPaymentDate?: Timestamp | { _seconds: number; _nanoseconds: number };
-    graceUntil?: Timestamp | { _seconds: number; _nanoseconds: number };
+    startDate: Timestamp | { _seconds: number; _nanoseconds: number } | string;
+    endDate: Timestamp | { _seconds: number; _nanoseconds: number } | string;
+    lastPaymentDate?: Timestamp | { _seconds: number; _nanoseconds: number } | string;
+    graceUntil?: Timestamp | { _seconds: number; _nanoseconds: number } | string;
     paymentStatus?: string;
     cancelAtPeriodEnd?: boolean;
     trialUsed: boolean;
@@ -111,22 +111,27 @@ interface StoreProfileRaw {
  * Convierte un Timestamp de Firebase a ISO string
  */
 function serializeTimestamp(
-  timestamp: Timestamp | { _seconds: number; _nanoseconds: number } | null | undefined
+  timestamp: Timestamp | { _seconds: number; _nanoseconds: number } | string | null | undefined
 ): string {
   if (!timestamp) {
     return new Date().toISOString();
   }
-  
+
+  // Si es un string ISO guardado directamente (compatibilidad con stores legacy)
+  if (typeof timestamp === 'string') {
+    return timestamp;
+  }
+
   // Si es un Timestamp de Firebase Admin
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate().toISOString();
   }
-  
+
   // Si es un objeto con _seconds (formato serializado de Firestore)
   if (typeof timestamp === 'object' && '_seconds' in timestamp) {
     return new Date(timestamp._seconds * 1000).toISOString();
   }
-  
+
   return new Date().toISOString();
 }
 
@@ -406,7 +411,7 @@ class ProfileServerService {
     }>;
     subscription?: {
       active: boolean;
-      plan?: 'free' | 'basic' | 'premium' | 'enterprise';
+      plan?: 'trial' | 'pro';
       billing?: {
         provider?: 'mercadopago' | 'stripe';
         autoRenew?: boolean;
