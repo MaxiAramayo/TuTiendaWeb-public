@@ -261,10 +261,13 @@ export async function createStore(
         currency: 'ARS',
       },
       
-      // Suscripción (plan free por defecto)
+      // Suscripción — trial de 7 días desde el momento del registro
       subscription: {
         active: true,
-        plan: 'free',
+        plan: 'trial',
+        trialUsed: true,
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       },
       
       // Metadata

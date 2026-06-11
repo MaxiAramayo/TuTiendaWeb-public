@@ -86,7 +86,7 @@ const HeroSection = () => {
               </CtaButton>
 
               <CtaButton
-                href="/grambristo-restaurant"
+                href={process.env.NEXT_PUBLIC_DEMO_STORE_URL ?? "/carta/demo"}
                 variant="outline"
                 size="lg"
                 className="w-full sm:w-auto"
