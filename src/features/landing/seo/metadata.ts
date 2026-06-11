@@ -97,7 +97,9 @@ export function generateSEOMetadata(config?: Partial<SEOProps>): Metadata {
     // Robots
     robots: seoConfig.robots,
 
-    // Verificación de Google Search Console (agregar cuando esté disponible)
-    // verification: { google: "XXXXXXXXX" },
+    // Verificación de Google Search Console
+    ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+      : {}),
   };
 }

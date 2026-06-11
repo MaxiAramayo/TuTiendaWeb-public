@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Store,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { useCurrentStore } from "@/features/dashboard/hooks/useCurrentStore";
 import { SellsStats } from "@/features/dashboard/modules/sells/schemas/sell.schema";
@@ -247,6 +248,14 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({
     ? planNames[subscription.plan] ?? "Plan activo"
     : "Sin suscripción activa";
 
+  const isOnTrial = subscription?.plan === 'trial' && subscription?.active;
+  const trialEndMs = isOnTrial && subscription?.endDate
+    ? new Date(subscription.endDate as string).getTime()
+    : 0;
+  const trialDaysLeft = trialEndMs
+    ? Math.max(0, Math.ceil((trialEndMs - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
   const displayName = storeLoading ? null : storeName || "tu tienda";
 
   // ── KPIs ──
@@ -453,6 +462,30 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ── Trial banner ────────────────────────────── */}
+        {isOnTrial && (
+          <div className={`${anim} ${show} flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4`}
+            style={{ transitionDelay: "60ms" }}>
+            <div className="flex-shrink-0 p-2 bg-amber-100 rounded-xl">
+              <Clock className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-900">
+                Período de prueba — {trialDaysLeft === 0 ? "vence hoy" : `${trialDaysLeft} ${trialDaysLeft === 1 ? "día restante" : "días restantes"}`}
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Estás usando todas las funciones gratis. Activá tu plan para seguir después del trial.
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/dashboard/subscription")}
+              className="flex-shrink-0 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Ver planes
+            </button>
+          </div>
+        )}
 
         {/* ── KPI cards ──────────────────────────────── */}
         <section className={`${anim} ${show}`} style={{ transitionDelay: "80ms" }}>

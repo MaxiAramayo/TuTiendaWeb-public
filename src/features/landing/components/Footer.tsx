@@ -9,7 +9,7 @@
 
 "use client";
 import Link from "next/link";
-import { FacebookIcon, Twitter, Instagram, Linkedin, Mail, MapPin } from "lucide-react";
+import { FacebookIcon, Instagram, Mail, MapPin } from "lucide-react";
 
 /**
  * Grupos de enlaces — solo rutas y anclas que existen realmente
@@ -38,23 +38,13 @@ const footerLinks = [
 const socialLinks = [
   {
     icon: <FacebookIcon size={20} />,
-    href: "https://facebook.com/tutienda",
+    href: process.env.NEXT_PUBLIC_FACEBOOK_URL ?? "https://facebook.com/tutiendaweb",
     label: "Facebook",
   },
   {
-    icon: <Twitter size={20} />,
-    href: "https://twitter.com/tutienda",
-    label: "Twitter",
-  },
-  {
     icon: <Instagram size={20} />,
-    href: "https://instagram.com/tutienda",
+    href: process.env.NEXT_PUBLIC_INSTAGRAM_URL ?? "https://instagram.com/tutiendaweb",
     label: "Instagram",
-  },
-  {
-    icon: <Linkedin size={20} />,
-    href: "https://linkedin.com/company/tutienda",
-    label: "LinkedIn",
   },
 ];
 

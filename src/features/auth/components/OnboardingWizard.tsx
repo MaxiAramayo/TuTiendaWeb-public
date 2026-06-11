@@ -451,6 +451,10 @@ export default function OnboardingWizard({
         const res = await completeNewOnboardingAction(safeData);
 
         if (res.success && res.data?.storeId) {
+          // Evento Meta Pixel: registro de trial completado
+          if (typeof window !== 'undefined' && (window as any).fbq) {
+            (window as any).fbq('track', 'Lead', { content_name: 'trial_registro' });
+          }
           setSuccessSlug(data.slug || null);
           setIsSuccess(true);
         } else if (!res.success) {
