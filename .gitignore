@@ -37,6 +37,16 @@ yarn-error.log*
 
 # local env files
 .env*
+# excepción: config de emuladores (solo valores demo, sin secretos)
+!.env.emulator
+
+# Firebase emulators (datos exportados y logs)
+.emulator-data/
+firestore-debug.log
+ui-debug.log
+storage-debug.log
+database-debug.log
+firebase-debug.*.log
 
 # vercel
 .vercel

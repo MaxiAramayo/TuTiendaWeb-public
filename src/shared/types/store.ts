@@ -19,6 +19,8 @@ export interface Product {
   /** Todas las URLs de imágenes del producto */
   imageUrls?: string[];
   category?: string;
+  /** Nombre de la subcategoría (hoja), si el producto pertenece a una */
+  subcategory?: string;
   available?: boolean;
   tags?: string[];
   stock?: number;

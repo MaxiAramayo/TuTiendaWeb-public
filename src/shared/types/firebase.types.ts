@@ -183,8 +183,10 @@ export interface Product {
   description?: string;
 
   // Categorización
-  /** ID de la categoría */
+  /** ID de la categoría principal */
   categoryId: string;
+  /** ID de la subcategoría (hoja, opcional) */
+  subcategoryId?: string;
   /** IDs de tags */
   tags?: string[];
   /** IDs de tags de productos */
@@ -243,8 +245,8 @@ export interface Category {
   name: string;
   /** Slug para URLs amigables */
   slug: string;
-  /** ID de la categoría padre (para jerarquía) */
-  parentId?: string;
+  /** ID de la categoría padre (para jerarquía). null = categoría principal */
+  parentId?: string | null;
   /** Si está activa */
   isActive: boolean;
   /** Fecha de creación */

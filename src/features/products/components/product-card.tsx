@@ -79,6 +79,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
         return category?.name || 'Sin categoría';
     }, [categories, product.categoryId]);
 
+    const subcategoryName = useMemo(() => {
+        if (!product.subcategoryId) return null;
+        return categories.find(c => c.id === product.subcategoryId)?.name || null;
+    }, [categories, product.subcategoryId]);
+
     const tagNames = useMemo(() => {
         if (!product.tags) return [];
         return product.tags.map(tagId => {
@@ -178,6 +183,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
                     {categoryName}
                 </Badge>
+                {subcategoryName && (
+                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">
+                        {subcategoryName}
+                    </Badge>
+                )}
                 {tagNames.map((name, i) => (
                     <Badge key={i} variant="outline" className="text-green-700 border-green-200 bg-green-50">
                         <TagIcon className="w-3 h-3 mr-1" />
@@ -336,10 +346,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
                         </div>
                     )}
 
-                    <div className="mb-1 sm:mb-2">
+                    <div className="mb-1 sm:mb-2 flex flex-wrap gap-1">
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-full">
                             {categoryName}
                         </span>
+                        {subcategoryName && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 truncate max-w-full">
+                                {subcategoryName}
+                            </span>
+                        )}
                     </div>
 
                     {tagNames.length > 0 && (

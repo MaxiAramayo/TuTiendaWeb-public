@@ -2,45 +2,119 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from '@/lib/auth/server-session';
-import { adminDb } from '@/lib/firebase/admin';
-import { FieldValue } from 'firebase-admin/firestore';
-import { z } from 'zod';
+import type { ActionResponse } from '@/features/auth/auth.types';
+import {
+    createCategorySchema,
+    updateCategorySchema,
+} from '../schemas/category.schema';
+import type { Category } from '@/shared/types/firebase.types';
+import {
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    type CategoryUsage,
+} from '../services/category.service';
 
-const categorySchema = z.object({
-    name: z.string().min(1),
-    description: z.string().optional(),
-});
-
-export async function createCategoryAction(data: { name: string; description?: string }) {
-    const session = await getServerSession();
-    if (!session) {
-        throw new Error('No autenticado');
-    }
-
-    if (!session.storeId) {
-        throw new Error('No se encontró el ID de la tienda en la sesión');
-    }
-
-    const validation = categorySchema.safeParse(data);
-    if (!validation.success) {
-        throw new Error('Datos inválidos');
-    }
-
-    // Use stores/{storeId}/categories subcollection instead of root categories collection
-    const docRef = await adminDb
-        .collection('stores')
-        .doc(session.storeId)
-        .collection('categories')
-        .add({
-            ...validation.data,
-            storeId: session.storeId,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-            isActive: true,
-            slug: validation.data.name.toLowerCase().replace(/\s+/g, '-'),
-        });
-
+function revalidateCategoryPaths() {
     revalidatePath('/dashboard/products');
+    revalidatePath('/dashboard/categories');
+}
 
-    return { id: docRef.id, ...validation.data };
+/**
+ * Crea una categoría principal o subcategoría (si llega `parentId`).
+ */
+export async function createCategoryAction(input: unknown): Promise<ActionResponse<Category>> {
+    const session = await getServerSession();
+    if (!session?.storeId) {
+        return { success: false, errors: { _form: ['No autenticado'] } };
+    }
+
+    const validation = createCategorySchema.safeParse(input);
+    if (!validation.success) {
+        return {
+            success: false,
+            errors: validation.error.flatten().fieldErrors as Record<string, string[]>,
+        };
+    }
+
+    try {
+        const category = await createCategory(session.storeId, validation.data);
+        revalidateCategoryPaths();
+        return { success: true, data: category };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error al crear la categoría';
+        return { success: false, errors: { _form: [message] } };
+    }
+}
+
+/**
+ * Actualiza una categoría: renombrar, mover de padre o activar/desactivar.
+ */
+export async function updateCategoryAction(input: unknown): Promise<ActionResponse<Category>> {
+    const session = await getServerSession();
+    if (!session?.storeId) {
+        return { success: false, errors: { _form: ['No autenticado'] } };
+    }
+
+    const validation = updateCategorySchema.safeParse(input);
+    if (!validation.success) {
+        return {
+            success: false,
+            errors: validation.error.flatten().fieldErrors as Record<string, string[]>,
+        };
+    }
+
+    try {
+        const category = await updateCategory(session.storeId, validation.data);
+        revalidateCategoryPaths();
+        return { success: true, data: category };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error al actualizar la categoría';
+        return { success: false, errors: { _form: [message] } };
+    }
+}
+
+/**
+ * Borra una categoría solo si está vacía. Si tiene productos o subcategorías,
+ * devuelve un mensaje explicando qué hay que vaciar primero.
+ */
+export async function deleteCategoryAction(
+    categoryId: unknown
+): Promise<ActionResponse<{ id: string }>> {
+    const session = await getServerSession();
+    if (!session?.storeId) {
+        return { success: false, errors: { _form: ['No autenticado'] } };
+    }
+
+    if (typeof categoryId !== 'string' || !categoryId) {
+        return { success: false, errors: { _form: ['ID de categoría inválido'] } };
+    }
+
+    try {
+        await deleteCategory(session.storeId, categoryId);
+        revalidateCategoryPaths();
+        return { success: true, data: { id: categoryId } };
+    } catch (error) {
+        if (error instanceof Error && error.message === 'CATEGORY_NOT_EMPTY') {
+            const usage = (error as Error & { usage?: CategoryUsage }).usage;
+            const parts: string[] = [];
+            if (usage?.productCount) {
+                parts.push(`${usage.productCount} producto(s)`);
+            }
+            if (usage?.subcategoryCount) {
+                parts.push(`${usage.subcategoryCount} subcategoría(s)`);
+            }
+            return {
+                success: false,
+                errors: {
+                    _form: [
+                        `No se puede eliminar: la categoría tiene ${parts.join(' y ')}. ` +
+                            'Eliminá o reasigná esos elementos antes de borrarla.',
+                    ],
+                },
+            };
+        }
+        const message = error instanceof Error ? error.message : 'Error al eliminar la categoría';
+        return { success: false, errors: { _form: [message] } };
+    }
 }
