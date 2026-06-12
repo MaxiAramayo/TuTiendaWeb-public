@@ -1,7 +1,7 @@
 # TuTiendaWeb — Documento Maestro de Contexto del Producto
 **Para qué sirve este archivo:** es el "cerebro" del negocio en un solo documento. Subilo a cualquier IA (ChatGPT, Claude, Gemini, generadores de imágenes, etc.) para que entienda exactamente qué es TuTiendaWeb, hasta dónde llega, cómo se usa y cómo explicarlo. Sirve para crear imágenes, mockups, campañas, guiones, textos y material de venta con contexto completo y fiel al producto real.
 
-**Última actualización:** 2026-06-10
+**Última actualización:** 2026-06-12
 **Idioma del producto y comunicación:** español argentino (voseo).
 
 ---
@@ -71,7 +71,7 @@ El comercio argentino promedio (restaurante, hamburguesería, rotisería, helade
 ### Lado del DUEÑO (panel de gestión / dashboard):
 1. Se registra (email/contraseña o con Google).
 2. Pasa por un **onboarding guiado** que arma su tienda paso a paso.
-3. Carga sus productos con foto, precio y descripción.
+3. Carga sus productos con foto, precio y descripción (uno por uno o importando una planilla Excel con todos de una vez).
 4. Personaliza su tienda con su logo, colores y marca.
 5. Configura métodos de pago, entrega, horarios y notificaciones.
 6. Obtiene su **link único** y su **código QR**.
@@ -114,6 +114,7 @@ pedido llega ordenado al WhatsApp del DUEÑO → DUEÑO confirma y prepara
 ### 🛍️ Gestión de productos
 - Crear, editar y eliminar productos.
 - Cada producto: nombre, descripción, descripción corta, precio, **precio de costo** (para tu control interno de ganancia), categoría, etiquetas (tags), imágenes.
+- **Importación masiva desde Excel (.xlsx):** cargá hasta 300 productos de una sola vez con una planilla. El sistema crea automáticamente las categorías, subcategorías y tags que no existan. Incluye vista previa de filas válidas e inválidas antes de confirmar.
 - **Variantes / extras con precio** (ej: "extra queso +$1.000", "pan de la casa +$1.000"): el cliente los suma a su pedido y se calcula solo.
 - Organización por **categorías** (ej: Entradas, Principales, Postres) y **etiquetas**.
 - Estado de producto (activo/inactivo) y soporte de promociones.
@@ -209,7 +210,7 @@ Para mockups e imágenes del producto, estas son las secciones reales del panel 
 ### Para el DUEÑO (primera vez):
 1. **Registrate** con tu email o con Google.
 2. **Completá el onboarding:** nombre del negocio, tipo, WhatsApp, descripción, colores. Elegís la dirección web de tu tienda (slug).
-3. **Cargá tus productos:** foto, nombre, precio, descripción. Agrupalos en categorías.
+3. **Cargá tus productos:** foto, nombre, precio, descripción. Agrupalos en categorías. Si tenés muchos productos, usá la importación masiva por Excel para cargarlos todos de una vez.
 4. **Agregá extras** si tu producto los tiene (ej: tamaños, agregados).
 5. **Personalizá tu tienda:** subí tu logo y elegí tus colores.
 6. **Configurá horarios, pagos y entrega.**
