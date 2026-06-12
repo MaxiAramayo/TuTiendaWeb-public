@@ -32,11 +32,13 @@ Este es el **documento maestro**. Agrupa toda la configuración global del negoc
    • contactInfo: { whatsapp, website }
    • address: { street, city, province, country, zipCode }
    • socialLinks: { instagram?, facebook? }
-   • subscription: 
-       – plan: "free" | "premium"
-       – active: boolean
+   • subscription:
+       – plan: "trial" | "pro"        (NO existe "free"; ver data-models.md / suscripciones.md)
+       – active: boolean              (false = suspendida, manteniendo el plan)
+       – paymentStatus: "trial" | "pending" | "authorized" | "paused" | "cancelled" | "expired"
        – trialUsed: boolean
        – startDate, endDate
+       – billing: { provider: "mercadopago" | "none", autoRenew, ... }
    • theme: 
        – primaryColor, secondaryColor, accentColor
        – logoUrl, bannerUrl
@@ -67,17 +69,20 @@ Para manejar la escalabilidad (alta cardinalidad), los elementos transaccionales
 /stores/{storeId}/tags/{tagId}
 /stores/{storeId}/products/{productId}
 /stores/{storeId}/sells/{sellId}
+/stores/{storeId}/notifications/{notificationId}
 ```
 
 #### 🏷️ /stores/{storeId}/categories/{categoryId}
 
-Organización jerárquica del menú.
+Organización jerárquica del menú, **2 niveles** vía `parentId`
+(máx. 50 principales, 30 subcategorías por padre).
 
   * `name`: string ("Hamburguesas")
   * `slug`: string ("hamburguesas")
+  * `description?`: string
+  * `parentId`: string | null  → `null` = categoría principal; `<id>` = subcategoría
   * `isActive`: boolean
-  * `parentId`: string | null (para subcategorías)
-  * `createdAt`, `updatedAt`
+  * `storeId`, `createdAt`, `updatedAt`
 
 #### 🔖 /stores/{storeId}/tags/{tagId}
 
@@ -90,40 +95,33 @@ Etiquetas para filtros rápidos (ej: "Sin TACC", "Picante").
 
 El inventario de venta.
 
-  * `name`, `description`, `shortDescription?`
+  * `name`, `description?`
   * `slug`, `imageUrls: string[]`
-  * `price` (precio venta), `costPrice` (costo interno)
-  * `categoryId` (Link a la colección categories)
+  * `price` (precio venta), `costPrice` (costo interno), `currency: "ARS"`
+  * `categoryId` (categoría principal)
+  * `subcategoryId?` (subcategoría hoja; debe pertenecer a `categoryId`)
   * `tags: string[]` (Array de IDs de tags)
-  * `status`: "active" | "paused" | "archived"
-  * `promotionsEnabled?`, `hasPromotion?`
-  * `variants: Variant[]`
-      * `{ id, name, price?, additionalPrice?, available?, isAvailable? }`
-  * `createdAt`, `updatedAt`
+  * `status`: "active" | "inactive" | "draft"
+  * `hasPromotion?`
+  * `variants: Variant[]` → `{ id, name, price, isAvailable }`
+      (legacy: `additionalPrice`/`available`, normalizados al leer)
+  * `storeId`, `createdAt`, `updatedAt`
 
 #### 🧾 /stores/{storeId}/sells/{sellId}
 
-Historial de órdenes y ventas. Funciona como "Snapshot" (guarda la foto del producto al momento de la compra).
+Historial de órdenes y ventas. Funciona como "Snapshot" (guarda la foto del producto al
+momento de la compra). Estructura **anidada** (refactor de ventas). Forma de campo a campo
+en [data-models.md](data-models.md#storesstoreidsellssellid).
 
-  * `orderNumber`: string ("ORD-1754...")
-  * `date`: ISO string
-  * `status`: "pending" | "confirmed" | "completed" | "cancelled"
-  * `source`: "web" | "local"
-  * **Totales:**
-      * `total`, `subtotal`, `paidAmount`
-      * `discount?`, `tax?`
-  * **Cliente:**
-      * `customerName`, `customerPhone`
-      * `address?`, `customerId?`
-  * **Métodos:**
-      * `paymentMethod`: "efectivo" | "mercadopago" | "transferencia"
-      * `paymentStatus`: "pending" | "paid"
-      * `deliveryMethod`: "pickup" | "delivery" | "retiro"
-      * `deliveryDate?`, `deliveryNotes?`, `notes?`
-  * **Items (Snapshot):**
-      * `products: OrderItem[]`
-          * `{ id, idProduct, name, price, cantidad, category, aclaracion?, appliedTopics[] }`
-  * `createdBy` (ID del empleado si es venta local)
+  * `orderNumber`: string ("ORD-...")
+  * `source`: "local" | "web" | "whatsapp"   (no hay campo `status` de orden en el modelo actual)
+  * `customer`: `{ name, phone?, email? }`
+  * `items`: `{ id, productId, productName, categoryId, quantity, unitPrice, subtotal, variants[], notes? }[]`
+  * `delivery`: `{ method: "retiro" | "delivery", address?, notes? }`
+  * `payment`: `{ method: "efectivo" | "transferencia" | "mercadopago", total }`
+  * `totals`: `{ subtotal, discount, total }`
+  * `notes?`
+  * `metadata`: `{ createdAt, updatedAt }`
 
 -----
 
@@ -141,12 +139,13 @@ Historial de órdenes y ventas. Funciona como "Snapshot" (guarda la foto del pro
     theme
     ...
 
-    /categories/{categoryId}
+    /categories/{categoryId}      (parentId: principal ⇄ subcategoría)
     /tags/{tagId}
     /products/{productId}
         variants[...]
     /sells/{sellId}
-        products[...] (items de la orden)
+        items[...] (snapshot de la orden)
+    /notifications/{id}           (eventos de suscripción / sistema)
 ```
 
 ### 💡 Puntos Clave de este Diseño

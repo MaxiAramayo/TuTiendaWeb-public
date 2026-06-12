@@ -250,14 +250,22 @@ WhatsApp (activa)
 - El numero de WhatsApp del comercio se almacena en `contactInfo.whatsapp` del documento de la tienda.
 - Schema de validacion: `whatsappSchema` en `src/shared/validations/common.schemas.ts`.
 
-MercadoPago (scaffolding, no activa)
-- Aparece como opcion de pago en la UI y en los schemas Zod, pero esta deshabilitada (`enabled: false`).
-- No hay SDK de MercadoPago instalado ni webhooks. Es UI preparatoria para integracion futura.
-- Cuando se implemente: crear `app/api/mercadopago/` para webhooks y un service dedicado.
+MercadoPago — Suscripciones (ACTIVA en produccion)
+- El cobro de la suscripcion (trial 7 dias -> plan `pro`) corre vía MercadoPago.
+- La logica (PreApproval, webhook con firma, scheduler) NO vive en este repo: esta en
+  el repo separado de Cloud Functions `Funciones-google-tutiendaweb`.
+- En esta app (Next.js) la suscripcion se invoca con el SDK de Firebase Client
+  (`httpsCallable("createSubscription")`); no hay SDK de MercadoPago instalado acá.
+- Doc completa: `docs/arquitectura/suscripciones.md`.
 
-Firebase Functions (dependencia instalada, sin uso activo)
-- `firebase-functions` v5 esta en `package.json` pero no hay funciones definidas ni deployadas.
-- `firebase.json` no tiene clave `"functions"`. No usar hasta que se defina la necesidad.
+MercadoPago — Pago de pedidos en el catalogo
+- Aparece como metodo de pago configurable en `settings.paymentMethods`. El checkout
+  del catalogo se confirma por WhatsApp; no hay un checkout 100% automatico en esta app.
+
+Firebase Functions (en repo separado)
+- `firebase-functions` figura como dependencia, pero NO hay functions definidas en este
+  repo (`firebase.json` no tiene clave `"functions"`). Las functions de suscripciones
+  estan en `Funciones-google-tutiendaweb` (region `southamerica-east1`).
 
 Cloudinary (dependencia instalada, sin uso activo)
 - `cloudinary` v2 esta en `package.json` pero no hay uso en `src/`. Sin integracion activa.
@@ -302,12 +310,17 @@ Configuracion de produccion relevante (`next.config.js`)
 
 ## Modulos relevantes documentados
 
-- Auth: docs/auth/AUTH_MODULE.md
-- Arquitectura general: docs/architecture.md
-- Store settings: docs/STORE_SETTINGS_ARCHITECTURE.md
-- Sells: docs/SELLS_MODULE_REFACTORING.md
-- Data models: docs/data-models.md
-- Firestore paths: docs/fireStorePath.md
+Indice completo en `docs/README.md`.
+
+- Auth: docs/arquitectura/auth.md
+- Arquitectura general: docs/arquitectura/arquitectura-general.md
+- Store settings: docs/arquitectura/store-settings.md
+- Sells: docs/arquitectura/sells.md
+- Suscripciones (MercadoPago): docs/arquitectura/suscripciones.md
+- Data models: docs/arquitectura/data-models.md
+- Firestore paths: docs/arquitectura/firestore-paths.md
+- Onboarding: docs/onboarding/
+- Emulador local: docs/guias/emulador-local.md
 
 ## Recomendaciones de mantenimiento
 

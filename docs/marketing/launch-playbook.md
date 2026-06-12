@@ -6,10 +6,10 @@
 **Fecha:** 2026-06-10
 
 > Este playbook conecta los 4 documentos ya generados:
-> - [MARKETING-AUDIT.md](MARKETING-AUDIT.md) — el diagnóstico
-> - [LANDING-PAGE.md](LANDING-PAGE.md) — la landing nueva
-> - [META-ADS-PLAYBOOK.md](META-ADS-PLAYBOOK.md) — ads + orgánico
-> - [GUIA-CONTENIDO-COMERCIAL.md](GUIA-CONTENIDO-COMERCIAL.md) — los posts y plantillas
+> - [marketing-audit.md](marketing-audit.md) — el diagnóstico
+> - [landing-page.md](landing-page.md) — la landing nueva
+> - [meta-ads-playbook.md](meta-ads-playbook.md) — ads + orgánico
+> - [guia-contenido-comercial.md](guia-contenido-comercial.md) — los posts y plantillas
 
 ---
 
@@ -54,8 +54,8 @@ La verdad incómoda del audit: **tu cuello de botella no es el producto, es la c
 **Objetivo del mes:** perfil de redes vivo, primeros 5-10 clientes conseguidos a mano, 3 testimonios reales.
 
 ### Semana 1 — Montar la base
-- [ ] Setup completo de Instagram + Facebook (bio, foto, cuenta business, highlights) — ver [META-ADS-PLAYBOOK.md](META-ADS-PLAYBOOK.md) Parte A.
-- [ ] Publicar **Post 1 (presentación)** + **Post 2 (Reel "armá tu tienda en 2 min")** — textos en [GUIA-CONTENIDO-COMERCIAL.md](GUIA-CONTENIDO-COMERCIAL.md).
+- [ ] Setup completo de Instagram + Facebook (bio, foto, cuenta business, highlights) — ver [meta-ads-playbook.md](meta-ads-playbook.md) Parte A.
+- [ ] Publicar **Post 1 (presentación)** + **Post 2 (Reel "armá tu tienda en 2 min")** — textos en [guia-contenido-comercial.md](guia-contenido-comercial.md).
 - [ ] Hacer **lista de 20-30 comercios objetivo** que ya conocés o que están cerca (hamburgueserías, rotiserías, heladerías, panaderías, emprendedores que venden por IG).
 - [ ] Empezar a publicar la landing nueva por secciones (no esperés a tenerla perfecta).
 

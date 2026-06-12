@@ -18,7 +18,7 @@ bloqueante que escribe en Firestore de verdad.
 ## Puesta en marcha
 
 1. **Cargar las variables de entorno del emulador.** Copiá el contenido de
-   [`.env.emulator`](../.env.emulator) dentro de tu `.env.local` (o reemplazá temporalmente
+   [`.env.emulator`](../../.env.emulator) dentro de tu `.env.local` (o reemplazá temporalmente
    tu `.env.local` por esas líneas).
 
 2. **Levantar los emuladores** (terminal 1):
@@ -47,9 +47,9 @@ bloqueante que escribe en Firestore de verdad.
 
 ## Cómo funciona el wiring
 
-- **Cliente** ([src/lib/firebase/client.ts](../src/lib/firebase/client.ts)): si
+- **Cliente** ([src/lib/firebase/client.ts](../../src/lib/firebase/client.ts)): si
   `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true`, conecta auth/firestore/storage a los emuladores.
-- **Admin SDK** ([src/lib/firebase/admin.ts](../src/lib/firebase/admin.ts)): si está
+- **Admin SDK** ([src/lib/firebase/admin.ts](../../src/lib/firebase/admin.ts)): si está
   `FIRESTORE_EMULATOR_HOST`, inicializa con un projectId demo **sin credenciales reales**.
 
 ## Limitaciones conocidas
