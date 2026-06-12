@@ -245,7 +245,7 @@ Evitar
 
 WhatsApp (activa)
 - Integracion principal para entrega de pedidos del catalogo publico.
-- `checkout.actions.ts`: `formatWhatsAppMessage()` construye el mensaje de orden, `processCheckoutAction()` devuelve `whatsappMessage` y `whatsappNumber`.
+- `processCheckoutAction()` (checkout.actions.ts) recalcula precios/envio en el servidor (`buildTrustedSale` en checkout.service.ts), arma el mensaje con `formatWhatsAppMessageFromSale()` (whatsapp.utils.ts) y devuelve `whatsappMessage` y `whatsappNumber`.
 - El cliente abre `https://wa.me/{numero}?text={mensaje}` al confirmar el pedido.
 - El numero de WhatsApp del comercio se almacena en `contactInfo.whatsapp` del documento de la tienda.
 - Schema de validacion: `whatsappSchema` en `src/shared/validations/common.schemas.ts`.
