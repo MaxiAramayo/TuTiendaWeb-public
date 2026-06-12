@@ -5,14 +5,32 @@
  * @module features/store/utils/whatsapp.utils
  */
 
-import type { ProductInCart } from "@/shared/types/store";
+/**
+ * Item confiable para el mensaje de WhatsApp (forma del SaleItem ya recalculado
+ * en el servidor). Se tipa de forma mínima para no acoplar este util al schema
+ * de ventas.
+ */
+interface TrustedMessageItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  variants?: Array<{ name: string; price: number }>;
+}
 
-export function formatWhatsAppMessage({
+/**
+ * Formatea el mensaje de WhatsApp a partir de la venta YA recalculada en el
+ * servidor. Esta es la versión confiable: subtotal, envío y total provienen del
+ * cálculo del servidor, no del carrito del cliente.
+ *
+ * Mantiene el mismo formato visual que veía el comercio antes del fix de H-1.
+ */
+export function formatWhatsAppMessageFromSale({
   customerName,
   storeName,
   items,
-  total,
+  subtotal,
   deliveryFee,
+  total,
   deliveryMethod,
   address,
   paymentMethod,
@@ -20,9 +38,10 @@ export function formatWhatsAppMessage({
 }: {
   customerName: string;
   storeName: string;
-  items: ProductInCart[];
-  total: number;
+  items: TrustedMessageItem[];
+  subtotal: number;
   deliveryFee: number;
+  total: number;
   deliveryMethod: string;
   address?: string;
   paymentMethod: string;
@@ -41,18 +60,18 @@ export function formatWhatsAppMessage({
   message += `------------------------\n`;
 
   items.forEach((item) => {
-    const itemTotal = item.price * item.cantidad;
-    message += `> ${item.cantidad}x ${item.name} - $${itemTotal}\n`;
+    const itemTotal = item.unitPrice * item.quantity;
+    message += `> ${item.quantity}x ${item.productName} - $${itemTotal}\n`;
 
-    if (item.topics && item.topics.length > 0) {
-      item.topics.forEach((topic) => {
-        message += `   + ${topic.name} (+$${topic.price})\n`;
+    if (item.variants && item.variants.length > 0) {
+      item.variants.forEach((variant) => {
+        message += `   + ${variant.name} (+$${variant.price})\n`;
       });
     }
   });
 
   message += `------------------------\n`;
-  message += `*Subtotal:* $${total - deliveryFee}\n`;
+  message += `*Subtotal:* $${subtotal}\n`;
 
   if (deliveryFee > 0) {
     message += `*Envío:* $${deliveryFee}\n`;
@@ -77,9 +96,4 @@ export function formatWhatsAppNumber(phone: string): string {
   }
 
   return cleaned;
-}
-
-export function buildWhatsAppUrl(phone: string, message: string): string {
-  const number = formatWhatsAppNumber(phone);
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }

@@ -73,7 +73,7 @@ TuTiendaWeb es una plataforma SaaS para comercios (restaurantes, pymes) que perm
 
 ## WhatsApp y pagos
 - WhatsApp: método principal para confirmar pedidos desde el catálogo público.
-  - Mensaje de pedido generado en `checkout.actions.ts` (`formatWhatsAppMessage()`).
+  - Mensaje de pedido generado en el servidor por `processCheckoutAction()` (`checkout.actions.ts`) vía `formatWhatsAppMessageFromSale()`, sobre precios recalculados por `buildTrustedSale()` (`checkout.service.ts`).
   - El número del comercio se almacena en `contactInfo.whatsapp`.
 - MercadoPago:
   - Integración **activa en producción** (suscripción configurada, credenciales y webhooks).

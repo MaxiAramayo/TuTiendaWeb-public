@@ -133,6 +133,22 @@ export const checkoutFormSchema = z.object({
 );
 
 /**
+ * Schema para item del carrito en la entrada del checkout público.
+ *
+ * SEGURIDAD: el cliente SOLO puede enviar qué producto, cuántas unidades y qué
+ * variantes (por ID) eligió. NUNCA precios ni subtotales: esos los recalcula el
+ * servidor leyendo el producto real de Firestore (ver `buildTrustedSale`).
+ */
+export const publicCheckoutItemSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.number().int().positive(checkoutErrorMessages.invalidQuantity).max(99),
+  variantIds: z.array(z.string()).optional().default([]),
+  notes: z.string().max(500).optional()
+});
+
+export type PublicCheckoutItem = z.infer<typeof publicCheckoutItemSchema>;
+
+/**
  * Schema para crear una orden desde el checkout público
  */
 export const createOrderSchema = z.object({

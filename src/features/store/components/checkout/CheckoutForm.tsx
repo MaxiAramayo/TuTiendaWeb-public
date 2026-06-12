@@ -18,7 +18,6 @@ import type { ProductInCart } from "@/shared/types/store";
 import type { StoreSettings } from "@/features/store/types/store.types";
 import { checkoutFormSchema, type CheckoutFormData } from "../../schemas/checkout.schema";
 import { processCheckoutAction } from "../../actions/checkout.actions";
-import { buildWhatsAppUrl, formatWhatsAppMessage } from "../../utils/whatsapp.utils";
 import { useCartStore } from "@/features/store/store/cart.store";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -246,34 +245,37 @@ export const CheckoutForm = ({
       return;
     }
 
-    // Abrir WhatsApp sincrónicamente aquí para preservar el gesto del usuario en iOS Safari.
-    // window.open() es bloqueado si se llama después de un await o desde un useEffect.
-    if (whatsapp) {
-      const message = formatWhatsAppMessage({
-        customerName: data.nombre,
-        storeName,
-        items: carrito,
-        total: finalTotal,
-        deliveryFee: deliveryPrice,
-        deliveryMethod: data.formaDeConsumir,
-        address: data.direccion,
-        paymentMethod: data.formaDePago,
-        notes: data.aclaracion,
-      });
-      window.open(buildWhatsAppUrl(whatsapp, message), "_blank");
-    }
+    // Abrir una pestaña en blanco AHORA (sincrónicamente) para preservar el gesto
+    // del usuario en iOS Safari. El mensaje real lo arma el servidor (con precios
+    // y envío recalculados); después redirigimos esta pestaña a WhatsApp.
+    const waWindow = whatsapp ? window.open("", "_blank") : null;
+
+    // Solo enviamos QUÉ pidió el cliente: producto, cantidad y variantes (por ID).
+    // Los precios NO se envían: el servidor los recalcula desde Firestore.
+    const items = carrito.map((item) => ({
+      productId: item.idProduct,
+      quantity: item.cantidad,
+      variantIds: (item.topics ?? []).map((t) => t.id),
+      notes: item.aclaracion,
+    }));
 
     startTransition(async () => {
       const result = await processCheckoutAction({
         storeId,
         formData: data,
-        cartItems: carrito,
-        subtotal: total,
-        deliveryFee: deliveryPrice,
+        items,
       });
 
       if (result.success) {
         toast.success("¡Pedido creado exitosamente!");
+
+        // Redirigir la pestaña ya abierta al WhatsApp con el mensaje del servidor.
+        const waUrl = `https://wa.me/${result.data.whatsappNumber}?text=${encodeURIComponent(result.data.whatsappMessage)}`;
+        if (waWindow) {
+          waWindow.location.href = waUrl;
+        } else if (whatsapp) {
+          window.open(waUrl, "_blank");
+        }
 
         const orderInfo = {
           orderId: result.data.orderId,
@@ -284,9 +286,9 @@ export const CheckoutForm = ({
           address: data.direccion || "",
           notes: data.aclaracion || "",
           products: carrito,
-          subtotal: total,
-          deliveryPrice,
-          total: finalTotal,
+          subtotal: result.data.subtotal,
+          deliveryPrice: result.data.deliveryFee,
+          total: result.data.total,
           whatsappMessage: result.data.whatsappMessage,
           whatsappNumber: result.data.whatsappNumber,
           storeName: result.data.storeName,
@@ -296,6 +298,8 @@ export const CheckoutForm = ({
           onOrderComplete(result.data.orderId, orderInfo);
         }
       } else {
+        // Cerrar la pestaña en blanco si el pedido falló.
+        waWindow?.close();
         if (result.errors) {
           Object.entries(result.errors).forEach(([field, messages]) => {
             if (field === "_form") {
