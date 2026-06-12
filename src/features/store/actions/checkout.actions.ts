@@ -7,14 +7,13 @@
  */
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { nanoid } from 'nanoid';
-import { checkoutFormSchema, createOrderSchema, type CheckoutFormData, type CreateOrderData } from '../schemas/checkout.schema';
-import { getPublicStoreById, getStoreSettings } from '../services/public-store.service';
+import { checkoutFormSchema, publicCheckoutItemSchema, type CheckoutFormData, type PublicCheckoutItem } from '../schemas/checkout.schema';
+import { getPublicStoreById } from '../services/public-store.service';
+import { buildTrustedSale, CheckoutValidationError } from '../services/checkout.service';
 import { createPublicSaleAction } from '@/features/dashboard/modules/sells/actions/sale.actions';
-import type { CreateSaleData, SaleItem } from '@/features/dashboard/modules/sells/schemas/sell.schema';
-import type { ProductInCart } from '@/shared/types/store';
-import { formatWhatsAppMessage, formatWhatsAppNumber } from '../utils/whatsapp.utils';
+import { formatWhatsAppMessageFromSale, formatWhatsAppNumber } from '../utils/whatsapp.utils';
 
 // ============================================================================
 // TYPES
@@ -30,39 +29,19 @@ export interface CheckoutResult {
   whatsappMessage: string;
   whatsappNumber: string;
   storeName: string;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
 }
 
 export interface ProcessCheckoutInput {
   storeId: string;
   formData: CheckoutFormData;
-  cartItems: ProductInCart[];
-  subtotal: number;
-  deliveryFee: number;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-/**
- * Convierte items del carrito a items de venta
- */
-function cartToSaleItems(cartItems: ProductInCart[]): SaleItem[] {
-  return cartItems.map(item => ({
-    id: item.id,
-    productId: item.idProduct,
-    productName: item.name,
-    categoryId: item.category || '',
-    quantity: item.cantidad,
-    unitPrice: item.price,
-    subtotal: (item.price + (item.topics?.reduce((s, t) => s + t.price, 0) || 0)) * item.cantidad,
-    variants: item.topics?.map(topic => ({
-      id: topic.id,
-      name: topic.name,
-      price: topic.price
-    })) || [],
-    notes: item.aclaracion || ''
-  }));
+  /**
+   * Items del carrito en forma MÍNIMA: solo producto, cantidad y variantes
+   * elegidas. Sin precios — el servidor los recalcula (ver checkout.service).
+   */
+  items: PublicCheckoutItem[];
 }
 
 // ============================================================================
@@ -70,19 +49,24 @@ function cartToSaleItems(cartItems: ProductInCart[]): SaleItem[] {
 // ============================================================================
 
 /**
- * Procesa el checkout y crea la orden
+ * Procesa el checkout, recalcula precios/envío en el servidor, guarda la venta
+ * y devuelve el mensaje de WhatsApp ya formateado a partir de ese cálculo.
  *
- * @param input - Datos del checkout
- * @returns Resultado con datos de la orden o errores
+ * SEGURIDAD (H-1): nunca confía en precios ni totales del cliente. Solo acepta
+ * qué productos y cantidades pidió, y reconstruye la venta con datos reales de
+ * Firestore.
+ *
+ * @param input - Datos del checkout (formulario + items mínimos)
+ * @returns Resultado con datos de la orden y mensaje de WhatsApp, o errores
  */
 export async function processCheckoutAction(
   input: ProcessCheckoutInput
 ): Promise<ActionResponse<CheckoutResult>> {
   try {
-    const { storeId, formData, cartItems, subtotal, deliveryFee } = input;
+    const { storeId } = input;
 
     // 1. VALIDATE FORM DATA
-    const formValidation = checkoutFormSchema.safeParse(formData);
+    const formValidation = checkoutFormSchema.safeParse(input.formData);
     if (!formValidation.success) {
       return {
         success: false,
@@ -90,58 +74,42 @@ export async function processCheckoutAction(
       };
     }
 
-    // 2. VALIDATE CART
-    if (!cartItems || cartItems.length === 0) {
-      return {
-        success: false,
-        errors: { _form: ['El carrito está vacío'] }
-      };
+    // 2. VALIDATE ITEMS (estructura mínima, sin precios)
+    const itemsValidation = z
+      .array(publicCheckoutItemSchema)
+      .min(1, 'El carrito está vacío')
+      .safeParse(input.items);
+    if (!itemsValidation.success) {
+      return { success: false, errors: { _form: ['El carrito es inválido o está vacío'] } };
     }
 
-    // 3. GET STORE DATA
+    // 3. GET STORE DATA (también verifica que esté activa)
     const store = await getPublicStoreById(storeId);
     if (!store) {
-      return {
-        success: false,
-        errors: { _form: ['Tienda no encontrada'] }
-      };
+      return { success: false, errors: { _form: ['La tienda no está disponible'] } };
     }
 
-    // 4. GENERATE ORDER ID
-    const orderId = nanoid(6);
-    const orderNumber = `ORD-${orderId}`;
-    const total = subtotal + deliveryFee;
+    // 4. BUILD TRUSTED SALE (recalcula precios + envío en el servidor)
+    let built;
+    try {
+      built = await buildTrustedSale({
+        storeId,
+        customerName: formValidation.data.nombre,
+        deliveryMethodId: formValidation.data.formaDeConsumir,
+        paymentMethodId: formValidation.data.formaDePago,
+        address: formValidation.data.direccion,
+        notes: formValidation.data.aclaracion,
+        items: itemsValidation.data
+      });
+    } catch (error) {
+      if (error instanceof CheckoutValidationError) {
+        return { success: false, errors: { _form: [error.message] } };
+      }
+      throw error;
+    }
 
-    // 5. PREPARE SALE DATA
-    const saleData: CreateSaleData = {
-      orderNumber,
-      storeId,
-      source: 'web',
-      customer: {
-        name: formValidation.data.nombre,
-        phone: '',
-      },
-      items: cartToSaleItems(cartItems),
-      delivery: {
-        method: formValidation.data.formaDeConsumir === 'delivery' ? 'delivery' : 'retiro',
-        address: formValidation.data.direccion || '',
-        notes: '',
-      },
-      payment: {
-        method: formValidation.data.formaDePago,
-        total,
-      },
-      totals: {
-        subtotal,
-        discount: 0,
-        total,
-      },
-      notes: formValidation.data.aclaracion || '',
-    };
-
-    // 6. CREATE SALE
-    const saleResult = await createPublicSaleAction(storeId, saleData);
-
+    // 5. CREATE SALE (con datos ya confiables)
+    const saleResult = await createPublicSaleAction(storeId, built.saleData);
     if (!saleResult.success) {
       return {
         success: false,
@@ -149,37 +117,41 @@ export async function processCheckoutAction(
       };
     }
 
-    // 7. PREPARE WHATSAPP DATA
+    // 6. FORMAT WHATSAPP MESSAGE desde el cálculo del servidor (lo más importante)
     // Soportar ambas estructuras: nueva (contactInfo.whatsapp) y legacy (whatsapp)
     const storeName = store.basicInfo?.name || store.name || 'Mi Tienda';
     const whatsapp = store.contactInfo?.whatsapp || store.whatsapp || '';
 
-    const whatsappMessage = formatWhatsAppMessage({
-      customerName: formValidation.data.nombre,
+    const whatsappMessage = formatWhatsAppMessageFromSale({
+      customerName: built.saleData.customer.name,
       storeName,
-      items: cartItems,
-      total,
-      deliveryFee,
-      deliveryMethod: formValidation.data.formaDeConsumir,
-      address: formValidation.data.direccion,
+      items: built.saleData.items,
+      subtotal: built.subtotal,
+      deliveryFee: built.deliveryFee,
+      total: built.total,
+      deliveryMethod: built.saleData.delivery.method,
+      address: built.saleData.delivery.address,
       paymentMethod: formValidation.data.formaDePago,
-      notes: formValidation.data.aclaracion
+      notes: built.saleData.notes
     });
 
     const whatsappNumber = formatWhatsAppNumber(whatsapp);
 
-    // 8. REVALIDATE - soportar ambas estructuras
+    // 7. REVALIDATE - soportar ambas estructuras
     const storeSlug = store.basicInfo?.slug || store.siteName;
     revalidatePath(`/${storeSlug}`);
 
     return {
       success: true,
       data: {
-        orderId,
-        orderNumber,
+        orderId: saleResult.data.id,
+        orderNumber: built.saleData.orderNumber,
         whatsappMessage,
         whatsappNumber,
-        storeName
+        storeName,
+        subtotal: built.subtotal,
+        deliveryFee: built.deliveryFee,
+        total: built.total
       }
     };
 

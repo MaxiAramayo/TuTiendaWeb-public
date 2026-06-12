@@ -189,8 +189,21 @@ export async function createPublicSaleAction(
     return { success: false, errors: { _form: ['Store ID requerido'] } };
   }
 
+  // Validar estructura con Zod (defensa en profundidad).
+  // Los precios/totales ya vienen recalculados por el servidor (buildTrustedSale),
+  // pero validamos la forma antes de persistir.
+  const validation = createSaleSchema.safeParse(data);
+  if (!validation.success) {
+    const fieldErrors = validation.error.flatten().fieldErrors;
+    const formattedErrors: Record<string, string[]> = {};
+    Object.entries(fieldErrors).forEach(([key, value]) => {
+      formattedErrors[key] = value as string[];
+    });
+    return { success: false, errors: formattedErrors };
+  }
+
   try {
-    const sale = await createSale(data, storeId);
+    const sale = await createSale(validation.data, storeId);
     return { success: true, data: { id: sale.id, sale } };
   } catch (error) {
     console.error('Error creating public sale:', error);
