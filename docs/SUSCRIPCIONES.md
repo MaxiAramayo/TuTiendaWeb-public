@@ -1,685 +1,567 @@
-# Sistema de Suscripciones — Estado actual y guía para continuar
+# Sistema de Suscripciones — Documentación técnica completa
 
-> **Para:** desarrollador que continúa la implementación
-> **Actualizado:** marzo 2026
-> **Estado general:** Flujo de pago funcional y estable para producción controlada. Webhook operativo con validación de firma activa (secreto configurado, anti-replay de 5 min, sin bypass), idempotencia de eventos, cancelación soft-cancel y reactivación sin nuevo pago. UI con input embebido para email comprador y redirección automática post-checkout. Pendiente: prueba E2E final con pago real y monitoreo 24h.
+> **Estado:** En producción con MercadoPago (PreApproval recurrente, webhook con firma validada).
+> **Actualizado:** junio 2026
+> **Alcance:** trial de 7 días → plan Profesional pago → renovación mensual → cancelación / reactivación / vencimiento.
+> **Repos involucrados:**
+> - **Functions:** `Funciones-google-tutiendaweb/src/*` (Firebase Functions v2, región `southamerica-east1`)
+> - **App:** `TuTiendaWeb-public/src/*` (Next.js 15 App Router)
 
 ---
 
 ## Índice
 
-1. [Arquitectura general](#1-arquitectura-general)
-2. [Plan disponible](#2-plan-disponible)
-3. [Flujo completo de una suscripción](#3-flujo-completo-de-una-suscripción)
-4. [Variables de entorno](#4-variables-de-entorno)
-5. [Código — Firebase Functions](#5-código--firebase-functions)
-6. [Código — Frontend](#6-código--frontend)
-7. [Estructura de datos en Firestore](#7-estructura-de-datos-en-firestore)
-8. [Qué funciona hoy](#8-qué-funciona-hoy)
-9. [Bugs conocidos y pendientes](#9-bugs-conocidos-y-pendientes)
-10. [Pasos para llegar a producción](#10-pasos-para-llegar-a-producción)
-11. [Cómo testear el flujo de vencimiento localmente](#11-cómo-testear-el-flujo-de-vencimiento-localmente)
-12. [Auditoría de producción (marzo 2026)](#12-auditoría-de-producción-marzo-2026)
+1. [Resumen ejecutivo](#1-resumen-ejecutivo)
+2. [Planes y precios](#2-planes-y-precios)
+3. [Componentes del sistema](#3-componentes-del-sistema)
+4. [Flujo 1 — Alta de cuenta y trial](#4-flujo-1--alta-de-cuenta-y-trial)
+5. [Flujo 2 — Contratación del plan pago](#5-flujo-2--contratación-del-plan-pago)
+6. [Flujo 3 — Renovación mensual](#6-flujo-3--renovación-mensual)
+7. [Flujo 4 — Cancelación y reactivación](#7-flujo-4--cancelación-y-reactivación)
+8. [Flujo 5 — Vencimiento y suspensión (scheduler)](#8-flujo-5--vencimiento-y-suspensión-scheduler)
+9. [Control de acceso: dashboard vs. catálogo público](#9-control-de-acceso-dashboard-vs-catálogo-público)
+10. [Estructura de datos en Firestore](#10-estructura-de-datos-en-firestore)
+11. [Webhook de MercadoPago en detalle](#11-webhook-de-mercadopago-en-detalle)
+12. [Variables de entorno](#12-variables-de-entorno)
+13. [Bug crítico de trial — diagnóstico y fix (junio 2026)](#13-bug-crítico-de-trial--diagnóstico-y-fix-junio-2026)
+14. [Hallazgos abiertos y riesgos de producción](#14-hallazgos-abiertos-y-riesgos-de-producción)
+15. [Cómo testear localmente](#15-cómo-testear-localmente)
+16. [Mapa de archivos](#16-mapa-de-archivos)
 
 ---
 
-## 1. Arquitectura general
+## 1. Resumen ejecutivo
+
+TuTiendaWeb cobra una suscripción mensual por comercio. El ciclo de vida es:
 
 ```
-[Usuario en dashboard]
-        │
-        ▼
-[SubscriptionSection.tsx]  ← Client Component en /dashboard/profile
-        │  llama Firebase Callable Function
-        ▼
-[createSubscription]  ← Firebase Function (southamerica-east1)
-        │  crea PreApproval en MP y guarda subscriptionId en Firestore
-        ▼
-[MercadoPago checkout]  ← usuario paga en ventana nueva
-        │  MP envía webhook POST
-        ▼
-[mpWebhook]  ← Firebase Function HTTP (southamerica-east1)
-        │  actualiza subscription en Firestore
-        ▼
-[checkSubscriptions]  ← Firebase Function scheduler (cada hora)
-        │  suspende suscripciones con endDate vencida
-        ▼
-[/suscripcion/confirmacion]  ← página pública Next.js (back_url de MP)
+Registro → Trial 7 días (gratis) → Contrata "Pro" en MercadoPago → Renovación mensual automática
+                  │                                                        │
+                  └── si no contrata: trial vence → acceso al dashboard bloqueado
+                                                                           │
+                                            Cancela ──► sigue activo hasta fin de período ──► free
+                                            Falla pago ──► 3 días de gracia ──► free/expired
 ```
 
-**Stack de funciones:**
-- Firebase Functions v2 (Node 22, región `southamerica-east1`)
-- MercadoPago SDK v2 (`mercadopago` npm package)
-- Firebase Admin SDK para escrituras en Firestore
-
-**Stack frontend:**
-- Next.js 15 App Router — Server Components + Server Actions
-- `SubscriptionSection.tsx` — Client Component que llama las Callable Functions directamente via `firebase/functions`
+- **Modelo de planes:** solo `trial` (7 días, gratis) → `pro` (ARS 15.000/mes). **No existe `free`**: suspender = `active:false` manteniendo el plan.
+- **Plan pago:** `pro`, cobrado vía **PreApproval recurrente de MercadoPago** (suscripción sin plan asociado).
+- **Trial:** lo inicializa `createStore` al crear la tienda (Timestamps reales); `initTrial` es solo red de seguridad.
+- **Webhook:** `mpWebhook` recibe los eventos de MP, valida la firma HMAC-SHA256 y promueve el plan al confirmarse el pago.
+- **Scheduler:** `checkSubscriptions` corre **cada hora** y suspende suscripciones pagas vencidas (con buffer anti–race-condition y período de gracia).
+- **Acceso:** lo decide el **dashboard layout** (server component) y el **catálogo público** por separado — leen `subscription` de Firestore (no hay middleware central).
 
 ---
 
-## 2. Plan disponible
+## 2. Planes y precios
 
-Un único plan de pago implementado:
+Definidos en `Funciones-google-tutiendaweb/src/types.ts`:
 
-| Campo | Valor |
-|-------|-------|
-| ID interno | `pro` |
-| Nombre | Profesional |
-| Precio | ARS 15.000/mes |
-| Frecuencia | Mensual, recurrente automático |
-| Proveedor | MercadoPago PreApproval |
+```typescript
+export type SubscriptionPlan = "trial" | "pro";   // NO existe "free"
 
-Los planes `basic` y `enterprise` están definidos en los tipos pero **no tienen precio ni UI implementados**. El plan `trial` (7 días) está en los tipos pero el flujo de activación de trial no está implementado en el frontend.
+export const PAID_PLAN: SubscriptionPlan = "pro";
+export const PRO_PRICE_ARS = 15000;
+export const TRIAL_DAYS = 7;
+
+export const PLAN_PRICES = { trial: 0, pro: 15000 };
+export const PLAN_NAMES  = { trial: "Prueba gratuita", pro: "Profesional" };
+```
+
+| Plan | Cobra | Origen | `paymentStatus` típico |
+|------|-------|--------|------------------------|
+| `trial` | No | `createStore` al crear la tienda (7 días) | `trial` |
+| `pro` | ARS 15.000/mes | Webhook MP al autorizar pago | `authorized` |
+
+> **No existe el plan `free`** (ni `basic`/`enterprise`). El modelo es **trial → pro**, nada más.
+> Cuando una cuenta se suspende (trial vencido, pro cancelado/vencido/pago fallido), **se mantiene el `plan`** y solo se setea `subscription.active = false` con el `paymentStatus` correspondiente (`expired` / `cancelled`). El `active` es la única señal de "habilitado / suspendido".
 
 ---
 
-## 3. Flujo completo de una suscripción
+## 3. Componentes del sistema
 
-### 3.1 Creación (happy path)
+### Firebase Functions (`Funciones-google-tutiendaweb/src/`)
 
-1. Usuario entra a `/dashboard/profile` → sección "Suscripción"
-2. Hace click en "Activar plan Profesional"
-3. El Client Component llama la Callable Function `createSubscription` con `{ storeId, userId, userEmail, plan: "pro" }`
-4. `createSubscription` crea un PreApproval en MP y hace `update` en Firestore:
-   ```
-   subscription.billing.subscriptionId = preapproval.id
-   subscription.billing.provider = "mercadopago"
-   subscription.billing.payerEmail = userEmail
-   subscription.billing.autoRenew = true
-   subscription.paymentStatus = "pending"
-   subscription.plan = "pro"
-   subscription.startDate = now
-   ```
-5. La función devuelve `{ initPoint, subscriptionId }`
-6. El frontend redirige al `initPoint` en la misma pestaña (evita bloqueos de popup)
-7. Usuario paga en la ventana de MP
-8. MP llama al webhook `mpWebhook` con `type: "subscription_preapproval"` y `action: "updated"`
-9. El webhook actualiza Firestore con `active: true`, `paymentStatus: "authorized"`, `endDate: next_payment_date`
-10. MP redirige al usuario a `/suscripcion/confirmacion?preapproval_id=...`
+| Función | Tipo | Trigger | Responsabilidad |
+|---------|------|---------|-----------------|
+| `initTrial` | Firestore `onDocumentCreated` | Se crea `/stores/{id}` | Red de seguridad: inicializa el trial solo si el store se creó sin `subscription` |
+| `createSubscription` | Callable `onCall` | Frontend (owner/admin) | Crea el PreApproval en MP, guarda `billing.pendingPlan` |
+| `mpWebhook` | HTTP `onRequest` | MercadoPago | Procesa eventos de pago, promueve el plan, renueva `endDate` |
+| `checkSubscriptions` | Scheduler `onSchedule` (`0 * * * *`) | Cada hora | Suspende suscripciones pagas vencidas |
+| `cancelSubscription` | Callable `onCall` | Frontend (owner/admin) | Soft-cancel: `cancelAtPeriodEnd = true` |
+| `reactivateSubscription` | Callable `onCall` | Frontend (owner/admin) | Revierte el soft-cancel |
 
-### 3.2 Renovación mensual
+Todas se exportan desde `index.ts` y corren en `southamerica-east1`.
 
-1. MP cobra automáticamente cada mes
-2. MP envía webhook `type: "subscription_authorized_payment"` con el ID del PreApproval
-3. `mpWebhook` llama `handleAuthorizedPayment` que actualiza `active: true`, `endDate: +30 días`, `lastPaymentDate: now`
-4. `checkSubscriptions` (scheduler diario) verifica que `endDate > now`. Si venció sin renovarse, aplica el flujo de suspensión (ver 3.5)
+### App Next.js (`TuTiendaWeb-public/src/`)
 
-### 3.3 Cancelación por el usuario desde el dashboard
+| Archivo | Rol |
+|---------|-----|
+| `features/auth/actions/auth.actions.ts` → `completeRegistrationAction` | Crea la tienda al terminar el onboarding |
+| `features/store/services/store.service.ts` → `createStore` | Escribe el documento inicial del store |
+| `app/dashboard/layout.tsx` | **Gate de acceso al dashboard** (evalúa `hasValidAccess`) |
+| `app/dashboard/subscription/page.tsx` + `SubscriptionPageClient.tsx` | UI de suscripción (contratar / cancelar / reactivar) |
+| `features/dashboard/.../services/server/profile.server-service.ts` | Lee `subscription` de Firestore y serializa Timestamps → ISO |
+| `app/[url]/page.tsx` + `features/store/services/public-store.service.ts` | **Gate del catálogo público** (evalúa `subscription.active`) |
+| `app/suscripcion/confirmacion/page.tsx` | `back_url` de MP tras el checkout |
 
-**Soft-cancel: NO cancela el PreApproval en MercadoPago.**
+---
 
-1. El usuario hace click en "Cancelar suscripción"
-2. El Client Component llama la Callable Function `cancelSubscription` con `{ storeId, userId }`
-3. `cancelSubscription` escribe **solo** `subscription.cancelAtPeriodEnd = true` en Firestore
-4. El PreApproval en MP sigue intacto — MP no cobra nada extra
-5. El `paymentStatus` **no cambia** (sigue `"authorized"`)
-6. Se escribe notificación: "Cancelaste la renovación automática. Seguís teniendo acceso completo hasta el {fecha}"
-7. `checkSubscriptions` (scheduler diario), cuando `endDate <= now` y `cancelAtPeriodEnd=true`:
-   - Cancela el PreApproval en MP (`PUT /preapproval/{id}` con `status: "cancelled"`) para que no cobre el próximo ciclo
-   - Suspende: `active=false`, `plan=free`, `paymentStatus=cancelled`, `cancelAtPeriodEnd=false`
-   - Sin período de gracia
+## 4. Flujo 1 — Alta de cuenta y trial
 
-### 3.4 Reactivación desde el dashboard (sin nuevo pago)
+```
+completeRegistrationAction (auth.actions.ts)
+   │ AUTH → VALIDATE
+   ▼
+createStore (store.service.ts)  ◄── FUENTE DE VERDAD del trial
+   │ escribe el doc con el trial completo (Timestamps de Admin SDK):
+   │   subscription.active        = true
+   │   subscription.plan          = "trial"
+   │   subscription.paymentStatus = "trial"
+   │   subscription.startDate     = Timestamp.now()
+   │   subscription.endDate       = Timestamp.now() + 7 días
+   │   subscription.trialUsed     = false
+   │   subscription.billing       = { provider: "none", autoRenew: false }
+   │ + crea notificación "trial_started" en la subcolección
+   ▼
+[Firestore crea /stores/{storeId}]
+   │ dispara onDocumentCreated
+   ▼
+initTrial (Cloud Function — RED DE SEGURIDAD)
+   │ ve que subscription.plan ya existe ("trial") → no hace nada (no-op)
+   ▼
+[Usuario tiene 7 días de acceso completo]
+```
 
-Si el usuario cancela pero luego cambia de opinión **antes de que venza `endDate`**:
+**Punto clave:** `createStore` inicializa el trial **completo con Timestamps reales** (no ISO strings) y es la **única** fuente de inicialización en el flujo normal. Esto elimina la ventana de tiempo y la dependencia del trigger que causaban el bug histórico (ver [sección 13](#13-bug-crítico-de-trial--diagnóstico-y-fix-junio-2026)).
 
-1. El usuario hace click en "Reactivar suscripción" (en la card naranja)
-2. El Client Component llama la Callable Function `reactivateSubscription` con `{ storeId, userId }`
-3. `reactivateSubscription` escribe **solo** `subscription.cancelAtPeriodEnd = false` en Firestore
-4. El PreApproval en MP nunca fue cancelado → MP seguirá cobrando el próximo ciclo normalmente
-5. No hay redirección a MP, no hay nuevo pago
+**`initTrial` como red de seguridad** (`initTrial.ts`): solo inicializa el trial si el store se creó **sin** `subscription.plan` (ej: importación, panel admin, scripts). Si ya hay un plan asignado, retorna sin tocar nada — así no duplica la notificación ni pisa datos:
 
-### 3.5 Estado `isCancelledActive` (cancelado pero vigente)
+```typescript
+const existingPlan = data.subscription?.plan;
+if (existingPlan) return;   // createStore ya lo inicializó → no-op
+// ...si no hay plan, inicializa trial completo + notificación (respaldo)
+```
+
+---
+
+## 5. Flujo 2 — Contratación del plan pago
+
+### 5.1 Generación del link (happy path)
+
+```
+[/dashboard/subscription] SubscriptionPageClient
+   │ usuario ingresa email comprador + click "Suscribirme con MercadoPago"
+   │ httpsCallable("createSubscription")  { storeId, userId, userEmail, plan: "pro" }
+   ▼
+createSubscription (Cloud Function)
+   │ 1. valida auth (owner por uid, o admin vía /admins/{uid})
+   │ 2. valida plan === "pro" y email
+   │ 3. rechaza si ya hay un PreApproval "pending" para el mismo plan
+   │ 4. crea PreApproval en MP:
+   │       external_reference = "{storeId}:pro"
+   │       auto_recurring     = { frequency: 1, frequency_type: "months", amount: 15000, ARS }
+   │       status             = "pending"
+   │       back_url           = {APP_URL}/suscripcion/confirmacion
+   │ 5. guarda en Firestore (SIN tocar plan/active/endDate del trial vigente):
+   │       subscription.billing.subscriptionId = preapproval.id
+   │       subscription.billing.provider       = "mercadopago"
+   │       subscription.billing.payerEmail     = userEmail
+   │       subscription.billing.autoRenew      = true
+   │       subscription.billing.pendingPlan    = "pro"   ◄── plan contratado, aún no confirmado
+   │       subscription.paymentStatus          = "pending"
+   │       subscription.cancelAtPeriodEnd      = false
+   │       subscription.graceUntil             = null
+   │ 6. devuelve { initPoint, subscriptionId }
+   ▼
+[Frontend redirige a initPoint — usuario paga en MercadoPago]
+   ▼
+MP envía webhook  →  mpWebhook  →  handlePreapproval / handleAuthorizedPayment
+   │ promueve pendingPlan → plan:
+   │       subscription.plan          = "pro"
+   │       subscription.active        = true
+   │       subscription.paymentStatus = "authorized"
+   │       subscription.endDate       = next_payment_date (de MP)
+   │       subscription.lastPaymentDate = now
+   │       subscription.billing.pendingPlan = null
+   │ + notificación "payment_success"
+   ▼
+MP redirige a  /suscripcion/confirmacion?preapproval_id=...
+   │ AutoRedirect → /dashboard/subscription (router.refresh para releer estado)
+```
+
+**Diseño importante — `pendingPlan`:** mientras el pago no se confirma, el plan **real** sigue siendo `trial` (o el que estuviera). El plan contratado vive en `billing.pendingPlan`. Así, si el usuario abandona el checkout, **no pierde el acceso del trial** y no queda con un `plan: "pro"` sin pagar. El plan se promueve recién cuando llega el evento `authorized`.
+
+### 5.2 Estado intermedio: pago pendiente
+
+Mientras `paymentStatus === "pending"` y existe `billing.pendingPlan`, la UI muestra la card naranja "Pago en proceso" y el dashboard **mantiene el acceso** (`isPendingPayment` en el layout). El usuario puede:
+- "Verificar estado ahora" (refresca el server component).
+- "Cancelar intento" (llama `cancelSubscription`).
+
+---
+
+## 6. Flujo 3 — Renovación mensual
+
+MercadoPago cobra automáticamente cada mes y envía notificaciones. `mpWebhook` las procesa por dos vías redundantes:
+
+1. **`subscription_authorized_payment`** → `handleAuthorizedPayment`: re-confirma plan `pro`, `active: true`, renueva `endDate = next_payment_date`, `lastPaymentDate = now`.
+2. **`payment`** (con `subscription_id`) → `handlePayment`: busca el store por `billing.subscriptionId`, y si el pago está `approved`, renueva `endDate` (consultando el `next_payment_date` real del PreApproval; fallback +30 días).
+
+Ambos escriben `paymentStatus: "authorized"` y notificación de éxito. El `endDate` actualizado evita que `checkSubscriptions` suspenda la cuenta.
+
+---
+
+## 7. Flujo 4 — Cancelación y reactivación
+
+### 7.1 Cancelación (soft-cancel) — `cancelSubscription`
+
+**NO toca MercadoPago.** Solo escribe en Firestore:
+
+```typescript
+subscription.cancelAtPeriodEnd = true
+```
+
+- Requisito: `plan === "pro" && active === true`.
+- `paymentStatus` **no cambia** (sigue `"authorized"`).
+- Idempotente: si ya estaba `true`, devuelve éxito sin reescribir.
+- El usuario conserva acceso completo hasta `endDate`.
+- El PreApproval en MP sigue vivo; lo cancela `checkSubscriptions` recién el día del vencimiento (para que no cobre el próximo ciclo).
+
+### 7.2 Reactivación — `reactivateSubscription`
+
+Antes de que venza `endDate`, el usuario puede revertir:
+
+```typescript
+subscription.cancelAtPeriodEnd = false
+```
+
+- Requisito: `plan === "pro" && active === true`.
+- Como el PreApproval nunca se canceló en MP, la renovación automática continúa. **No hay nuevo pago ni redirección.**
+
+### 7.3 Estado `isCancelledActive` (cancelado pero vigente)
 
 ```typescript
 const isCancelledActive =
   subscription.plan === 'pro' &&
-  subscription.active &&
-  subscription.cancelAtPeriodEnd === true &&  // soft-cancel marcado
-  endDateMs > Date.now();                      // aún tiene acceso
+  subscription.active === true &&
+  subscription.cancelAtPeriodEnd === true &&
+  endDateMs > Date.now();
 ```
 
-Estado de Firestore cuando el usuario canceló pero aún tiene acceso:
-```
-subscription.active = true              ← sigue activo hasta endDate
-subscription.plan = "pro"               ← sigue en pro
-subscription.paymentStatus = "authorized" ← NO cambia al cancelar desde el dashboard
-subscription.cancelAtPeriodEnd = true   ← la única marca de cancelación
-subscription.endDate = [fecha futura]
-```
+UI: card naranja "Suscripción Cancelada — acceso hasta {fecha}" + botón "Volver a activar".
 
-### 3.6 Cancelación por MP (webhook)
+### 7.4 Cancelación por MP (externa)
 
-1. MP cancela el PreApproval (falta de pago u otra causa externa)
-2. MP envía webhook `type: "subscription_preapproval"`, `status: "cancelled"`
-3. El webhook actualiza: `active: false`, `paymentStatus: "cancelled"` (via `STATUS_MAP.cancelled`)
-4. El acceso se corta inmediatamente — este path no usa `cancelAtPeriodEnd`
-5. Para reactivar, el usuario debe iniciar un nuevo flujo de pago (nuevo PreApproval)
-
-### 3.7 Suspensión por `checkSubscriptions` (tres caminos)
-
-```
-subscription.active=true && endDate<=now
-         │
-         ├─ plan=free/trial → skip
-         │
-         ├─ lastPaymentDate < 24hs → skip (buffer anti-race-condition)
-         │
-         ├─ cancelAtPeriodEnd=true (Camino A — cancelación voluntaria)
-         │    ├─ PUT /preapproval/{id} status=cancelled en MP
-         │    └─ suspender: active=false, plan=free, paymentStatus=cancelled, cancelAtPeriodEnd=false
-         │
-         ├─ graceUntil vigente → skip (Camino B — en período de gracia por pago fallido)
-         │
-         ├─ sin graceUntil (Camino B — pago fallido, Fase 1)
-         │    └─ escribir graceUntil=now+3días, notificación "Tenés 3 días para renovar"
-         │
-          └─ graceUntil vencido (Camino C — pago fallido, Fase 2)
-               └─ suspender: active=false, plan=free, paymentStatus=expired, graceUntil=null
-```
+Si MP cancela el PreApproval (ej: falta de pago persistente), envía `subscription_preapproval` con `status: "cancelled"`. El webhook aplica `STATUS_MAP.cancelled`: `active: false`, `plan: "free"`, `paymentStatus: "cancelled"`. Este camino **no** usa `cancelAtPeriodEnd`; para volver, el usuario debe iniciar un nuevo PreApproval.
 
 ---
 
-## 4. Variables de entorno
+## 8. Flujo 5 — Vencimiento y suspensión (scheduler)
 
-### `functions/.env` (Firebase Functions — NO commitear)
-
-```env
-# ─── Producción ─────────────────────────────────────────────────────────────────
-
-MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...   # Token de la cuenta vendedora REAL
-MERCADO_PAGO_PUBLIC_KEY=APP_USR-...
-MERCADO_PAGO_WEBHOOK_SECRET=<hex>       # Obtener en MP Panel → Webhooks → "Firma secreta"
-MERCADO_PAGO_CLIENT_ID=...
-
-# URL base de la app (para back_url del PreApproval)
-APP_URL=https://tutiendaweb.com.ar
-```
-
-> **Nota:** `MERCADO_PAGO_TEST_PAYER_EMAIL` (usada en sandbox) NO debe estar en producción.
-> Si está presente, `createSubscription` sobreescribe el email del pagador con ese valor.
-
-### Variables de Next.js (`.env.local`)
-
-No se agregaron variables nuevas para suscripciones. La comunicación con Firebase Functions se hace via el SDK de Firebase Client usando las variables `NEXT_PUBLIC_FIREBASE_*` existentes.
-
----
-
-## 5. Código — Firebase Functions
-
-### 5.1 `functions/src/types.ts`
-
-Tipos compartidos entre todas las functions.
+`checkSubscriptions` corre **cada hora en punto** (`0 * * * *`, zona `America/Argentina/Buenos_Aires`). Consulta:
 
 ```typescript
-export type SubscriptionPlan = "free" | "trial" | "basic" | "pro" | "enterprise";
-
-export type PreapprovalStatus =
-  | "authorized" | "paused" | "cancelled" | "pending" | "trial" | "expired";
-
-export interface StoreSubscription {
-  active: boolean;
-  plan: SubscriptionPlan;
-  startDate?: Timestamp;
-  endDate?: Timestamp;
-  graceUntil?: Timestamp;
-  trialUsed?: boolean;
-  paymentStatus?: PreapprovalStatus;
-  cancelAtPeriodEnd?: boolean;
-  lastPaymentDate?: Timestamp;
-  billing?: SubscriptionBilling;
-}
-
-async function handlePayment(dataId: string): Promise<void> {
-  const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN! });
-  const payment = (await new Payment(mp).get({ id: Number(dataId) })) as unknown as PaymentWithSubscription;
-
-  if (payment.status !== "approved" || !payment.subscription_id) return;
-
-  const db = getFirestore();
-  const snap = await db.collection("stores")
-    .where("subscription.billing.subscriptionId", "==", payment.subscription_id)
-    .limit(1).get();
-
-  if (snap.empty) return;
-
-  await snap.docs[0].ref.update({
-    "subscription.active": true,
-    "subscription.paymentStatus": "authorized",
-    "subscription.lastPaymentDate": Timestamp.now(),
-    "subscription.endDate": Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  });
-  await addNotification(snap.docs[0].id, "payment_success", "Tu pago mensual fue procesado.");
-}
-
-// ── Función principal ──────────────────────────────────────────────────────────
-
-export const mpWebhook = onRequest(
-  { region: "southamerica-east1", cors: false },
-  async (req, res) => {
-    if (req.method === "GET") { res.sendStatus(200); return; }
-    if (req.method !== "POST") { res.sendStatus(405); return; }
-    if (!validateMPSignature(req)) { res.sendStatus(401); return; }
-
-    const body = req.body as MPWebhookBody;
-    const dataId = body.data?.id;
-    if (!dataId) { res.sendStatus(200); return; }
-
-    try {
-      if (body.type === "subscription_preapproval") await handlePreapproval(dataId);
-      else if (body.type === "subscription_authorized_payment") await handleAuthorizedPayment(dataId);
-      else if (body.type === "payment") await handlePayment(dataId);
-    } catch (error) {
-      logger.error("Error procesando webhook MP:", error);
-      // Siempre 200 para evitar reintentos de MP
-    }
-    res.sendStatus(200);
-  }
-);
+.where("subscription.active", "==", true)
+.where("subscription.endDate", "<=", now)
 ```
 
----
+y para cada store aplica (recordar: **no existe `plan: "free"`** — suspender = `active: false` manteniendo el plan):
 
-### 5.2 `functions/src/createSubscription.ts`
-
-Callable Function que crea el PreApproval en MP y lo guarda en Firestore.
-
-Puntos clave:
-- Valida admin bypass (`/admins/{uid}`)
-- En sandbox, `MERCADO_PAGO_TEST_PAYER_EMAIL` sobreescribe el email del pagador
-- Escribe `paymentStatus: "pending"` hasta que el webhook confirme el pago
-
----
-
-### 5.3 `functions/src/mpWebhook.ts`
-
-HTTP Function que recibe notificaciones de MercadoPago.
-
-Maneja tres tipos de eventos:
-- `subscription_preapproval` — cambios de estado del PreApproval (`pending`, `authorized`, `paused`, `cancelled`)
-- `subscription_authorized_payment` — confirmación de pago (activa la suscripción)
-- `payment` — cobro recurrente mensual (renueva `endDate`)
-
-**Seguridad implementada:**
-
-| Check | Comportamiento |
-|-------|---------------|
-| `MERCADO_PAGO_WEBHOOK_SECRET` no configurado | Rechaza con 401 (sin bypass) |
-| Falta `x-signature` o `x-request-id` | Rechaza con 401 |
-| `x-signature` mal formado | Rechaza con 401 |
-| Timestamp `ts` con más de 5 min de antigüedad | Rechaza con 401 (anti-replay) |
-| HMAC-SHA256 inválido | Rechaza con 401 |
-| Error en handler | Responde 200 (evita reintentos de MP que podrían duplicar eventos) |
-
-**Cómo MP construye la firma:**
 ```
-manifest = "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
-firma    = HMAC-SHA256(secret, manifest) → hex
-header   = "ts=<ts>,v1=<firma>"
+┌─ paymentStatus="pending" + pendingPlan  → SKIP (pago en proceso) ───┐
+│     No suspender aunque el trial/período haya vencido: el pago MP    │
+│     puede tardar (Rapipago/Pago Fácil quedan "pending" por días).    │
+│                                                                      │
+├─ plan === "trial"  ── Camino TRIAL (prueba agotada sin contratar) ──┤
+│     • active=false, paymentStatus=expired                            │
+│     • notificación "trial_expired"  · SIN gracia, SIN tocar MP       │
+│     → corta acceso al dashboard Y al catálogo público               │
+│                                                                      │
+│  (de acá en adelante, plan === "pro")                               │
+│                                                                      │
+├─ lastPaymentDate < hace 24hs        → SKIP (buffer anti race-cond.) ─┤
+│                                                                      │
+├─ cancelAtPeriodEnd === true   ── Camino A (cancelación voluntaria) ──┤
+│     • cancela el PreApproval en MP (PUT status=cancelled)            │
+│     • active=false, paymentStatus=cancelled, cancelAtPeriodEnd=false │
+│     • notificación "subscription_expired"  · SIN período de gracia   │
+│                                                                      │
+├─ graceUntil vigente (> now)         → SKIP (en período de gracia) ───┤
+│                                                                      │
+├─ sin graceUntil ── Camino B (pago fallido, fase 1) ─────────────────┤
+│     • graceUntil = now + 3 días                                      │
+│     • notificación "payment_failed" ("tenés 3 días para renovar")    │
+│                                                                      │
+└─ graceUntil vencido ── Camino C (pago fallido, fase 2) ─────────────┘
+      • active=false, paymentStatus=expired, graceUntil=null
+      • notificación "subscription_expired"
 ```
-donde `data.id` viene del **query param** `?data.id=` de la URL, no del body JSON.
+
+> **Trials vencidos:** desde junio 2026 el scheduler **sí** procesa los trials vencidos (Camino TRIAL) y les setea `active: false`, lo que apaga también el catálogo público. El desfasaje máximo es de ~1 hora (cadencia del scheduler). El dashboard, además, bloquea el trial vencido de inmediato por `endDate` sin esperar al scheduler.
 
 ---
 
-### 5.4 `functions/src/checkSubscriptions.ts`
+## 9. Control de acceso: dashboard vs. catálogo público
 
-Scheduler **cada hora en punto** (`0 * * * *`) que suspende suscripciones con `endDate` vencida.
-Máximo 59 minutos de desfasaje entre el vencimiento real y la suspensión efectiva.
+No hay un middleware único. **Dos gates independientes** leen `subscription`:
 
-Tres caminos de suspensión: ver diagrama en sección 3.7.
+### 9.1 Dashboard — `app/dashboard/layout.tsx` (Server Component)
 
-Protecciones:
-- Buffer 24hs desde `lastPaymentDate` (anti-race-condition con webhook de pago)
-- Respeta `graceUntil` si está vigente
-- Cancela el PreApproval en MP antes de suspender (solo en Camino A)
-
----
-
-### 5.5 `functions/src/cancelSubscription.ts`
-
-Callable Function — soft-cancel.
-
-- Solo escribe `subscription.cancelAtPeriodEnd = true` en Firestore
-- No toca MercadoPago
-- Solo opera si `plan=pro && active=true`
-- Idempotente: si ya era `cancelAtPeriodEnd=true`, devuelve éxito sin re-escribir
-- Admin bypass: `/admins/{uid}` puede operar sobre cualquier store
-
----
-
-### 5.6 `functions/src/reactivateSubscription.ts`
-
-Callable Function — revierte el soft-cancel.
-
-- Solo escribe `subscription.cancelAtPeriodEnd = false` en Firestore
-- Solo opera si `plan=pro && active=true`
-- Idempotente: si ya era `false`, devuelve éxito sin re-escribir
-- El PreApproval en MP nunca fue cancelado → la renovación automática continúa normalmente
-
----
-
-## 6. Código — Frontend
-
-### 6.1 `SubscriptionSection.tsx`
-
-`src/features/dashboard/modules/store-settings/components/sections/SubscriptionSection.tsx`
-
-Client Component que muestra el estado de la suscripción y maneja cancelación y reactivación.
-
-Incluye input embebido para `payer_email` (email de la cuenta compradora de Mercado Pago) antes de generar el link.
-
-**Estados de UI:**
-
-| Condición | Card mostrada |
-|-----------|--------------|
-| `isPro` (activo, sin `cancelAtPeriodEnd`) | Card verde — plan activo + botón "Cancelar" |
-| `isCancelledActive` (`cancelAtPeriodEnd=true`, `endDate` futura) | Card naranja — acceso hasta fecha + botón "Reactivar" |
-| `isPendingConfirmation` (`paymentStatus=pending`) | Card naranja — "Confirmando tu suscripción" |
-| Ninguno de los anteriores (free/trial) | Card purple — CTA "Activar plan Profesional" |
-
-**Lectura de datos:**
 ```typescript
-// CORRECTO: leer desde profile (viene de Firestore vía server)
-const subscription = profile?.subscription || formData.subscription || { ... };
+const isPro            = subscription?.plan === 'pro'   && subscription?.active;
+const isOnTrial        = subscription?.plan === 'trial' && subscription?.active;
+const isPendingPayment = subscription?.paymentStatus === 'pending' && !!subscription?.billing?.pendingPlan;
 
-// Por qué: formData (React Hook Form) NO incluye subscription.
-// El schema Zod del formulario no lo contempla. Solo profile tiene subscription real.
+const hasValidAccess =
+  isPro ||
+  (isOnTrial && endDateMs > now) ||
+  isPendingPayment ||
+  (graceUntilMs > now);
+
+if (!hasValidAccess) return <AccessDeniedView ... />;   // ← pantalla "Acceso Suspendido"
 ```
 
-**Funciones Firebase llamadas:**
-- `cancelSubscription({ storeId, userId })` → escribe `cancelAtPeriodEnd=true`
-- `reactivateSubscription({ storeId, userId })` → escribe `cancelAtPeriodEnd=false`
-- `createSubscription({ storeId, userId, userEmail, plan })` → devuelve `initPoint`
+El acceso requiere `active: true` en todos los casos (más `endDate` vigente para el trial). Como **no existe `plan: "free"`**, una cuenta suspendida (`active: false`) nunca recupera acceso por downgrade: queda en "Acceso Suspendido" hasta que contrate/renueve.
 
-**Comportamiento de checkout:**
-- Se valida email comprador en la UI.
-- Se crea el PreApproval y se redirige a MP en la misma pestaña.
-- No se usa `prompt` del navegador ni popup obligatorio.
+### 9.2 Catálogo público — `app/[url]/page.tsx` + `public-store.service.ts`
+
+```typescript
+const isActive = storeData.subscription?.active !== false && storeData.suscripcion !== false;
+if (!isActive) return <ErrorNotAvailable />;
+```
+
+Solo mira `active`. **No** considera `endDate` ni `plan`.
+
+### 9.3 Matriz de acceso resultante
+
+| Estado en Firestore | Dashboard | Catálogo público | Notas |
+|---------------------|-----------|------------------|-------|
+| `trial`, `active:true`, `endDate` futura | ✅ | ✅ | Trial vigente |
+| `trial`, `active:false`, `endDate` pasada | ❌ **AccessDenied** | ❌ | Trial vencido (lo suspende el scheduler) |
+| `pro`, `active:true` | ✅ | ✅ | Pago al día |
+| `pro`, `active:true`, `cancelAtPeriodEnd:true`, `endDate` futura | ✅ | ✅ | Cancelado pero vigente |
+| `pro`, `active:false` (paused/cancelled/expired) | ❌ **AccessDenied** | ❌ | Suspendido (mantiene `plan:"pro"`) |
+| `pending` + `pendingPlan` | ✅ | depende de `active` | Pago en proceso |
+| en gracia (`graceUntil` futura) | ✅ | ✅ | 3 días para renovar |
+
+> Tras los cambios de junio 2026, **dashboard y catálogo quedan consistentes**: una cuenta suspendida (`active:false`) está bloqueada en ambos lados, sin importar si el plan es `trial` o `pro`. La pantalla "Acceso Suspendido" cubre todos los casos de suspensión.
 
 ---
 
-### 6.2 `src/app/suscripcion/confirmacion/page.tsx`
+## 10. Estructura de datos en Firestore
 
-Página pública (sin auth) a la que MercadoPago redirige como `back_url` después del pago.
-
-**Por qué existe:** `back_url` de MP redirige en la misma pestaña donde el usuario pagó (no en la del dashboard). Si se apuntaba directo a `/dashboard/profile`, el usuario podía llegar sin cookie y ser redirigido a `/sign-in`. Esta página no requiere auth, muestra estado de transición y redirige automáticamente a `/dashboard/profile?section=subscription` en pocos segundos.
-
----
-
-### 6.3 Flujo de datos de `subscription` en el dashboard
-
-```
-Firestore
-  └─ stores/{storeId}.subscription  (Timestamps de Firebase Admin)
-       │
-       ▼
-profileServerService.getProfile()  [profile.server-service.ts]
-  └─ serializeProfile()  → convierte todos los Timestamps a ISO strings
-       │                   incluye cancelAtPeriodEnd
-       ▼
-page.tsx  (Server Component)
-  └─ pasa initialProfile como prop a ProfileForm
-       │
-       ▼
-useProfile hook
-  └─ setProfile(initialProfile)  → Zustand store (profile.subscription ✅)
-  └─ profileToFormData(initialProfile)  → React Hook Form (NO incluye subscription)
-       │
-       ├─► profile  (StoreProfile completo — tiene subscription)
-       └─► formData  (watch() de RHF — NO tiene subscription)
-            │
-            ▼
-       SubscriptionSection
-         └─ lee profile?.subscription  ← CORRECTO
-         └─ NO leer formData.subscription  ← siempre undefined
-```
-
----
-
-## 7. Estructura de datos en Firestore
-
-Campo `subscription` dentro del documento `/stores/{storeId}`:
+Campo `subscription` en `/stores/{storeId}`:
 
 ```typescript
 subscription: {
-  active: boolean;              // true = acceso habilitado
-  plan: "free" | "trial" | "basic" | "pro" | "enterprise";
-  paymentStatus: "pending" | "authorized" | "paused" | "cancelled" | "expired";
-  cancelAtPeriodEnd: boolean;   // true = soft-cancel marcado; NO se toca paymentStatus
-  startDate: Timestamp;
-  endDate: Timestamp;           // próxima fecha de cobro / vencimiento
-  lastPaymentDate?: Timestamp;
-  trialUsed: boolean;
-  graceUntil?: Timestamp;       // período de gracia por pago fallido
-  billing: {
-    provider: "mercadopago";
-    subscriptionId: string;     // ID del PreApproval de MP
-    payerEmail: string;
+  active: boolean;              // true = habilitado; false = suspendido (dashboard + catálogo)
+  plan: "trial" | "pro";        // NO existe "free"; se mantiene el plan al suspender
+  paymentStatus?: "trial" | "pending" | "authorized" | "paused" | "cancelled" | "expired";
+  cancelAtPeriodEnd?: boolean;  // true = soft-cancel marcado (no cambia paymentStatus)
+  trialUsed?: boolean;          // marca histórica del trial
+  startDate?: Timestamp;
+  endDate?: Timestamp;          // próxima fecha de cobro / vencimiento
+  lastPaymentDate?: Timestamp;  // último pago confirmado (buffer anti race-condition)
+  graceUntil?: Timestamp;       // fin del período de gracia por pago fallido
+  billing?: {
+    provider: "mercadopago" | "none";
+    subscriptionId?: string;    // ID del PreApproval de MP
+    pendingPlan?: "pro";        // plan contratado aún no confirmado por pago
+    payerEmail?: string;
     autoRenew: boolean;
   };
 }
 ```
 
-Notificaciones en `/stores/{storeId}/notifications/{notifId}`:
+> **Timestamps:** las Functions escriben siempre `Timestamp` de Firestore. El servicio del frontend (`profile.server-service.ts → serializeTimestamp`) los convierte a ISO string para los Client Components. Desde junio 2026 `serializeTimestamp` **también** acepta strings ISO (compatibilidad con tiendas legacy creadas con `new Date().toISOString()`).
+
+Notificaciones en `/stores/{storeId}/notifications/{id}`:
 
 ```typescript
 {
-  type: "payment_success" | "payment_failed" | "subscription_cancelled"
-      | "subscription_expired" | "subscription_reactivated"
-      | "trial_started" | "trial_expired";
+  type: "trial_started" | "trial_expired" | "payment_success" | "payment_failed"
+      | "subscription_cancelled" | "subscription_expired" | "subscription_reactivated";
   message: string;
   read: boolean;
   createdAt: Timestamp;
 }
 ```
 
----
-
-## 8. Qué funciona hoy
-
-| Feature | Estado | Notas |
-|---------|--------|-------|
-| Crear PreApproval en MP | ✅ | `createSubscription` deployada |
-| Recibir webhook de MP | ✅ | `mpWebhook` deployada |
-| Actualizar Firestore al autorizar pago | ✅ | `handlePreapproval` + `handleAuthorizedPayment` |
-| Actualizar Firestore al cancelar (webhook MP) | ✅ | `STATUS_MAP.cancelled` |
-| Renovación mensual por webhook `payment` | ✅ | `handlePayment` — usa `next_payment_date` del PreApproval |
-- Scheduler **cada hora** de vencimientos | ✅ | Máximo 59 min de desfasaje desde el vencimiento real |
-| Cancelación soft-cancel por el usuario | ✅ | `cancelSubscription` — solo Firestore, no toca MP |
-| Reactivación sin nuevo pago | ✅ | `reactivateSubscription` — revierte `cancelAtPeriodEnd` |
-| UI card de suscripción en dashboard | ✅ | Verde (activo), naranja (cancelado-vigente), naranja (pending) |
-| Página de confirmación post-MP | ✅ | `/suscripcion/confirmacion` |
-| Serialización de `cancelAtPeriodEnd` en server service | ✅ | `serializeProfile()` lo incluye |
-| UI de notificaciones (campana) | ✅ | `NotificationBell.tsx` con `onSnapshot` |
-| Reglas Firestore para `/notifications` | ✅ | Rules desplegadas con compatibilidad legacy de owner |
+Idempotencia del webhook en `/_mpWebhookEvents/{eventId}`: cada evento se registra con `create()` (falla si ya existe → se ignora el duplicado).
 
 ---
 
-## 9. Bugs conocidos y pendientes
+## 11. Webhook de MercadoPago en detalle
 
-### BUG-02 — Pagos de prueba rechazados en sandbox
+### 11.1 Topics (validados contra la doc oficial MLA)
 
-**Severidad:** Media — bloquea testing end-to-end, no afecta producción  
-**Estado:** No resuelto
+Esta integración usa **suscripción sin plan asociado** (PreApproval creado directo, sin `preapproval_plan_id`). Según MP, los topics correctos son:
 
-El PreApproval se crea correctamente, pero al intentar pagar MP cancela automáticamente (~15 seg) sin procesar el cobro.
+| Topic | Cuándo | Handler |
+|-------|--------|---------|
+| `subscription_preapproval` | Alta/cambio de estado de la suscripción (pending/authorized/paused/cancelled) | `handlePreapproval` |
+| `subscription_authorized_payment` | Pago recurrente autorizado | `handleAuthorizedPayment` |
+| `payment` | Pago individual aprobado (cobro mensual) | `handlePayment` |
 
-**Hipótesis más probable:** el `ACCESS_TOKEN` corresponde a una cuenta real (no test user de MP). Para sandbox correcto, el collector también debe ser un test user con su propio Access Token de prueba.
+> No se usa `subscription_preapproval_plan` (ese topic es solo para integraciones **con** plan asociado).
 
-**Para resolver:** obtener Access Token de un test user vendedor desde el panel de MP, o probar directamente en producción con un pago real de bajo monto.
+### 11.2 Seguridad
 
----
+| Check | Si falla |
+|-------|----------|
+| `MERCADO_PAGO_WEBHOOK_SECRET` configurado | 401 (sin bypass en producción) |
+| Headers `x-signature` + `x-request-id` presentes | 401 |
+| `x-signature` bien formado (`ts=...,v1=...`) | 401 |
+| `ts` con < 5 min de antigüedad (anti-replay) | 401 |
+| HMAC-SHA256 del manifest coincide (`timingSafeEqual`) | 401 |
+| Error en el handler | **200** (evita reintentos que dupliquen eventos) |
 
-### PENDIENTE-01 — Activación del trial
+**Manifest firmado por MP** (el `data.id` viene del **query param** `?data.id=`, no del body):
 
-El tipo `trial` y el campo `trialUsed` están definidos pero no hay lógica que active el trial. No implementado en UI. Implementar si se decide ofrecer período de prueba.
+```
+manifest = "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
+firma    = HMAC-SHA256(MERCADO_PAGO_WEBHOOK_SECRET, manifest)  → hex
+header   = "ts=<ts>,v1=<firma>"
+```
 
----
+### 11.3 Idempotencia
 
-### PENDIENTE-02 — Webhook URL configurada en MP
-
-✅ Resuelto. Webhook de producción configurado hacia:
-`https://southamerica-east1-tutiendaweb-dev.cloudfunctions.net/mpWebhook`
-
-Topics activos: `subscription_preapproval`, `subscription_authorized_payment`, `payment`.
-
----
-
-### PENDIENTE-03 — Período de gracia no tiene UI
-
-✅ Resuelto. Se agrego un banner de gracia en `SubscriptionSection.tsx` cuando `graceUntil` existe y esta en el futuro.
-
----
-
-## 10. Pasos para llegar a producción
-
-En orden de prioridad:
-
-1. ✅ **Deploy Firestore rules** (fix `NotificationBell` permission error):
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
-
-2. ✅ **Deploy functions actualizadas** (cancelSubscription + reactivateSubscription + checkSubscriptions + mpWebhook + createSubscription):
-   ```bash
-   firebase deploy --only functions:cancelSubscription,functions:reactivateSubscription,functions:checkSubscriptions,functions:mpWebhook
-   ```
-
-3. **Push código Next.js a Vercel** — incluye cambios en `SubscriptionSection.tsx`, `NotificationBell.tsx`, `suscripcion/confirmacion/page.tsx`, `suscripcion/confirmacion/AutoRedirectToSubscription.tsx`
-
-4. **Corregir Firestore del usuario de prueba** (`maxiaramayolazo@hotmail.com`):
-   ```
-   subscription.active = true
-   subscription.paymentStatus = "authorized"
-   subscription.cancelAtPeriodEnd = false
-   ```
-
-5. ✅ **Verificar URL del webhook en panel de MP**
-
-6. **Test en producción** — pagar con tarjeta real, verificar webhook, verificar Firestore, verificar UI del dashboard y redirección automática
+Antes de procesar, `shouldProcessWebhookEvent` hace `create()` en `/_mpWebhookEvents/{eventId}`. Si el doc ya existe (`ALREADY_EXISTS`), el evento es duplicado y se ignora. El `eventId` es `body.id` o, como fallback, `{type}:{dataId}:{action}`.
 
 ---
 
-## 12. Auditoría de producción (marzo 2026)
+## 12. Variables de entorno
 
-### Hallazgos críticos corregidos
+### Functions (`Funciones-google-tutiendaweb/.env` o secrets — NO commitear)
 
-1. Validación de owner incompleta en `cancelSubscription` / `reactivateSubscription`.
-  - Riesgo: un usuario autenticado podía intentar operar sobre `storeId` ajeno si el backend solo confiaba en `userId` enviado por cliente.
-  - Fix: validación server-side robusta con `auth.uid`, `auth.token.storeId` y fallback legacy (`ownerId`, `metadata.ownerId`, `userId`).
+```env
+MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...    # cuenta vendedora real
+MERCADO_PAGO_WEBHOOK_SECRET=<hex>        # MP Panel → Webhooks → "Clave secreta"
+APP_URL=https://tutiendaweb.com.ar       # base para back_url del PreApproval
+# MERCADO_PAGO_TEST_PAYER_EMAIL=...      # SOLO sandbox — en prod NO debe existir
+```
 
-2. Listener de notificaciones con `permission-denied` en tiendas legacy.
-  - Riesgo: error uncaught en dashboard y mala UX post-login.
-  - Fix: rules actualizadas con compatibilidad legacy de owner + manejo de error en `onSnapshot`.
+> Si `MERCADO_PAGO_TEST_PAYER_EMAIL` está presente, `createSubscription` **sobreescribe** el email del pagador con ese valor. **Verificar que NO esté seteada en producción.**
 
-### Hallazgos de UX corregidos
+### App Next.js (`.env.local`)
 
-1. Flujo de pago dependía de popup/prompt del navegador.
-  - Fix: input de `payer_email` embebido en la card de suscripción y redirección en misma pestaña.
-
-2. Confirmación post-MP no reflejaba bien el estado y exigía acción manual.
-  - Fix: redirección automática al dashboard con `preapproval_id` para refresco de estado.
-
-### Riesgos residuales (no bloqueantes)
-
-1. Trial aún no implementado end-to-end.
-2. Testing sandbox puede fallar si collector/payer no son test users compatibles.
-3. Se recomienda observabilidad adicional (alerta cuando webhook recibe 401 repetidos por firma inválida).
+No hay variables nuevas para suscripciones (se usa el SDK de Firebase Client con las `NEXT_PUBLIC_FIREBASE_*` existentes). Para la pantalla de acceso suspendido y soporte: `NEXT_PUBLIC_SUPPORT_NUMBER`.
 
 ---
 
-## 11. Cómo testear el flujo de vencimiento localmente
+## 13. Bug crítico de trial — diagnóstico y fix (junio 2026)
 
-El scheduler `checkSubscriptions` corre una vez al día, lo que hace difícil testear manualmente. La solución es manipular directamente Firestore para poner la suscripción en el estado correcto y luego disparar la function a mano.
+### Síntoma
+Al crear una cuenta nueva, la suscripción aparecía con `trialUsed: true` y el dashboard mostraba **"Acceso Suspendido" de inmediato**, sin dejar usar los 7 días de prueba.
 
-### Script de setup: `scripts/test-subscription-expiry.ts`
+### Causa raíz (cadena de 3 fallos)
 
-Este script setea en Firestore:
-- `endDate` = ahora + X minutos (configurable)
-- `cancelAtPeriodEnd = true` (para testear el camino A — cancelación voluntaria)
+1. **`createStore` creaba el store con `plan: "trial"` y fechas como ISO string** (`new Date().toISOString()`).
+2. **`initTrial` se salteaba:** su guard era `if (existingPlan && existingPlan !== "free") return;`. Como el plan ya venía como `"trial"`, la función retornaba sin inicializar nada → nunca escribía el `endDate` correcto ni corregía `trialUsed`.
+3. **`serializeTimestamp` no sabía leer el ISO string:** esperaba un `Timestamp` o un objeto `{_seconds}`. Al recibir un string caía en el fallback `return new Date().toISOString()`, devolviendo la **hora actual** en vez de "ahora + 7 días". En el dashboard, `endDateMs > now` daba `false` → `hasValidAccess: false` → bloqueo inmediato.
+
+### Fix aplicado
+
+| Archivo | Cambio |
+|---------|--------|
+| `store.service.ts` | `createStore` ahora inicializa el **trial completo con Timestamps reales** (Admin SDK): `active:true, plan:"trial", paymentStatus:"trial", endDate:now+7d`, y crea la notificación `trial_started`. Es la fuente de verdad del trial. |
+| `initTrial.ts` | Reconvertido en **red de seguridad**: si el store ya tiene `subscription.plan`, no hace nada. Solo inicializa stores creados sin `subscription` (import/admin/scripts). |
+| `profile.server-service.ts` | `serializeTimestamp` ahora acepta `string` ISO (compatibilidad con tiendas legacy). |
+
+> **Por qué este diseño:** tener una sola fuente de inicialización (`createStore`) con Timestamps reales elimina de raíz la causa del bug (duplicación de lógica + ISO strings + dependencia del timing del trigger). `initTrial` queda solo como respaldo idempotente.
+
+### Importante: aclaración sobre "credenciales inválidas"
+La autenticación (`getServerSession`) y la suscripción son **capas separadas**. Un trial vencido **no** invalida credenciales: el usuario **debe poder loguearse** y recién después ver "Acceso Suspendido". Si en algún caso aparecen "credenciales inválidas", es un problema **de auth** (cookie/claims/sesión), no de suscripción.
+
+### Migración de tiendas ya afectadas
+`initTrial` solo corre en `onDocumentCreated`, así que **no repara** stores ya creados con el bug. Para esos:
+- Si tienen `endDate` como string ISO con fecha futura válida → el fix de `serializeTimestamp` ya los lee bien.
+- Si tienen `endDate` corrupto → correr un script de migración que recalcule `endDate` y ponga `trialUsed: false`, `paymentStatus: "trial"`.
+
+---
+
+## 14. Hallazgos y estado
+
+> Detectados en la auditoría de junio 2026.
+
+### H-1 (Alta) — ✅ RESUELTO — Trial vencido dejaba el catálogo público ONLINE
+Antes, `checkSubscriptions` salteaba los planes `trial`, por lo que su `active` nunca pasaba a `false` y el catálogo seguía visible indefinidamente. **Fix:** el scheduler ahora procesa los trials vencidos (Camino TRIAL) seteando `active: false` y `paymentStatus: "expired"`, lo que apaga dashboard y catálogo de forma consistente.
+
+### H-2 (Media) — ✅ RESUELTO — `isFree` habilitaba el dashboard completo
+Se **eliminó el plan `free`** del modelo. Las suspensiones ya no setean `plan: "free"` (mantienen el plan + `active: false`), y el gate del dashboard ya no tiene la rama `isFree`. Una cuenta suspendida no recupera acceso por downgrade.
+
+### H-3 (Baja) — ✅ RESUELTO — La notificación `trial_expired` ahora se emite
+El Camino TRIAL del scheduler escribe la notificación `trial_expired` ("tu prueba de 7 días terminó") al suspender el trial.
+
+### H-4 (Baja) — ⚠️ ABIERTO — Componente de UI legacy `SubscriptionSection.tsx`
+La página real `/dashboard/subscription` usa `SubscriptionPageClient.tsx`. `SubscriptionSection.tsx` **no lo importa nadie** (código muerto). Se mantuvo compilando con el modelo nuevo, pero conviene **eliminarlo** en una limpieza posterior.
+
+### H-5 (Baja) — ⚠️ VERIFICAR EN PROD — `MERCADO_PAGO_TEST_PAYER_EMAIL`
+Si quedó seteada en el entorno de Functions de producción, fuerza el email del pagador. Verificar que **no** exista.
+
+### Nota de migración — tiendas legacy con `plan: "free"`
+Stores antiguos suspendidos quedaron con `plan: "free"` + `active: false`. Con el modelo nuevo siguen **sin acceso** (no son `pro` ni `trial` activos), así que el comportamiento es correcto sin migración. Si existiera algún `plan: "free"` con `active: true` (caso improbable), debe migrarse a `trial`/`pro` o quedará bloqueado. Recomendado: un script que liste `where("subscription.plan","==","free")` para auditarlos.
+
+---
+
+## 15. Cómo testear localmente
+
+### 15.1 Setup de una suscripción próxima a vencer
+
+Script `scripts/test-subscription-expiry.ts` (en el repo de la app) que setea en Firestore:
+- `endDate` = ahora + X minutos
 - `active = true`, `plan = "pro"`, `paymentStatus = "authorized"`
+- `cancelAtPeriodEnd = true` (para el Camino A)
 
 ```bash
-# Instalar dependencias si no están
-npm install --save-dev tsx
-
-# Correr el script (reemplazar con tu storeId real)
 STORE_ID=<tu-store-id> MINUTES=5 npx tsx scripts/test-subscription-expiry.ts
 ```
 
-Ver `scripts/test-subscription-expiry.ts` para el código completo.
+### 15.2 Disparar `checkSubscriptions` a mano
 
-### Cómo disparar `checkSubscriptions` a mano (sin esperar el scheduler)
-
-**Opción A — Firebase Console (más fácil):**
-1. Ir a [Firebase Console](https://console.firebase.google.com) → Functions
-2. Buscar `checkSubscriptions`
-3. Click en los tres puntos → "Test function"
-4. Enviar payload vacío `{}`
-
-**Opción B — Firebase CLI:**
 ```bash
-# Requiere tener las functions deployadas
-firebase functions:call checkSubscriptions --project <tu-project-id>
-```
+# CLI (functions deployadas)
+firebase functions:call checkSubscriptions --project <project-id>
 
-**Opción C — Emuladores locales (más control):**
-```bash
-# Terminal 1: levantar emuladores
+# Emuladores
 firebase emulators:start --only functions,firestore
-
-# Terminal 2: llamar la function directamente
 curl -X POST "http://localhost:5001/<project-id>/southamerica-east1/checkSubscriptions" \
-  -H "Content-Type: application/json" \
-  -d '{}'
+  -H "Content-Type: application/json" -d '{}'
 ```
 
-### Flujo de test completo (Camino A — cancelación voluntaria)
+### 15.3 Test del trial (regresión del bug de junio 2026)
 
 ```
-1. Correr script con MINUTES=3 para tu storeId
-   → endDate queda en 3 minutos, cancelAtPeriodEnd=true
-
-2. Entrar al dashboard → /dashboard/profile → Suscripción
-   → Debe mostrar card naranja "Renovación automática cancelada"
-   → Debe mostrar "Acceso hasta [fecha en 3 minutos]"
-
-3. (Opcional) Testear reactivación:
-   → Click "Reactivar suscripción"
-   → Firestore debe tener cancelAtPeriodEnd=false
-   → UI debe volver a mostrar card verde
-
-4. Si no reactivaste: esperar 3 minutos + disparar checkSubscriptions a mano
-   → Firestore debe tener active=false, plan=free, paymentStatus=cancelled
-   → UI debe mostrar CTA "Activar plan Profesional"
+1. Emuladores con functions + firestore.
+2. Completar el onboarding para crear una tienda nueva.
+3. Verificar en Firestore que el doc quedó con:
+     plan = "trial", active = true, paymentStatus = "trial",
+     endDate = ~7 días en el futuro (Timestamp), trialUsed = false
+4. Entrar al dashboard → NO debe mostrar "Acceso Suspendido".
+5. (Opcional) forzar endDate al pasado → recargar → debe mostrar "Acceso Suspendido".
 ```
 
-### Flujo de test completo (Camino C — pago fallido + gracia vencida)
+### 15.4 Test del webhook (firma)
 
-```
-1. Setear en Firestore manualmente:
-   subscription.active = true
-   subscription.plan = "pro"
-   subscription.paymentStatus = "authorized"
-   subscription.cancelAtPeriodEnd = false
-   subscription.endDate = <timestamp pasado>
-   subscription.graceUntil = <timestamp pasado>
-   subscription.lastPaymentDate = <hace más de 24hs>
-
-2. Disparar checkSubscriptions
-   → Firestore debe tener active=false, plan=free, paymentStatus=expired
-```
+El webhook rechaza con 401 todo lo que no tenga firma válida. Para probar localmente conviene usar la herramienta de simulación del panel de MP (envía firma real) apuntando a la URL del emulador expuesta con un túnel, o testear `validateMPSignature` unitariamente con un manifest y secret conocidos.
 
 ---
 
-> **Archivos clave para entender el sistema de un vistazo:**
-> - `functions/src/createSubscription.ts` — crea el PreApproval
-> - `functions/src/mpWebhook.ts` — procesa eventos de MP
-> - `functions/src/checkSubscriptions.ts` — scheduler de vencimientos (3 caminos)
-> - `functions/src/cancelSubscription.ts` — soft-cancel (solo Firestore)
-> - `functions/src/reactivateSubscription.ts` — revierte el soft-cancel
-> - `src/features/dashboard/modules/store-settings/components/sections/SubscriptionSection.tsx` — UI del dashboard
-> - `src/features/dashboard/modules/store-settings/services/server/profile.server-service.ts` — serialización de datos
-> - `src/app/suscripcion/confirmacion/page.tsx` — página de retorno de MP
-> - `scripts/test-subscription-expiry.ts` — setup de datos para testing
+## 16. Mapa de archivos
+
+**Functions** (`Funciones-google-tutiendaweb/src/`)
+- `types.ts` — tipos, planes, precios, constantes (`PAID_PLAN`, `TRIAL_DAYS`, `PLAN_PRICES`)
+- `initTrial.ts` — inicializa el trial al crear el store
+- `createSubscription.ts` — crea el PreApproval en MP
+- `mpWebhook.ts` — procesa eventos de MP (firma + idempotencia + 3 handlers)
+- `checkSubscriptions.ts` — scheduler horario de vencimientos (3 caminos)
+- `cancelSubscription.ts` / `reactivateSubscription.ts` — soft-cancel y reversión
+- `index.ts` — exporta todas las functions
+
+**App** (`TuTiendaWeb-public/src/`)
+- `features/auth/actions/auth.actions.ts` — `completeRegistrationAction`
+- `features/store/services/store.service.ts` — `createStore`
+- `app/dashboard/layout.tsx` — gate de acceso al dashboard
+- `app/dashboard/subscription/page.tsx` + `features/dashboard/modules/store-settings/components/SubscriptionPageClient.tsx` — UI de suscripción
+- `features/dashboard/modules/store-settings/services/server/profile.server-service.ts` — lectura + serialización de `subscription`
+- `app/[url]/page.tsx` + `features/store/services/public-store.service.ts` — gate del catálogo público
+- `app/suscripcion/confirmacion/page.tsx` — retorno de MP post-checkout

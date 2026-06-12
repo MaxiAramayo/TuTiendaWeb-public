@@ -129,10 +129,10 @@ export function SubscriptionSection({
 
   const subscription = profile?.subscription || formData.subscription || {
     active: false,
-    plan: 'free' as const,
+    plan: 'trial' as const,
     startDate: new Date().toISOString(),
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    trialUsed: false,
+    endDate: new Date().toISOString(),
+    trialUsed: true,
   };
 
   const isPro = subscription.plan === 'pro' && subscription.active;

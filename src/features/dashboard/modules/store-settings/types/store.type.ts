@@ -151,7 +151,7 @@ export interface SubscriptionInfoRaw {
   /** Estado activo */
   active: boolean;
   /** Plan actual */
-  plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
+  plan: 'trial' | 'pro';
   /** Estado del pago */
   paymentStatus?: 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
   /** Marcar para cancelar al vencer el período actual (soft-cancel) */
@@ -170,7 +170,7 @@ export interface SubscriptionInfoRaw {
     customerId?: string;
     subscriptionId?: string;
     /** Plan contratado pendiente de pago. Se promueve a plan cuando el webhook authorized llega. */
-    pendingPlan?: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
+    pendingPlan?: 'trial' | 'pro';
     payerEmail?: string;
     autoRenew: boolean;
   };
@@ -183,7 +183,7 @@ export interface SubscriptionInfo {
   /** Estado activo */
   active: boolean;
   /** Plan actual */
-  plan: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
+  plan: 'trial' | 'pro';
   /** Estado del pago */
   paymentStatus?: 'pending' | 'authorized' | 'paused' | 'cancelled' | 'expired';
   /** Marcar para cancelar al vencer el período actual (soft-cancel) */
@@ -202,7 +202,7 @@ export interface SubscriptionInfo {
     customerId?: string;
     subscriptionId?: string;
     /** Plan contratado pendiente de pago. Se promueve a plan cuando el webhook authorized llega. */
-    pendingPlan?: 'free' | 'trial' | 'basic' | 'pro' | 'enterprise';
+    pendingPlan?: 'trial' | 'pro';
     payerEmail?: string;
     autoRenew: boolean;
   };
