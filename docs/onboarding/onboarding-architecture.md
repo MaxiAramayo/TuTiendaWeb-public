@@ -51,9 +51,9 @@ src/
       page.tsx                         # Sin cambios (usa MultiStepRegister)
 docs/
   onboarding/
-    ONBOARDING_FUNCTIONALITY.md
-    ONBOARDING_DESIGN_UX.md
-    ONBOARDING_ARCHITECTURE.md         # Este archivo
+    onboarding-functionality.md
+    onboarding-design-ux.md
+    onboarding-architecture.md         # Este archivo
 ```
 
 ## Schema (onboarding.schema.ts)

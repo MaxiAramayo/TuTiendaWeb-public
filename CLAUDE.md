@@ -6,8 +6,8 @@ TuTiendaWeb es una plataforma SaaS para comercios (restaurantes, pymes) que perm
 ## Stack tecnológico
 - Frontend: Next.js 15 (App Router, Server Components, Server Actions), React 18, TypeScript, Tailwind CSS, Radix UI, shadcn/ui, Framer Motion, Sonner, react-hot-toast, Lucide, react-icons.
 - Estado / formularios: Zustand (solo estado de UI, excepción carrito público), React Hook Form, Zod como fuente única de verdad para validación y tipos.
-- Backend / servicios: Firebase (Firestore, Auth, Storage, Functions instalada pero sin uso), Firebase Admin SDK (server), Firebase Client SDK (cliente).
-- Integraciones: WhatsApp activo para checkout; MercadoPago preparado en la UI y schemas Zod pero sin SDK ni webhooks aún; jsPDF, xlsx, QRCode, qrcode.react.
+- Backend / servicios: Firebase (Firestore, Auth, Storage; las Cloud Functions viven en repo separado `Funciones-google-tutiendaweb`), Firebase Admin SDK (server), Firebase Client SDK (cliente).
+- Integraciones: WhatsApp activo para checkout; MercadoPago activo en producción para suscripciones (lógica en el repo de Functions, no en este repo); jsPDF, xlsx, QRCode, qrcode.react.
 
 ## Principios arquitectónicos (obligatorios)
 - Server-first: lectura inicial en Server Components; mutaciones solo en Server Actions (`'use server'`).
