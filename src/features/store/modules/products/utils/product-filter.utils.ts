@@ -74,8 +74,32 @@ export const groupProductsByCategory = (products: Product[]): GroupedProducts =>
 };
 
 /**
+ * Subagrupa los productos de una categoría por subcategoría.
+ *
+ * @param products - Productos de una misma categoría principal
+ * @returns Productos sin subcategoría + mapa de subcategoría -> productos
+ */
+export const groupProductsBySubcategory = (
+  products: Product[]
+): { withoutSubcategory: Product[]; bySubcategory: Record<string, Product[]> } => {
+  const withoutSubcategory: Product[] = [];
+  const bySubcategory: Record<string, Product[]> = {};
+
+  for (const product of products) {
+    if (product.subcategory) {
+      bySubcategory[product.subcategory] = bySubcategory[product.subcategory] || [];
+      bySubcategory[product.subcategory].push(product);
+    } else {
+      withoutSubcategory.push(product);
+    }
+  }
+
+  return { withoutSubcategory, bySubcategory };
+};
+
+/**
  * Filtra productos por rango de precios
- * 
+ *
  * @param products - Lista de productos a filtrar
  * @param priceRange - Rango de precios [min, max]
  * @returns Lista de productos filtrados

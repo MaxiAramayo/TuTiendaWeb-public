@@ -16,7 +16,7 @@ import { ProductModal } from './ProductModal';
 import CartDrawer from '../../../components/cart/CartDrawer';
 import CartFloatingButton from '../../../components/cart/CartFloatingButton';
 import AdvancedProductFilters from '../../../components/filters/AdvancedProductFilters';
-import { applyAdvancedFilters } from '../utils/product-filter.utils';
+import { applyAdvancedFilters, groupProductsBySubcategory } from '../utils/product-filter.utils';
 import { useFiltersStore } from '../../../store/filters.store';
 import { useCartStore } from '../../../store/cart.store';
 import { useProductModalStore } from '../../../store/product-modal.store';
@@ -107,6 +107,29 @@ const ProductList = ({ products, readOnly = false }: ProductListProps) => {
     openCart();
   };
 
+  /**
+   * Renderiza una grilla animada de productos (reutilizada por categoría y subcategoría)
+   */
+  const renderProductGrid = (gridProducts: Product[]) => (
+    <motion.div
+      className="grid grid-cols-1 md:grid-cols-2 gap-3"
+      variants={gridVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: '-20px' }}
+    >
+      {gridProducts.map((product) => (
+        <motion.div key={product.idProduct || product.id} variants={cardVariants}>
+          <ProductCard
+            product={product}
+            onOpenModal={handleOpenModal}
+            readOnly={readOnly}
+          />
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+
   // Si no hay productos, mostrar mensaje de error
   if (!products || products.length === 0) {
     return (
@@ -152,43 +175,43 @@ const ProductList = ({ products, readOnly = false }: ProductListProps) => {
         {/* Listado de productos */}
         {filteredProductData.hasProducts ? (
           <div className="space-y-8">
-            {/* Productos agrupados por categoría */}
-            {Object.entries(filteredProductData.groupedProducts).map(([category, categoryProducts]) => (
-              <motion.section
-                key={category}
-                aria-labelledby={`category-${category}`}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: '-40px' }}
-                variants={sectionVariants}
-              >
-                <h2
-                  id={`category-${category}`}
-                  className={`text-xl font-bold mb-4 border-l-4 ${themeClasses.border.primary} pl-3`}
-                  style={{ color: 'var(--store-accent)' }}
-                >
-                  {category}
-                </h2>
+            {/* Productos agrupados por categoría y, dentro, por subcategoría */}
+            {Object.entries(filteredProductData.groupedProducts).map(([category, categoryProducts]) => {
+              const { withoutSubcategory, bySubcategory } = groupProductsBySubcategory(categoryProducts);
+              const subcategoryNames = Object.keys(bySubcategory).sort((a, b) => a.localeCompare(b));
 
-                <motion.div
-                  className="grid grid-cols-1 md:grid-cols-2 gap-3"
-                  variants={gridVariants}
+              return (
+                <motion.section
+                  key={category}
+                  aria-labelledby={`category-${category}`}
                   initial="hidden"
                   whileInView="visible"
-                  viewport={{ once: true, margin: '-20px' }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  variants={sectionVariants}
                 >
-                  {categoryProducts.map((product) => (
-                    <motion.div key={product.idProduct || product.id} variants={cardVariants}>
-                      <ProductCard
-                        product={product}
-                        onOpenModal={handleOpenModal}
-                        readOnly={readOnly}
-                      />
-                    </motion.div>
+                  <h2
+                    id={`category-${category}`}
+                    className={`text-xl font-bold mb-4 border-l-4 ${themeClasses.border.primary} pl-3`}
+                    style={{ color: 'var(--store-accent)' }}
+                  >
+                    {category}
+                  </h2>
+
+                  {/* Productos de la categoría sin subcategoría */}
+                  {withoutSubcategory.length > 0 && renderProductGrid(withoutSubcategory)}
+
+                  {/* Subcategorías */}
+                  {subcategoryNames.map((subName) => (
+                    <div key={subName} className={subcategoryNames.length > 0 ? 'mt-6' : ''}>
+                      <h3 className="text-base font-semibold mb-3 text-gray-600 pl-3">
+                        {subName}
+                      </h3>
+                      {renderProductGrid(bySubcategory[subName])}
+                    </div>
                   ))}
-                </motion.div>
-              </motion.section>
-            ))}
+                </motion.section>
+              );
+            })}
           </div>
         ) : (
           // Mensaje cuando no hay resultados para los filtros aplicados

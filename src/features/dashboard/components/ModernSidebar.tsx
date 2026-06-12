@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   TrendingUp,
   Package,
+  FolderTree,
   Settings,
   Store,
   QrCode,
@@ -79,6 +80,13 @@ const navigationItems = [
     icon: Package,
     badge: null,
     description: "Administra tu inventario"
+  },
+  {
+    title: "Categorías",
+    href: "/dashboard/categories",
+    icon: FolderTree,
+    badge: null,
+    description: "Organiza tu catálogo"
   },
   {
     title: "Suscripción",

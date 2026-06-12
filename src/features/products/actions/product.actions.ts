@@ -12,6 +12,7 @@ import {
 } from '../services/product.service';
 import { getServerSession } from '@/lib/auth/server-session';
 import { adminStorage } from '@/lib/firebase/admin';
+import { isValidSubcategory } from '../services/category.service';
 
 // Tipo de respuesta estándar
 type ActionResponse<T = unknown> =
@@ -81,6 +82,7 @@ export async function createProductAction(
         price: formData.get('price'),
         costPrice: formData.get('costPrice'),
         categoryId: formData.get('categoryId'),
+        subcategoryId: formData.get('subcategoryId') || undefined,
         tags: formData.getAll('tags').map(t => {
             try { return JSON.parse(t as string); } catch { return t; }
         }).flat(),
@@ -101,6 +103,21 @@ export async function createProductAction(
             success: false,
             errors: validation.error.flatten().fieldErrors,
         };
+    }
+
+    // 3b. INTEGRIDAD: la subcategoría (si viene) debe pertenecer a la categoría elegida
+    if (validation.data.subcategoryId) {
+        const valid = await isValidSubcategory(
+            session.storeId,
+            validation.data.categoryId,
+            validation.data.subcategoryId
+        );
+        if (!valid) {
+            return {
+                success: false,
+                errors: { subcategoryId: ['La subcategoría no pertenece a la categoría elegida'] },
+            };
+        }
     }
 
     // 4. CREATE PRODUCT DOCUMENT FIRST (to get ID)
@@ -186,6 +203,7 @@ export async function updateProductAction(
         price: formData.get('price'),
         costPrice: formData.get('costPrice'),
         categoryId: formData.get('categoryId'),
+        subcategoryId: formData.get('subcategoryId') || undefined,
         tags: formData.getAll('tags').map(t => {
             try { return JSON.parse(t as string); } catch { return t; }
         }).flat(),
@@ -222,6 +240,31 @@ export async function updateProductAction(
 
         if (active !== undefined) {
             finalUpdateData.status = active ? 'active' : 'inactive';
+        }
+
+        // Subcategoría: solo en ediciones completas (que envían categoryId).
+        // Permite limpiarla explícitamente (vacío -> null) sin que quede el valor viejo.
+        if (formData.has('categoryId')) {
+            const rawCategory = formData.get('categoryId');
+            const rawSubcategory = formData.get('subcategoryId');
+            const subcategoryId = rawSubcategory ? String(rawSubcategory) : null;
+
+            // INTEGRIDAD: la subcategoría debe pertenecer a la categoría elegida
+            if (subcategoryId) {
+                const valid = await isValidSubcategory(
+                    session.storeId,
+                    String(rawCategory),
+                    subcategoryId
+                );
+                if (!valid) {
+                    return {
+                        success: false,
+                        errors: { subcategoryId: ['La subcategoría no pertenece a la categoría elegida'] },
+                    };
+                }
+            }
+
+            finalUpdateData.subcategoryId = subcategoryId;
         }
 
         // Handle images

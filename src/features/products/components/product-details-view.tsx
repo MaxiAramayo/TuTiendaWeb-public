@@ -31,6 +31,7 @@ export default function ProductDetailsView({ product: initialProduct, storeId }:
             formData.append('name', `${product.name} (Copia)`);
             formData.append('price', product.price.toString());
             formData.append('categoryId', product.categoryId);
+            if (product.subcategoryId) formData.append('subcategoryId', product.subcategoryId);
             if (product.description) formData.append('description', product.description);
             // Add other fields as needed
 

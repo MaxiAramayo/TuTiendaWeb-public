@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "emulators": "firebase emulators:start --project demo-tutiendaweb --import=./.emulator-data --export-on-exit=./.emulator-data",
+    "emulators:clean": "firebase emulators:start --project demo-tutiendaweb",
+    "seed:emulator": "tsx scripts/seed-emulator.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

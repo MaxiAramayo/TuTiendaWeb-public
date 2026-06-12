@@ -518,6 +518,11 @@ export const getPublicProducts = cache(async (storeId: string): Promise<Product[
       // Obtener nombre de categoría o usar el ID
       const categoryName = categoriesMap.get(productData.categoryId) || productData.categoryId || "Sin categoría";
 
+      // Nombre de subcategoría (hoja), si el producto pertenece a una
+      const subcategoryName = productData.subcategoryId
+        ? categoriesMap.get(productData.subcategoryId) || undefined
+        : undefined;
+
       // Mapear variants a topics para compatibilidad con componentes del frontend
       const topics = productData.variants?.map(variant => ({
         id: variant.id,
@@ -540,6 +545,7 @@ export const getPublicProducts = cache(async (storeId: string): Promise<Product[
         imageUrl: productData.imageUrls?.[0] || "",
         imageUrls: productData.imageUrls || [],
         category: categoryName,
+        subcategory: subcategoryName,
         available: productData.status === "active",
         tags: mappedTags,
         stock: productData.stockQuantity || 0,
