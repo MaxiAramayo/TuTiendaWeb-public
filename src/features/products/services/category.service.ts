@@ -20,15 +20,14 @@ export interface CategoryUsage {
     subcategoryCount: number;
 }
 
-function slugify(name: string): string {
+export function slugify(name: string): string {
     const slug = name
         .toLowerCase()
         .normalize('NFD')
         .replace(/[̀-ͯ]/g, '') // quita acentos
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
-    // Fallback si el nombre no produce slug (ej. caracteres no latinos)
-    return slug || `categoria-${Date.now()}`;
+    return slug || `slug-${Date.now()}`;
 }
 
 /** Normaliza un nombre para comparar duplicados (sin mayúsculas ni espacios extra). */

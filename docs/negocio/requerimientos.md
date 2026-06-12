@@ -19,6 +19,7 @@ Los requerimientos funcionales definen lo que el sistema **debe hacer** desde la
 | RF03   | El sistema debe permitir eliminar un producto.                                                  |
 | RF04   | El sistema debe listar todos los productos disponibles en una tabla filtrable y ordenable.      |
 | RF05   | El sistema debe permitir visualizar el catálogo de productos públicamente (modo tienda online). |
+| RF32   | El sistema debe permitir importar productos de forma masiva desde un archivo Excel (.xlsx), con un límite de 300 productos por tienda. El sistema debe validar cada fila, crear automáticamente las categorías/subcategorías/tags inexistentes, informar las filas inválidas antes de confirmar, y aplicar el límite tanto por archivo como por total de productos en la tienda. |
 
 ---
 
