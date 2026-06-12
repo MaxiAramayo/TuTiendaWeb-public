@@ -133,7 +133,22 @@
 
 
 ---
-### ➕ CU-PROD-06 – Añadir opciones/extras con valor al producto
+
+### ✅ CU-PROD-06 – Importar Productos desde Excel
+
+| Ítem | Descripción |
+|---|---|
+| 🆔 **Código** | CU-PROD-06 |
+| 👤 **Actor** | Dueño de Tienda |
+| 📋 **Descripción** | Permite cargar múltiples productos de forma masiva subiendo un archivo Excel (.xlsx). El sistema valida cada fila, resuelve o crea las categorías/subcategorías/tags que no existan, y crea todos los productos válidos en un solo paso. |
+| 📌 **Precondición** | El usuario debe estar autenticado y tener una tienda con menos de 300 productos en total. |
+| 🎯 **Postcondición** | Los productos válidos quedan guardados en Firestore. Categorías, subcategorías y tags inexistentes se crean automáticamente. La lista de productos se actualiza en pantalla sin necesidad de recargar la página. |
+| 📑 **Flujo principal** | 1. El dueño abre el modal "Importar Excel" desde la pantalla de Productos. 2. Descarga la plantilla (.xlsx) con el formato esperado (nombre, descripción, precio, costo, categoría, subcategoría, tags, activo). 3. Completa la plantilla y la sube (drag & drop o selección de archivo). 4. El sistema parsea el archivo y muestra una vista previa: filas válidas e inválidas. 5. Si hay filas inválidas, se muestra cuántas son y se pide confirmación para continuar solo con las válidas. 6. El dueño confirma y el sistema crea todos los productos válidos. 7. Se muestra pantalla de resultado con cantidad de productos, categorías y tags creados. |
+| ⚠️ **Flujos alternativos** | 3a: Archivo con más de 300 filas → error inmediato, no se importa nada. 4a: El total (existentes + nuevos) supera 300 → error indicando cuántos espacios quedan. 5a: El dueño cancela la confirmación de filas inválidas → no se importa nada. 6a: Error en servidor → toast de error, se puede reintentar. 7a: El dueño cancela antes de confirmar → no se realiza ningún cambio. |
+
+---
+
+### ➕ CU-PROD-07 – Añadir opciones/extras con valor al producto
 
 | Ítem              | Descripción                                                                 |
 |-------------------|-----------------------------------------------------------------------------|

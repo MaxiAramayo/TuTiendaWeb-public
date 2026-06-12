@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useTransition } from 'react';
+import React, { useState, useCallback, useMemo, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, Download, Upload, Package, X } from 'lucide-react';
 import { Product, Category, Tag } from '@/shared/types/firebase.types';
 import ProductGrid from './product-grid';
 import ProductDataTable from './product-data-table';
 import ProductViewToggle from './product-view-toggle';
+import ProductImportDialog from './product-import-dialog';
 import { toast } from 'sonner';
 import { deleteProductAction, toggleProductStatusAction } from '../actions/product.actions';
 
@@ -27,6 +28,10 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
     const [products, setProducts] = useState<Product[]>(initialProducts);
     const [categories, setCategories] = useState<Category[]>(initialCategories);
     const [tags, setTags] = useState<Tag[]>(initialTags);
+
+    useEffect(() => { setProducts(initialProducts); }, [initialProducts]);
+    useEffect(() => { setCategories(initialCategories); }, [initialCategories]);
+    useEffect(() => { setTags(initialTags); }, [initialTags]);
     const [viewType, setViewType] = useState<'grid' | 'list'>('list');
     const [searchInput, setSearchInput] = useState('');
     const [showFilters, setShowFilters] = useState(false);
@@ -34,6 +39,7 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
     const [selectedSubcategory, setSelectedSubcategory] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
     const [isPending, startTransition] = useTransition();
+    const [showImportDialog, setShowImportDialog] = useState(false);
 
     // Categorías principales y subcategorías de la principal seleccionada
     const parentCategories = useMemo(
@@ -143,7 +149,15 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex items-center space-x-2 sm:space-x-4">
+                            <div className="flex items-center space-x-2 sm:space-x-3">
+                                <button
+                                    onClick={() => setShowImportDialog(true)}
+                                    className="inline-flex items-center px-3 py-2 sm:px-5 sm:py-3 bg-white text-gray-700 text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
+                                >
+                                    <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                                    <span className="hidden sm:inline">Importar Excel</span>
+                                    <span className="sm:hidden">Excel</span>
+                                </button>
                                 <button
                                     onClick={handleCreateProduct}
                                     className="inline-flex items-center px-4 py-2 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm sm:text-lg font-bold rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -339,6 +353,14 @@ const ProductsMain: React.FC<ProductsMainProps> = ({
                     </div>
                 </div>
             </div >
+
+            {showImportDialog && (
+                <ProductImportDialog
+                    currentProductCount={stats.totalProducts}
+                    onClose={() => setShowImportDialog(false)}
+                    onSuccess={() => router.refresh()}
+                />
+            )}
         </div >
     );
 };
