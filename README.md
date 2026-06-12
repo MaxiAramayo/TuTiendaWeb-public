@@ -92,9 +92,11 @@ cp env.example .env.local
 | `FIREBASE_PROJECT_ID` | ID del proyecto (Admin SDK) |
 | `FIREBASE_CLIENT_EMAIL` | Email de la service account |
 | `FIREBASE_PRIVATE_KEY` | Private key de la service account (`\n` como saltos de línea) |
-| `MERCADOPAGO_ACCESS_TOKEN` | Token de acceso de MercadoPago |
-| `MERCADOPAGO_WEBHOOK_SECRET` | Secret para verificar webhooks |
 | `NEXT_PUBLIC_APP_URL` | URL base de la app (`https://tutiendaweb.com.ar`) |
+
+> Las credenciales de MercadoPago (`MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_WEBHOOK_SECRET`)
+> no viven en esta app: la integración de suscripciones corre en el repo de Cloud Functions
+> `Funciones-google-tutiendaweb`. Ver [`docs/arquitectura/suscripciones.md`](docs/arquitectura/suscripciones.md).
 
 
 ---
@@ -172,6 +174,13 @@ El proyecto sigue un patrón **server-first** con Next.js App Router:
 2. **Server Actions** — todas las mutaciones (patrón AUTH → VALIDATE → MUTATE → REVALIDATE)
 3. **Zod** — fuente única de verdad para tipos y validación
 4. **Zustand** — solo estado de UI (sidebar, modals, filtros)
+
+---
+
+## 📚 Documentación
+
+La documentación técnica y funcional vive en [`docs/`](docs/README.md): arquitectura,
+módulos, modelos de datos, suscripciones, onboarding y guías.
 
 ---
 
