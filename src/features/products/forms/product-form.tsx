@@ -48,6 +48,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
     // UI states
     const [newCategory, setNewCategory] = useState('');
     const [showAddCategory, setShowAddCategory] = useState(false);
+    const [newSubcategory, setNewSubcategory] = useState('');
+    const [showAddSubcategory, setShowAddSubcategory] = useState(false);
     const [newVariant, setNewVariant] = useState({ name: '', price: 0 });
     const [newTag, setNewTag] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,6 +70,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             price: product?.price || 0,
             costPrice: product?.costPrice || 0,
             categoryId: product?.categoryId || '',
+            subcategoryId: product?.subcategoryId || '',
             images: [],
             variants: product?.variants || [],
             tags: product?.tags || [],
@@ -81,6 +84,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
     const currentTags = watch('tags');
     const currentVariants = watch('variants');
     const currentImages = watch('images');
+    const currentCategoryId = watch('categoryId');
+    const currentSubcategoryId = watch('subcategoryId');
+
+    // Categorías principales (sin parentId) y subcategorías de la principal elegida
+    const parentCategories = React.useMemo(
+        () => availableCategories.filter(c => !c.parentId),
+        [availableCategories]
+    );
+    const subcategories = React.useMemo(
+        () => availableCategories.filter(c => c.parentId === currentCategoryId),
+        [availableCategories, currentCategoryId]
+    );
 
     // Sync availableCategories and availableTags with props when they change
     useEffect(() => {
@@ -91,6 +106,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
         setAvailableTags(initialTags);
     }, [initialTags]);
 
+    // Si la subcategoría seleccionada ya no pertenece a la categoría principal, limpiarla
+    useEffect(() => {
+        if (currentSubcategoryId && !subcategories.some(s => s.id === currentSubcategoryId)) {
+            setValue('subcategoryId', '');
+        }
+    }, [currentCategoryId, currentSubcategoryId, subcategories, setValue]);
+
     useEffect(() => {
         if (product) {
             reset({
@@ -99,6 +121,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 price: product.price || 0,
                 costPrice: product.costPrice || 0,
                 categoryId: product.categoryId || '',
+                subcategoryId: product.subcategoryId || '',
                 images: [],
                 variants: product.variants || [],
                 tags: product.tags || [],
@@ -112,18 +135,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
     const addCategory = async () => {
         if (newCategory.trim()) {
             try {
-                const result = await createCategoryAction({ name: newCategory.trim() });
-                const newCat: Category = {
-                    id: result.id,
-                    name: result.name,
-                    storeId,
-                    slug: result.name.toLowerCase().replace(/\s+/g, '-'),
-                    isActive: true,
-                    createdAt: {} as any,
-                    updatedAt: {} as any
-                };
+                const result = await createCategoryAction({ name: newCategory.trim(), parentId: null });
+                if (!result.success) {
+                    toast.error(result.errors._form?.[0] ?? 'Error al crear la categoría');
+                    return;
+                }
+                const newCat = result.data;
                 setAvailableCategories(prev => [...prev, newCat]);
                 setValue('categoryId', newCat.id);
+                setValue('subcategoryId', '');
                 setNewCategory('');
                 setShowAddCategory(false);
                 toast.success('Categoría creada exitosamente');
@@ -133,6 +153,35 @@ const ProductForm: React.FC<ProductFormProps> = ({
             }
         }
     };
+
+    const addSubcategory = async () => {
+        if (!currentCategoryId) {
+            toast.error('Primero elegí una categoría principal');
+            return;
+        }
+        if (newSubcategory.trim()) {
+            try {
+                const result = await createCategoryAction({
+                    name: newSubcategory.trim(),
+                    parentId: currentCategoryId,
+                });
+                if (!result.success) {
+                    toast.error(result.errors._form?.[0] ?? 'Error al crear la subcategoría');
+                    return;
+                }
+                const newSub = result.data;
+                setAvailableCategories(prev => [...prev, newSub]);
+                setValue('subcategoryId', newSub.id);
+                setNewSubcategory('');
+                setShowAddSubcategory(false);
+                toast.success('Subcategoría creada exitosamente');
+                router.refresh(); // Reload server data
+            } catch (error) {
+                toast.error('Error al crear la subcategoría');
+            }
+        }
+    };
+
 
     const addTag = async () => {
         if (newTag.trim()) {
@@ -333,48 +382,114 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b pb-2">Categorización</h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <div className="flex justify-between items-center mb-1">
-                                <label className="block text-sm font-medium text-gray-700">Categoría *</label>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddCategory(!showAddCategory)}
-                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
-                                >
-                                    <Plus className="w-3 h-3 mr-1" />
-                                    Nueva
-                                </button>
-                            </div>
-
-                            {showAddCategory && (
-                                <div className="mb-3 flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={newCategory}
-                                        onChange={(e) => setNewCategory(e.target.value)}
-                                        className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Nombre de categoría"
-                                    />
+                        <div className="space-y-4">
+                            {/* Categoría principal */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-sm font-medium text-gray-700">Categoría *</label>
                                     <button
                                         type="button"
-                                        onClick={addCategory}
-                                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                                        onClick={() => setShowAddCategory(!showAddCategory)}
+                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
                                     >
-                                        Crear
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Nueva
                                     </button>
                                 </div>
-                            )}
 
-                            <select
-                                {...register('categoryId')}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
-                            >
-                                <option value="">Seleccionar categoría</option>
-                                {availableCategories.map(cat => (
-                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                ))}
-                            </select>
-                            {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId.message}</p>}
+                                {showAddCategory && (
+                                    <div className="mb-3 flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={newCategory}
+                                            onChange={(e) => setNewCategory(e.target.value)}
+                                            className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Nombre de categoría"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    addCategory();
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={addCategory}
+                                            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                                        >
+                                            Crear
+                                        </button>
+                                    </div>
+                                )}
+
+                                <select
+                                    {...register('categoryId')}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                                >
+                                    <option value="">Seleccionar categoría</option>
+                                    {parentCategories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                                {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId.message}</p>}
+                            </div>
+
+                            {/* Subcategoría (opcional) — solo si hay categoría principal elegida */}
+                            {currentCategoryId && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Subcategoría <span className="text-gray-400 font-normal">(opcional)</span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAddSubcategory(!showAddSubcategory)}
+                                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                                        >
+                                            <Plus className="w-3 h-3 mr-1" />
+                                            Nueva
+                                        </button>
+                                    </div>
+
+                                    {showAddSubcategory && (
+                                        <div className="mb-3 flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={newSubcategory}
+                                                onChange={(e) => setNewSubcategory(e.target.value)}
+                                                className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Nombre de subcategoría"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        addSubcategory();
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={addSubcategory}
+                                                className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                                            >
+                                                Crear
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <select
+                                        {...register('subcategoryId')}
+                                        disabled={subcategories.length === 0 && !showAddSubcategory}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        <option value="">
+                                            {subcategories.length === 0 ? 'Sin subcategorías' : 'Sin subcategoría'}
+                                        </option>
+                                        {subcategories.map(sub => (
+                                            <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         <div>

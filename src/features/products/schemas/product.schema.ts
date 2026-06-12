@@ -7,6 +7,11 @@ export const productSchema = z.object({
     price: z.coerce.number().positive('Precio debe ser positivo'),
     costPrice: z.coerce.number().min(0, 'El costo no puede ser negativo').default(0),
     categoryId: z.string().min(1, 'Categoría requerida'),
+    // Subcategoría opcional (hoja). Cadena vacía se normaliza a undefined.
+    subcategoryId: z.preprocess(
+        (v) => (v === '' || v === null ? undefined : v),
+        z.string().optional()
+    ),
     tags: z.array(z.string()).default([]),
     variants: z.array(z.object({
         id: z.string(),

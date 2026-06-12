@@ -332,13 +332,18 @@ const ProductDataTable: React.FC<ProductDataTableProps> = ({
                                                 {formatPrice(product.price)}
                                             </div>
                                         </div>
-                                        <div className="md:hidden">
+                                        <div className="md:hidden flex flex-wrap gap-1">
                                             {product.categoryId ? (
                                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                                                     {categoryNames[product.categoryId] || product.categoryId}
                                                 </Badge>
                                             ) : (
                                                 <span className="text-gray-400 text-xs">Sin categoría</span>
+                                            )}
+                                            {product.subcategoryId && (
+                                                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                                                    {categoryNames[product.subcategoryId] || product.subcategoryId}
+                                                </Badge>
                                             )}
                                         </div>
                                     </div>
@@ -357,13 +362,20 @@ const ProductDataTable: React.FC<ProductDataTableProps> = ({
                                     </div>
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell py-2 sm:py-4">
-                                    {product.categoryId ? (
-                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                                            {categoryNames[product.categoryId] || product.categoryId}
-                                        </Badge>
-                                    ) : (
-                                        <span className="text-gray-400 text-xs">Sin categoría</span>
-                                    )}
+                                    <div className="flex flex-wrap gap-1">
+                                        {product.categoryId ? (
+                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                                                {categoryNames[product.categoryId] || product.categoryId}
+                                            </Badge>
+                                        ) : (
+                                            <span className="text-gray-400 text-xs">Sin categoría</span>
+                                        )}
+                                        {product.subcategoryId && (
+                                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                                                {categoryNames[product.subcategoryId] || product.subcategoryId}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </TableCell>
                                 <TableCell className="py-2 sm:py-4">
                                     {renderStatusBadge(product.status)}

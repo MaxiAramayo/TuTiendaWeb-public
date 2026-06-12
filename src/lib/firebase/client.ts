@@ -59,6 +59,27 @@ export { db };
 export const storage = getStorage(app);
 
 /**
+ * Conexión a los emuladores de Firebase (solo en desarrollo local).
+ * Se activa con NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true.
+ * El guard global evita reconectar en cada HMR.
+ */
+if (
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true' &&
+  !(globalThis as any).__FIREBASE_EMULATORS_CONNECTED__
+) {
+  try {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
+    (globalThis as any).__FIREBASE_EMULATORS_CONNECTED__ = true;
+    console.log('🔌 Firebase conectado a los emuladores locales');
+  } catch (error) {
+    console.warn('⚠️ No se pudo conectar a los emuladores de Firebase:', error);
+  }
+}
+
+/**
  * Función para reconectar Firestore de forma segura usando el mutex
  */
 export const reconnectFirestore = async (): Promise<void> => {
