@@ -42,7 +42,7 @@ export default async function Carta({
   const products = await getStoreProducts(storeId);
 
   return (
-    <StoreThemeProvider themeData={storeData.theme}>
+    <StoreThemeProvider themeData={storeData.theme} storeType={storeData.basicInfo?.type}>
       <div className="bg-gray-100 h-screen overflow-auto">
         <HeaderWelcome store={storeData} />
         <ProductList products={products} readOnly />

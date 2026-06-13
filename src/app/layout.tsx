@@ -32,6 +32,12 @@ export const metadata: Metadata = {
   description:
     "Digitalizá tu restaurante o comercio con TuTiendaWeb. Catálogo QR, pedidos por WhatsApp y gestión de ventas desde cualquier dispositivo.",
   metadataBase: new URL("https://tutiendaweb.com.ar"),
+  // Íconos por defecto de la marca. Las rutas hijas (ej. la tienda pública)
+  // pueden sobreescribir `icons` para usar el logo del comercio.
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 /**
@@ -54,12 +60,6 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head>
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#7c3aed" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon.png"
-        />
         {/* JSON-LD — Organization + WebSite para rich results */}
         <script
           type="application/ld+json"

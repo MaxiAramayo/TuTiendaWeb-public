@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import { useThemeClasses } from "../../hooks/useStoreTheme";
+import { useStoreThemeOptional } from "../ThemeProvider";
+import { getCheckoutNotesPlaceholder } from "../../utils/store-placeholders";
 import { formatPrice } from "@/features/products/utils/product.utils";
 import {
   CreditCard,
@@ -191,6 +193,7 @@ export const CheckoutForm = ({
   const [isPending, startTransition] = useTransition();
   const { clearCart } = useCartStore();
   const themeClasses = useThemeClasses();
+  const notesPlaceholder = getCheckoutNotesPlaceholder(useStoreThemeOptional()?.storeType);
 
   // Configuración con fallbacks + deduplicación para evitar entradas duplicadas en Firestore
   const rawPaymentMethods = storeSettings?.paymentMethods || defaultPaymentMethods;
@@ -493,7 +496,7 @@ export const CheckoutForm = ({
             </Label>
             <Textarea
               id="aclaracion"
-              placeholder="Preferencias, alergias, instrucciones especiales..."
+              placeholder={notesPlaceholder}
               className="resize-none bg-gray-50 border-gray-200 focus-visible:ring-[var(--store-primary)]"
               rows={2}
               {...register("aclaracion")}

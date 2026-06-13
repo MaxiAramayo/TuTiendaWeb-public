@@ -7,6 +7,7 @@
  * @module app/[url]
  */
 
+import type { Metadata } from "next";
 import { getPublicStoreBySlug as getStoreBySlug, getPublicProducts as getStoreProducts } from "@/features/store/services/public-store.service";
 import { Product } from "@/shared/types/store";
 import ErrorNotFound from "@/features/store/ui/ErrorNotFound";
@@ -14,6 +15,43 @@ import ErrorNotAvailable from "@/features/store/ui/ErrorNotAvailable";
 import { HeaderWelcome } from '@/features/store/components/HeaderWelcome';
 import { StoreThemeProvider } from '@/features/store/components/ThemeProvider';
 import ProductList from "@/features/store/modules/products/components/ProductList";
+
+/**
+ * Metadata por tienda: el título lleva el nombre del comercio y, al compartir
+ * el link, el ícono/preview usa el logo del comercio (fallback a TuTiendaWeb).
+ *
+ * Reutiliza el fetch cacheado de getStoreBySlug, por lo que no agrega lecturas.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ url: string }>;
+}): Promise<Metadata> {
+  const { url } = await params;
+  const store = await getStoreBySlug(url);
+
+  if (!store) {
+    return { title: "Tienda no encontrada" };
+  }
+
+  const name = store.basicInfo?.name || "Tienda";
+  const description =
+    store.basicInfo?.description ||
+    `Mirá el catálogo de ${name} y hacé tu pedido por WhatsApp.`;
+  const logoUrl = store.theme?.logoUrl;
+
+  return {
+    title: name,
+    description,
+    ...(logoUrl ? { icons: { icon: logoUrl } } : {}),
+    openGraph: {
+      title: name,
+      description,
+      type: "website",
+      ...(logoUrl ? { images: [{ url: logoUrl }] } : {}),
+    },
+  };
+}
 
 /**
  * Página principal de la tienda
@@ -50,7 +88,7 @@ export default async function Tienda({
   const products = await getStoreProducts(storeId);
 
   return (
-    <StoreThemeProvider themeData={storeData.theme}>
+    <StoreThemeProvider themeData={storeData.theme} storeType={storeData.basicInfo?.type}>
       <div
         className="flex flex-col min-h-screen gap-6"
         style={{

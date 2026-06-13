@@ -300,6 +300,7 @@ export interface PublicStoreData {
     name: string;
     slug: string;
     description?: string;
+    type?: string;
   };
   contactInfo?: {
     whatsapp?: string;
