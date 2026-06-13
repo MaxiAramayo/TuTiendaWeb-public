@@ -158,7 +158,7 @@ export async function updateSaleAction(
  */
 export async function deleteSaleAction(
   saleId: string
-): Promise<ActionResponse<{ success: boolean }>> {
+): Promise<ActionResponse<{ success: boolean; stats: SalesStats }>> {
   const session = await getServerSession();
   if (!session?.storeId) {
     return { success: false, errors: { _form: ['No autenticado'] } };
@@ -166,8 +166,10 @@ export async function deleteSaleAction(
 
   try {
     await deleteSale(saleId, session.storeId);
+    // Recalcular estadísticas para que el cliente refresque las tarjetas sin recargar
+    const stats = await calculateSalesStats(session.storeId);
     revalidatePath('/dashboard/sells');
-    return { success: true, data: { success: true } };
+    return { success: true, data: { success: true, stats } };
   } catch (error) {
     console.error('Error deleting sale:', error);
     return { success: false, errors: { _form: ['Error al eliminar venta'] } };

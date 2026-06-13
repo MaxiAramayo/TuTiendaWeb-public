@@ -170,8 +170,8 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({ store }) => {
         )}
 
         {/* Banner TuTiendaWeb */}
-        <motion.div variants={itemVariants}>
-          <Link className="flex justify-center items-center z-10" href="/">
+        <motion.div variants={itemVariants} className="relative z-10">
+          <Link className="flex justify-center items-center" href="/">
             <p className="text-white text-sm drop-shadow-md">
               Creado con <span className="font-bold">TuTiendaWeb</span>
             </p>
@@ -191,10 +191,10 @@ export const HeaderWelcome: React.FC<HeaderWelcomeProps> = ({ store }) => {
             className="items-center justify-center flex mt-5 mb-6 relative lg:w-[400px]"
             variants={logoVariants}
           >
-            {/* Círculos decorativos */}
-            <div className="bg-white w-[290px] h-[290px] absolute rounded-full opacity-[0.06]"></div>
-            <div className="bg-white w-[360px] h-[360px] absolute rounded-full opacity-[0.05]"></div>
-            <div className="bg-white w-[440px] h-[440px] absolute rounded-full opacity-[0.04]"></div>
+            {/* Círculos decorativos (no deben interceptar clicks, ej. el link "Creado con") */}
+            <div className="bg-white w-[290px] h-[290px] absolute rounded-full opacity-[0.06] pointer-events-none"></div>
+            <div className="bg-white w-[360px] h-[360px] absolute rounded-full opacity-[0.05] pointer-events-none"></div>
+            <div className="bg-white w-[440px] h-[440px] absolute rounded-full opacity-[0.04] pointer-events-none"></div>
 
             {/* Imagen de perfil con Skeleton */}
             <div className="w-[220px] h-[220px] rounded-full relative flex items-center justify-center overflow-hidden border-4 border-white/10 shadow-xl bg-white/5 backdrop-blur-sm">

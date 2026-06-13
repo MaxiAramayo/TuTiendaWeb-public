@@ -57,7 +57,7 @@ export default async function CheckoutPage({
   };
 
   return (
-    <StoreThemeProvider themeData={storeData.theme}>
+    <StoreThemeProvider themeData={storeData.theme} storeType={storeData.basicInfo?.type}>
       <CheckoutContainer
         storeInfo={storeInfo}
         settings={settings}

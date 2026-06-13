@@ -30,11 +30,14 @@ import { useCartStore } from "@/features/store/store/cart.store";
 import { useProductModalStore } from "@/features/store/store/product-modal.store";
 import { Product, Topics } from "@/shared/types/store";
 import { useThemeClasses, useThemeStyles } from "@/features/store/hooks/useStoreTheme";
+import { useStoreThemeOptional } from "@/features/store/components/ThemeProvider";
+import { getProductNotesPlaceholder } from "@/features/store/utils/store-placeholders";
 
 
 export function ProductModal({ readOnly = false }: { readOnly?: boolean } = {}) {
   const themeClasses = useThemeClasses();
   const themeStyles = useThemeStyles();
+  const notesPlaceholder = getProductNotesPlaceholder(useStoreThemeOptional()?.storeType);
 
   const [quantity, setQuantity] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState<Topics[]>([]);
@@ -213,7 +216,7 @@ export function ProductModal({ readOnly = false }: { readOnly?: boolean } = {}) 
           </label>
           <Textarea
             id="product-notes"
-            placeholder="Ej: Sin cebolla, bien cocido, etc."
+            placeholder={notesPlaceholder}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className="resize-none border-gray-200 focus:border-[var(--store-primary)] focus:ring-[var(--store-primary)] transition-colors"

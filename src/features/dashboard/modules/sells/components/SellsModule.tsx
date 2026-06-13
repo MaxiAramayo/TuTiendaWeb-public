@@ -116,6 +116,7 @@ export function SellsModule({
       const result = await getSalesAction(newFilters);
       if (result.success) {
         setSells(result.data.sales);
+        setStats(result.data.stats);
         setHasMore(result.data.sales.length >= 50);
       } else {
         setError(result.errors._form?.[0] || 'Error al cargar ventas');
@@ -168,6 +169,7 @@ export function SellsModule({
       const result = await deleteSaleAction(deleteTarget);
       if (result.success) {
         setSells(prev => prev.filter(s => s.id !== deleteTarget));
+        setStats(result.data.stats);
         toast.success('Venta eliminada correctamente');
       } else {
         toast.error(result.errors._form?.[0] || 'Error al eliminar la venta');
