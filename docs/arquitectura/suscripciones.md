@@ -156,21 +156,20 @@ if (existingPlan) return;   // createStore ya lo inicializó → no-op
 createSubscription (Cloud Function)
    │ 1. valida auth (owner por uid, o admin vía /admins/{uid})
    │ 2. valida plan === "pro" y email
-   │ 3. rechaza si ya hay un PreApproval "pending" para el mismo plan
+   │ 3. si había un intento anterior sin pagar (billing.subscriptionId y la tienda
+   │    NO está en un plan pago activo) → cancela ese PreApproval viejo en MP
+   │    (PUT /preapproval/{id} status=cancelled, best-effort). NO bloquea regenerar.
    │ 4. crea PreApproval en MP:
    │       external_reference = "{storeId}:pro"
    │       auto_recurring     = { frequency: 1, frequency_type: "months", amount: 15000, ARS }
-   │       status             = "pending"
+   │       status             = "pending"   ◄── estado del PreApproval en MP, NO de la tienda
    │       back_url           = {APP_URL}/suscripcion/confirmacion
-   │ 5. guarda en Firestore (SIN tocar plan/active/endDate del trial vigente):
+   │ 5. guarda SOLO datos de referencia (SIN tocar plan/active/endDate/paymentStatus):
    │       subscription.billing.subscriptionId = preapproval.id
    │       subscription.billing.provider       = "mercadopago"
    │       subscription.billing.payerEmail     = userEmail
    │       subscription.billing.autoRenew      = true
-   │       subscription.billing.pendingPlan    = "pro"   ◄── plan contratado, aún no confirmado
-   │       subscription.paymentStatus          = "pending"
-   │       subscription.cancelAtPeriodEnd      = false
-   │       subscription.graceUntil             = null
+   │       subscription.billing.pendingPlan    = "pro"   ◄── plan contratado, lo promueve el webhook
    │ 6. devuelve { initPoint, subscriptionId }
    ▼
 [Frontend redirige a initPoint — usuario paga en MercadoPago]
@@ -189,13 +188,13 @@ MP redirige a  /suscripcion/confirmacion?preapproval_id=...
    │ AutoRedirect → /dashboard/subscription (router.refresh para releer estado)
 ```
 
-**Diseño importante — `pendingPlan`:** mientras el pago no se confirma, el plan **real** sigue siendo `trial` (o el que estuviera). El plan contratado vive en `billing.pendingPlan`. Así, si el usuario abandona el checkout, **no pierde el acceso del trial** y no queda con un `plan: "pro"` sin pagar. El plan se promueve recién cuando llega el evento `authorized`.
+**Diseño importante — generar el link NO cambia el estado de la tienda:** `createSubscription` solo escribe datos de referencia en `billing.*`. **No** toca `plan`, `active`, `endDate` ni `paymentStatus`. El plan real sigue siendo `trial` (o el que estuviera) con su lógica normal de vencimiento, y el plan contratado vive en `billing.pendingPlan`. El **webhook de MP es la única fuente de verdad**: el plan se promueve a `pro` recién con el evento `authorized`.
 
-### 5.2 Estado intermedio: pago pendiente
+Esto evita el bug del "estado confirmando eterno": si el usuario solo genera el link para ver el precio y vuelve sin pagar, la tienda **no queda en `pending`**, no se bloquea la regeneración del link, y el trial vence normalmente (antes, el `paymentStatus: "pending"` dejaba la tienda colgada en "Confirmando..." y mantenía el trial vivo indefinidamente).
 
-Mientras `paymentStatus === "pending"` y existe `billing.pendingPlan`, la UI muestra la card naranja "Pago en proceso" y el dashboard **mantiene el acceso** (`isPendingPayment` en el layout). El usuario puede:
-- "Verificar estado ahora" (refresca el server component).
-- "Cancelar intento" (llama `cancelSubscription`).
+### 5.2 Volver sin pagar / regenerar el link
+
+Como generar el link no pone a la tienda en espera, **no hay un estado intermedio "pago en proceso"**. Si el usuario vuelve sin pagar, sigue viendo su plan actual (trial) y el botón "Suscribirme" disponible. Si vuelve a generar el link, `createSubscription` cancela el PreApproval anterior en MP (best-effort) y crea uno nuevo. Un PreApproval abandonado en MP es inofensivo: aunque el usuario pagara un link viejo, el webhook resuelve la tienda por `external_reference` y promueve el plan igual.
 
 ---
 
@@ -267,11 +266,7 @@ Si MP cancela el PreApproval (ej: falta de pago persistente), envía `subscripti
 y para cada store aplica (recordar: **no existe `plan: "free"`** — suspender = `active: false` manteniendo el plan):
 
 ```
-┌─ paymentStatus="pending" + pendingPlan  → SKIP (pago en proceso) ───┐
-│     No suspender aunque el trial/período haya vencido: el pago MP    │
-│     puede tardar (Rapipago/Pago Fácil quedan "pending" por días).    │
-│                                                                      │
-├─ plan === "trial"  ── Camino TRIAL (prueba agotada sin contratar) ──┤
+┌─ plan === "trial"  ── Camino TRIAL (prueba agotada sin contratar) ──┐
 │     • active=false, paymentStatus=expired                            │
 │     • notificación "trial_expired"  · SIN gracia, SIN tocar MP       │
 │     → corta acceso al dashboard Y al catálogo público               │
@@ -307,18 +302,18 @@ No hay un middleware único. **Dos gates independientes** leen `subscription`:
 ### 9.1 Dashboard — `app/dashboard/layout.tsx` (Server Component)
 
 ```typescript
-const isPro            = subscription?.plan === 'pro'   && subscription?.active;
-const isOnTrial        = subscription?.plan === 'trial' && subscription?.active;
-const isPendingPayment = subscription?.paymentStatus === 'pending' && !!subscription?.billing?.pendingPlan;
+const isPro     = subscription?.plan === 'pro'   && subscription?.active;
+const isOnTrial = subscription?.plan === 'trial' && subscription?.active;
 
 const hasValidAccess =
   isPro ||
   (isOnTrial && endDateMs > now) ||
-  isPendingPayment ||
   (graceUntilMs > now);
 
 if (!hasValidAccess) return <AccessDeniedView ... />;   // ← pantalla "Acceso Suspendido"
 ```
+
+> Generar un link de pago **no** otorga acceso por sí solo (ya no existe un `isPendingPayment`). El acceso sale del trial vigente o del plan `pro` activo; el plan se vuelve `pro` recién cuando el webhook confirma el pago.
 
 El acceso requiere `active: true` en todos los casos (más `endDate` vigente para el trial). Como **no existe `plan: "free"`**, una cuenta suspendida (`active: false`) nunca recupera acceso por downgrade: queda en "Acceso Suspendido" hasta que contrate/renueve.
 
@@ -340,8 +335,9 @@ Solo mira `active`. **No** considera `endDate` ni `plan`.
 | `pro`, `active:true` | ✅ | ✅ | Pago al día |
 | `pro`, `active:true`, `cancelAtPeriodEnd:true`, `endDate` futura | ✅ | ✅ | Cancelado pero vigente |
 | `pro`, `active:false` (paused/cancelled/expired) | ❌ **AccessDenied** | ❌ | Suspendido (mantiene `plan:"pro"`) |
-| `pending` + `pendingPlan` | ✅ | depende de `active` | Pago en proceso |
 | en gracia (`graceUntil` futura) | ✅ | ✅ | 3 días para renovar |
+
+> Generar un link de pago no crea un estado de acceso propio: el acceso lo determina el plan vigente (trial/pro), como en las filas de arriba. `billing.pendingPlan` solo indica el plan que el webhook promoverá al confirmarse el pago.
 
 > Tras los cambios de junio 2026, **dashboard y catálogo quedan consistentes**: una cuenta suspendida (`active:false`) está bloqueada en ambos lados, sin importar si el plan es `trial` o `pro`. La pantalla "Acceso Suspendido" cubre todos los casos de suspensión.
 
@@ -434,13 +430,12 @@ Antes de procesar, `shouldProcessWebhookEvent` hace `create()` en `/_mpWebhookEv
 ### Functions (`Funciones-google-tutiendaweb/.env` o secrets — NO commitear)
 
 ```env
-MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...    # cuenta vendedora real
+MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...    # credenciales de PRODUCCIÓN (cuenta vendedora real)
 MERCADO_PAGO_WEBHOOK_SECRET=<hex>        # MP Panel → Webhooks → "Clave secreta"
 APP_URL=https://tutiendaweb.com.ar       # base para back_url del PreApproval
-# MERCADO_PAGO_TEST_PAYER_EMAIL=...      # SOLO sandbox — en prod NO debe existir
 ```
 
-> Si `MERCADO_PAGO_TEST_PAYER_EMAIL` está presente, `createSubscription` **sobreescribe** el email del pagador con ese valor. **Verificar que NO esté seteada en producción.**
+> El access token debe ser el de **Credenciales de producción** de MP. `createSubscription` usa siempre el email real enviado desde el frontend como `payer_email`; payer (comprador) y collector (vendedor) deben ser ambos cuentas reales de producción.
 
 ### App Next.js (`.env.local`)
 
@@ -495,8 +490,8 @@ El Camino TRIAL del scheduler escribe la notificación `trial_expired` ("tu prue
 ### H-4 (Baja) — ⚠️ ABIERTO — Componente de UI legacy `SubscriptionSection.tsx`
 La página real `/dashboard/subscription` usa `SubscriptionPageClient.tsx`. `SubscriptionSection.tsx` **no lo importa nadie** (código muerto). Se mantuvo compilando con el modelo nuevo, pero conviene **eliminarlo** en una limpieza posterior.
 
-### H-5 (Baja) — ⚠️ VERIFICAR EN PROD — `MERCADO_PAGO_TEST_PAYER_EMAIL`
-Si quedó seteada en el entorno de Functions de producción, fuerza el email del pagador. Verificar que **no** exista.
+### H-5 (Baja) — ✅ RESUELTO — `MERCADO_PAGO_TEST_PAYER_EMAIL`
+Se **eliminó por completo** del código (`createSubscription`), de los `.env.example` y de la documentación. `createSubscription` usa siempre el email real del frontend como `payer_email`. Ya no existe forma de forzar un pagador de prueba que provoque el error `Both payer and collector must be real or test users`.
 
 ### Nota de migración — tiendas legacy con `plan: "free"`
 Stores antiguos suspendidos quedaron con `plan: "free"` + `active: false`. Con el modelo nuevo siguen **sin acceso** (no son `pro` ni `trial` activos), así que el comportamiento es correcto sin migración. Si existiera algún `plan: "free"` con `active: true` (caso improbable), debe migrarse a `trial`/`pro` o quedará bloqueado. Recomendado: un script que liste `where("subscription.plan","==","free")` para auditarlos.
