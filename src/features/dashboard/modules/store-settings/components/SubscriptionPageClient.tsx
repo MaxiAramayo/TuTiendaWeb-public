@@ -42,7 +42,6 @@ import {
   HeadphonesIcon,
   AlertCircle,
   RefreshCw,
-  XCircle,
   ArrowRight
 } from 'lucide-react';
 
@@ -78,7 +77,6 @@ function getPaymentStatusLabel(
   }
   switch (status) {
     case 'authorized': return { label: 'Activo', variant: 'default' };
-    case 'pending':    return { label: 'Pago pendiente', variant: 'secondary' };
     case 'paused':     return { label: 'Pausado', variant: 'secondary' };
     case 'cancelled':  return { label: 'Cancelado', variant: 'destructive' };
     case 'expired':    return { label: 'Vencido', variant: 'destructive' };
@@ -118,9 +116,6 @@ export default function SubscriptionPageClient({
 
   const isPro = subscription.plan === 'pro' && subscription.active;
   const isOnTrial = subscription.plan === 'trial' && subscription.active;
-  // paymentStatus="pending" con pendingPlan indica que el usuario inició el pago pero aún no lo confirmó.
-  // El plan real se promueve recién cuando llega el webhook "authorized".
-  const isPendingConfirmation = subscription.paymentStatus === 'pending' && !!subscription.billing?.pendingPlan;
 
   const endDateMs = subscription.endDate
     ? (subscription.endDate as any).toDate
@@ -322,13 +317,14 @@ export default function SubscriptionPageClient({
 
       {/* Banners */}
       <div className="space-y-4">
-        {returnedPreapprovalId && isPendingConfirmation && (
+        {returnedPreapprovalId && !isPro && (
           <Alert className="border-blue-200 bg-blue-50/80 shadow-sm">
             <RefreshCw className="h-5 w-5 text-blue-600" />
-            <AlertTitle className="text-blue-800 font-semibold">Confirmando pago</AlertTitle>
+            <AlertTitle className="text-blue-800 font-semibold">¿Completaste el pago?</AlertTitle>
             <AlertDescription className="text-blue-700 mt-1">
-              MercadoPago está verificando tu transacción. Esto puede demorar unos minutos.
-              Recargá la página en un momento para ver el estado actualizado.
+              Si pagaste, tu plan Profesional se activará automáticamente cuando MercadoPago
+              nos confirme la transacción (puede demorar unos minutos). Si solo querías ver el
+              precio, no pasa nada: seguís con tu plan actual.
             </AlertDescription>
           </Alert>
         )}
@@ -350,7 +346,7 @@ export default function SubscriptionPageClient({
         <div className="lg:col-span-7 space-y-6">
           
           {/* Card del plan Pro */}
-          {!isPro && !isPendingConfirmation && !isCancelledActive && (
+          {!isPro && !isCancelledActive && (
             <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md overflow-hidden relative">
               <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                 <Crown className="w-32 h-32 text-purple-900" />
@@ -436,78 +432,6 @@ export default function SubscriptionPageClient({
                       Renovación automática. Podés cancelar en cualquier momento.
                     </p>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Pending State */}
-          {isPendingConfirmation && (
-            <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-white shadow-md">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 text-orange-600 animate-spin" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-orange-900">Pago en proceso</CardTitle>
-                    <CardDescription className="text-orange-700/80">
-                      Estamos esperando la confirmación de MercadoPago
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 text-orange-800">
-                <p className="text-sm">
-                  Tu pago fue enviado y está siendo procesado. Una vez confirmado, tu plan Profesional quedará activo automáticamente.
-                  Este proceso puede demorar algunos minutos.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  <Button
-                    type="button"
-                    className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white"
-                    onClick={refreshSubscriptionStatus}
-                    disabled={checkingWebhook}
-                  >
-                    <RefreshCw className={cn("w-4 h-4 mr-2", checkingWebhook && "animate-spin")} />
-                    {checkingWebhook ? 'Verificando...' : 'Verificar estado ahora'}
-                  </Button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full sm:w-auto border-orange-200 text-orange-700 hover:bg-orange-100"
-                        disabled={cancellingSubscription}
-                      >
-                        {cancellingSubscription ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <XCircle className="w-4 h-4 mr-2" />
-                        )}
-                        Cancelar intento
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿No completaste el pago?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Si no llegaste a pagar o querés intentarlo de nuevo, podés cancelar
-                          este intento y empezar desde cero. No se realizó ningún cobro.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Volver</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleCancelSubscription}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          Sí, cancelar intento
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
@@ -629,7 +553,7 @@ export default function SubscriptionPageClient({
           )}
           
           {/* Proceso Explicativo (Solo si no es Pro o está en Trial) */}
-          {(!isPro || isOnTrial) && !isPendingConfirmation && !isCancelledActive && (
+          {(!isPro || isOnTrial) && !isCancelledActive && (
             <Card className="border-gray-200 shadow-sm bg-gray-50/50">
               <CardHeader>
                 <CardTitle className="text-lg text-gray-800">Cómo funciona</CardTitle>
@@ -694,7 +618,7 @@ export default function SubscriptionPageClient({
                     'text-lg font-bold',
                     (isPro || isCancelledActive) ? 'text-purple-600' : 'text-gray-900'
                   )}>
-                    {isPro || isCancelledActive || isPendingConfirmation
+                    {isPro || isCancelledActive
                       ? 'Profesional'
                       : isOnTrial
                       ? 'Período de prueba'
@@ -711,12 +635,12 @@ export default function SubscriptionPageClient({
                       paymentStatusInfo.variant === 'secondary' && !isCancelledActive && 'bg-orange-100 text-orange-800 hover:bg-orange-100',
                     )}
                   >
-                    {subscription.paymentStatus === 'pending' ? 'Confirmando...' : paymentStatusInfo.label}
+                    {paymentStatusInfo.label}
                   </Badge>
                 </div>
               </div>
 
-              {nextPaymentDate && (isPro || isPendingConfirmation || isCancelledActive) && (
+              {nextPaymentDate && (isPro || isCancelledActive) && (
                 <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between border border-gray-100">
                   <div className="flex items-center gap-2.5">
                     <Calendar className="w-4 h-4 text-gray-400" />
