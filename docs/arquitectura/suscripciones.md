@@ -434,13 +434,12 @@ Antes de procesar, `shouldProcessWebhookEvent` hace `create()` en `/_mpWebhookEv
 ### Functions (`Funciones-google-tutiendaweb/.env` o secrets — NO commitear)
 
 ```env
-MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...    # cuenta vendedora real
+MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...    # credenciales de PRODUCCIÓN (cuenta vendedora real)
 MERCADO_PAGO_WEBHOOK_SECRET=<hex>        # MP Panel → Webhooks → "Clave secreta"
 APP_URL=https://tutiendaweb.com.ar       # base para back_url del PreApproval
-# MERCADO_PAGO_TEST_PAYER_EMAIL=...      # SOLO sandbox — en prod NO debe existir
 ```
 
-> Si `MERCADO_PAGO_TEST_PAYER_EMAIL` está presente, `createSubscription` **sobreescribe** el email del pagador con ese valor. **Verificar que NO esté seteada en producción.**
+> El access token debe ser el de **Credenciales de producción** de MP. `createSubscription` usa siempre el email real enviado desde el frontend como `payer_email`; payer (comprador) y collector (vendedor) deben ser ambos cuentas reales de producción.
 
 ### App Next.js (`.env.local`)
 
@@ -495,8 +494,8 @@ El Camino TRIAL del scheduler escribe la notificación `trial_expired` ("tu prue
 ### H-4 (Baja) — ⚠️ ABIERTO — Componente de UI legacy `SubscriptionSection.tsx`
 La página real `/dashboard/subscription` usa `SubscriptionPageClient.tsx`. `SubscriptionSection.tsx` **no lo importa nadie** (código muerto). Se mantuvo compilando con el modelo nuevo, pero conviene **eliminarlo** en una limpieza posterior.
 
-### H-5 (Baja) — ⚠️ VERIFICAR EN PROD — `MERCADO_PAGO_TEST_PAYER_EMAIL`
-Si quedó seteada en el entorno de Functions de producción, fuerza el email del pagador. Verificar que **no** exista.
+### H-5 (Baja) — ✅ RESUELTO — `MERCADO_PAGO_TEST_PAYER_EMAIL`
+Se **eliminó por completo** del código (`createSubscription`), de los `.env.example` y de la documentación. `createSubscription` usa siempre el email real del frontend como `payer_email`. Ya no existe forma de forzar un pagador de prueba que provoque el error `Both payer and collector must be real or test users`.
 
 ### Nota de migración — tiendas legacy con `plan: "free"`
 Stores antiguos suspendidos quedaron con `plan: "free"` + `active: false`. Con el modelo nuevo siguen **sin acceso** (no son `pro` ni `trial` activos), así que el comportamiento es correcto sin migración. Si existiera algún `plan: "free"` con `active: true` (caso improbable), debe migrarse a `trial`/`pro` o quedará bloqueado. Recomendado: un script que liste `where("subscription.plan","==","free")` para auditarlos.
