@@ -23,6 +23,8 @@ import {
 interface StoreThemeContextValue {
   theme: StoreTheme;
   themeData?: StoreThemeData;
+  /** Tipo de negocio (basicInfo.type), usado para textos contextuales */
+  storeType?: string;
 }
 
 const StoreThemeContext = createContext<StoreThemeContextValue | null>(null);
@@ -38,6 +40,11 @@ interface StoreThemeProviderProps {
    * Se pasan desde un Server Component
    */
   themeData?: StoreThemeData;
+  /**
+   * Tipo de negocio (basicInfo.type) desde el servidor.
+   * Se usa para placeholders/textos contextuales del catálogo.
+   */
+  storeType?: string;
 }
 
 /**
@@ -91,7 +98,8 @@ function loadGoogleFont(fontFamily: string) {
 
 export function StoreThemeProvider({
   children,
-  themeData
+  themeData,
+  storeType
 }: StoreThemeProviderProps) {
   const theme = useMemo(() => generateTheme(themeData), [themeData]);
 
@@ -118,8 +126,9 @@ export function StoreThemeProvider({
 
   const contextValue = useMemo(() => ({
     theme,
-    themeData
-  }), [theme, themeData]);
+    themeData,
+    storeType
+  }), [theme, themeData, storeType]);
 
   return (
     <StoreThemeContext.Provider value={contextValue}>
