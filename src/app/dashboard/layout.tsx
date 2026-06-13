@@ -46,16 +46,16 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const endDateMs = subscription?.endDate ? new Date(subscription.endDate as string).getTime() : 0;
   const graceUntilMs = subscription?.graceUntil ? new Date(subscription.graceUntil as string).getTime() : 0;
 
-  // Pago iniciado pero aún no confirmado: mantener acceso para no bloquear al usuario durante el proceso
-  const isPendingPayment = subscription?.paymentStatus === 'pending' && !!subscription?.billing?.pendingPlan;
-
   // Tiene acceso si: es Pro activo, O está en Trial vigente (no venció),
-  // O tiene un pago en proceso, O está en período de gracia. No existe plan "free":
-  // un trial vencido o un pro suspendido quedan con active=false → sin acceso.
+  // O está en período de gracia. No existe plan "free": un trial vencido o un pro
+  // suspendido quedan con active=false → sin acceso.
+  //
+  // Generar un link de pago NO otorga acceso por sí solo: el plan se promueve a "pro"
+  // recién cuando el webhook de MP confirma el pago (authorized). Mientras tanto el
+  // usuario conserva el acceso de su trial vigente si todavía no venció.
   const hasValidAccess =
     isPro ||
     (isOnTrial && endDateMs > now) ||
-    isPendingPayment ||
     (graceUntilMs > now);
 
   if (!hasValidAccess) {
