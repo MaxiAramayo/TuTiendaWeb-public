@@ -14,18 +14,18 @@ interface ProductImportDialogProps {
     currentProductCount: number;
 }
 
-const TEMPLATE_COLUMNS = ['nombre', 'descripcion', 'precio', 'costo', 'categoria', 'subcategoria', 'tags', 'activo'];
+const TEMPLATE_COLUMNS = ['nombre', 'descripcion', 'precio', 'costo', 'categoria', 'subcategoria', 'tags', 'activo', 'extras'];
 
 const TEMPLATE_EXAMPLE = [
-    ['Hamburguesa Clásica', 'Con lechuga, tomate y queso', 1500, 800, 'Hamburguesas', 'Clásicas', 'oferta, especial', 'si'],
-    ['Papas Fritas', 'Porción grande', 600, 200, 'Acompañamientos', '', '', 'si'],
+    ['Hamburguesa Clásica', 'Con lechuga, tomate y queso', 1500, 800, 'Hamburguesas', 'Clásicas', 'oferta, especial', 'si', 'Queso extra:200; Bacon:350'],
+    ['Papas Fritas', 'Porción grande', 600, 200, 'Acompañamientos', '', '', 'si', ''],
 ];
 
 function downloadTemplate() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_COLUMNS, ...TEMPLATE_EXAMPLE]);
-    // Ancho de columnas
-    ws['!cols'] = TEMPLATE_COLUMNS.map((_, i) => ({ wch: i === 1 ? 30 : 18 }));
+    // Ancho de columnas: descripcion (1) y extras (8) más anchas
+    ws['!cols'] = TEMPLATE_COLUMNS.map((_, i) => ({ wch: i === 1 || i === 8 ? 30 : 18 }));
     XLSX.utils.book_append_sheet(wb, ws, 'Productos');
     XLSX.writeFile(wb, 'plantilla_productos.xlsx');
 }
@@ -197,6 +197,7 @@ export default function ProductImportDialog({ onClose, onSuccess, currentProduct
                                 <p className="font-semibold">Columnas del archivo:</p>
                                 <p><span className="font-medium">Obligatorias:</span> nombre, precio, categoria</p>
                                 <p><span className="font-medium">Opcionales:</span> descripcion, costo, subcategoria, tags (separados por coma), activo (si/no)</p>
+                                <p><span className="font-medium">Extras (adicionales con precio):</span> formato &quot;Nombre:Precio; Nombre:Precio&quot; — ej: <span className="font-mono">Queso extra:200; Bacon:350</span></p>
                             </div>
 
                             <button
@@ -272,6 +273,7 @@ export default function ProductImportDialog({ onClose, onSuccess, currentProduct
                                                         <th className="text-left px-3 py-2 text-gray-600 font-semibold">Nombre</th>
                                                         <th className="text-left px-3 py-2 text-gray-600 font-semibold">Categoría</th>
                                                         <th className="text-right px-3 py-2 text-gray-600 font-semibold">Precio</th>
+                                                        <th className="text-center px-3 py-2 text-gray-600 font-semibold">Extras</th>
                                                         <th className="text-left px-3 py-2 text-gray-600 font-semibold">Estado</th>
                                                     </tr>
                                                 </thead>
@@ -283,6 +285,15 @@ export default function ProductImportDialog({ onClose, onSuccess, currentProduct
                                                                 {r.data.categoria}{r.data.subcategoria ? ` / ${r.data.subcategoria}` : ''}
                                                             </td>
                                                             <td className="px-3 py-1.5 text-right text-gray-800">${r.data.precio.toLocaleString('es-AR')}</td>
+                                                            <td className="px-3 py-1.5 text-center text-gray-600">
+                                                                {r.data.extras.length > 0 ? (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700" title={r.data.extras.map((e) => `${e.name}: $${e.price}`).join(', ')}>
+                                                                        {r.data.extras.length}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-300">—</span>
+                                                                )}
+                                                            </td>
                                                             <td className="px-3 py-1.5">
                                                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${r.data.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                                                     {r.data.activo ? 'Activo' : 'Inactivo'}
@@ -292,7 +303,7 @@ export default function ProductImportDialog({ onClose, onSuccess, currentProduct
                                                     ))}
                                                     {validRows.length > 50 && (
                                                         <tr>
-                                                            <td colSpan={4} className="px-3 py-2 text-center text-gray-400 italic">
+                                                            <td colSpan={5} className="px-3 py-2 text-center text-gray-400 italic">
                                                                 …y {validRows.length - 50} más
                                                             </td>
                                                         </tr>

@@ -35,6 +35,40 @@ export const productImportRowSchema = z.object({
             if (!v) return true;
             return !['no', 'false', '0', 'inactivo'].includes(v.toLowerCase().trim());
         }),
+    // Extras / adicionales con precio. Formato: "Nombre:Precio; Nombre:Precio".
+    // Mapea al campo `variants` del producto (precio aditivo en el checkout).
+    extras: z
+        .string()
+        .optional()
+        .transform((v, ctx) => {
+            const result: { name: string; price: number }[] = [];
+            if (!v || !v.trim()) return result;
+
+            const tokens = v
+                .split(';')
+                .map((t) => t.trim())
+                .filter(Boolean);
+
+            for (const token of tokens) {
+                // Separar por el ÚLTIMO ':' para tolerar ':' en el nombre.
+                const sepIndex = token.lastIndexOf(':');
+                const name = sepIndex === -1 ? token.trim() : token.slice(0, sepIndex).trim();
+                const priceStr = sepIndex === -1 ? '' : token.slice(sepIndex + 1).trim();
+                const price = Number(priceStr);
+
+                if (!name || sepIndex === -1 || priceStr === '' || Number.isNaN(price) || price < 0) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Extra "${token}" debe tener formato Nombre:Precio con precio numérico >= 0`,
+                    });
+                    continue;
+                }
+
+                result.push({ name, price });
+            }
+
+            return result;
+        }),
 });
 
 export type ProductImportRow = z.infer<typeof productImportRowSchema>;
@@ -48,6 +82,7 @@ export type ProductImportRowRaw = {
     subcategoria?: unknown;
     tags?: unknown;
     activo?: unknown;
+    extras?: unknown;
 };
 
 export type ParsedRowResult =
