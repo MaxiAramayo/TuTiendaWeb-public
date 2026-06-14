@@ -22,6 +22,18 @@ type ActionResponse<T = unknown> =
 // ============================================================================
 // HELPERS
 // ============================================================================
+/**
+ * Normaliza el valor crudo de subcategoría que llega del formulario.
+ * Descarta vacíos y strings basura ("undefined"/"null" que produce String(undefined)
+ * en el cliente) tratándolos como "sin subcategoría".
+ */
+function normalizeSubcategoryId(raw: FormDataEntryValue | null): string | undefined {
+    if (raw === null) return undefined;
+    const value = String(raw).trim();
+    if (value === '' || value === 'undefined' || value === 'null') return undefined;
+    return value;
+}
+
 async function uploadImage(file: File, storeId: string, productId: string): Promise<string> {
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name.split('.').pop() || 'jpg';
@@ -82,7 +94,7 @@ export async function createProductAction(
         price: formData.get('price'),
         costPrice: formData.get('costPrice'),
         categoryId: formData.get('categoryId'),
-        subcategoryId: formData.get('subcategoryId') || undefined,
+        subcategoryId: normalizeSubcategoryId(formData.get('subcategoryId')),
         tags: formData.getAll('tags').map(t => {
             try { return JSON.parse(t as string); } catch { return t; }
         }).flat(),
@@ -203,7 +215,7 @@ export async function updateProductAction(
         price: formData.get('price'),
         costPrice: formData.get('costPrice'),
         categoryId: formData.get('categoryId'),
-        subcategoryId: formData.get('subcategoryId') || undefined,
+        subcategoryId: normalizeSubcategoryId(formData.get('subcategoryId')),
         tags: formData.getAll('tags').map(t => {
             try { return JSON.parse(t as string); } catch { return t; }
         }).flat(),
@@ -246,8 +258,7 @@ export async function updateProductAction(
         // Permite limpiarla explícitamente (vacío -> null) sin que quede el valor viejo.
         if (formData.has('categoryId')) {
             const rawCategory = formData.get('categoryId');
-            const rawSubcategory = formData.get('subcategoryId');
-            const subcategoryId = rawSubcategory ? String(rawSubcategory) : null;
+            const subcategoryId = normalizeSubcategoryId(formData.get('subcategoryId')) ?? null;
 
             // INTEGRIDAD: la subcategoría debe pertenecer a la categoría elegida
             if (subcategoryId) {

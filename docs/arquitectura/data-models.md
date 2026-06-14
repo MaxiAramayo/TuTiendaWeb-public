@@ -236,6 +236,7 @@ interface Category {
   slug: string;                        // derivado del nombre en el servidor
   description?: string;
   parentId: string | null;            // null = principal; <id> = subcategoría
+  order?: number;                      // orden manual entre hermanas (mismo parentId); menor = primero
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -246,6 +247,34 @@ Reglas de integridad (validadas en el servicio):
 - El padre de una subcategoría debe existir y ser **principal** (no se permiten 3 niveles).
 - Nombre único dentro del mismo nivel (case-insensitive).
 - Una categoría con subcategorías no puede convertirse en subcategoría.
+
+### Orden manual (`order`)
+
+- `order` es **relativo a las hermanas** (categorías con el mismo `parentId`): los
+  principales se indexan entre sí y los hijos de cada padre se indexan entre sí
+  (ambos empiezan en 0). No es un orden global.
+- Al **crear**, `createCategory()` asigna `order = max(order de hermanas) + 1`
+  (la nueva queda al final de su nivel).
+- **Reordenamiento**: `reorderCategories(storeId, items)` recibe pares
+  `{ id, order }` y los escribe en un **único batch atómico** (valida que cada id
+  pertenezca a la tienda). Expuesto vía `reorderCategoriesAction`.
+- **Lectura ordenada**: `getCategoryTree()` ordena principales e hijos por
+  `(order, name)` con el comparador `byOrderThenName`. Categorías **sin `order`**
+  (datos previos a este campo) caen al final, desempatadas alfabéticamente, hasta
+  que se reordene el nivel una vez (ahí todas reciben `order`).
+- **Catálogo público**: el orden definido en el dashboard es el orden por defecto
+  de las secciones en la tienda. `getStoreCategoryOrder()` (en
+  `features/store/services/public-store.service.ts`) devuelve
+  `{ categoryOrder: string[], subcategoryOrderByParent: Record<nombrePadre, string[]> }`
+  (nombres, porque los productos públicos referencian categoría/subcategoría por
+  nombre). El orden de subcategorías se entrega **scopeado por categoría padre**
+  porque su `order` es relativo y un mismo nombre de subcategoría puede repetirse
+  bajo padres distintos. `ProductList` ordena cada sección con esos datos.
+
+> **UX de reordenamiento (dashboard):** drag & drop con `@dnd-kit` en
+> `categories-manager.tsx`. El arrastre se inicia desde un handle (ícono ⠿) y los
+> cambios se acumulan en local; se persisten en **una sola escritura batch** al
+> tocar "Guardar orden" (con "Descartar" para revertir al último guardado).
 
 ---
 
@@ -315,7 +344,11 @@ interface ProductVariant {
 > **Variantes legacy:** documentos viejos pueden traer `additionalPrice`/`available`; el
 > servicio los normaliza a `price`/`isAvailable` al leer.
 > **Integridad de subcategoría:** el action valida con `isValidSubcategory()` que
-> `subcategoryId` sea hijo de `categoryId` antes de guardar.
+> `subcategoryId` sea hijo de `categoryId` antes de guardar. El valor crudo del form
+> se normaliza con `normalizeSubcategoryId()`, que descarta `''`, `'undefined'` y
+> `'null'` (tratándolos como "sin subcategoría"); así un producto con solo categoría
+> principal nunca dispara el error de integridad. La validación solo corre si queda
+> un id real.
 
 ---
 

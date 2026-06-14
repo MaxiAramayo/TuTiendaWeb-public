@@ -1,8 +1,26 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import {
     Plus,
     Pencil,
@@ -14,6 +32,7 @@ import {
     Eye,
     EyeOff,
     FolderTree,
+    GripVertical,
     Loader2,
 } from 'lucide-react';
 import type { Category } from '@/shared/types/firebase.types';
@@ -31,9 +50,67 @@ import {
     createCategoryAction,
     updateCategoryAction,
     deleteCategoryAction,
+    reorderCategoriesAction,
 } from '../actions/category.actions';
 
 type CategoryNode = Category & { children: Category[] };
+
+/** Props del handle que dnd-kit conecta al elemento que inicia el arrastre. */
+type HandleProps = {
+    attributes: React.HTMLAttributes<HTMLButtonElement>;
+    listeners: Record<string, Function> | undefined;
+};
+
+/**
+ * Handle de arrastre (ícono). Recibe los `attributes`/`listeners` de useSortable;
+ * solo este botón inicia el drag, el resto de la fila queda clickeable.
+ */
+function DragHandle({ attributes, listeners }: HandleProps) {
+    return (
+        <button
+            type="button"
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-grab active:cursor-grabbing touch-none"
+            title="Arrastrar para reordenar"
+            aria-label="Reordenar"
+            {...attributes}
+            {...listeners}
+        >
+            <GripVertical className="w-4 h-4" />
+        </button>
+    );
+}
+
+/**
+ * Fila ordenable con dnd-kit. Expone los props del handle vía render-prop para
+ * ubicarlo dentro de la fila; el contenedor aplica el transform durante el drag.
+ */
+function SortableRow({
+    id,
+    children,
+}: {
+    id: string;
+    children: (handle: HandleProps) => React.ReactNode;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+        useSortable({ id });
+
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 20 : undefined,
+        position: 'relative',
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={isDragging ? 'rounded-xl shadow-xl ring-2 ring-blue-400 opacity-95' : ''}
+        >
+            {children({ attributes: attributes as React.HTMLAttributes<HTMLButtonElement>, listeners })}
+        </div>
+    );
+}
 
 interface DeleteTarget {
     cat: Category;
@@ -65,9 +142,24 @@ export default function CategoriesManager({ initialTree }: CategoriesManagerProp
     const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
     const [newSub, setNewSub] = useState('');
 
-    // Re-sincronizar cuando el server revalida (router.refresh)
+    // Orden: cambios locales sin guardar (se persisten con el botón "Guardar orden")
+    const [orderDirty, setOrderDirty] = useState(false);
+    const [moveCount, setMoveCount] = useState(0);
+    // Último árbol persistido, para poder "Descartar" y volver atrás.
+    const lastSavedRef = useRef(initialTree);
+
+    // Espejo del árbol para leer el orden actual en callbacks de drag (evita closures viejas)
+    const treeRef = useRef(tree);
+    useEffect(() => {
+        treeRef.current = tree;
+    }, [tree]);
+
+    // Re-sincronizar cuando el server revalida (router.refresh tras crear/editar/borrar)
     useEffect(() => {
         setTree(initialTree);
+        lastSavedRef.current = initialTree;
+        setOrderDirty(false);
+        setMoveCount(0);
     }, [initialTree]);
 
     const toggleExpand = (id: string) => {
@@ -86,6 +178,89 @@ export default function CategoriesManager({ initialTree }: CategoriesManagerProp
         startTransition(async () => {
             await fn();
         });
+    };
+
+    // --- Reordenamiento (drag & drop con dnd-kit) ---
+
+    // distance:5 evita que un click en la fila dispare un arrastre accidental.
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    /** Marca un movimiento: incrementa el contador y refresca el aviso (toast único). */
+    const markMoved = (nextCount: number) => {
+        setOrderDirty(true);
+        setMoveCount(nextCount);
+        toast(`Orden modificado (${nextCount}) · guardá para aplicar`, {
+            id: 'reorder-dirty',
+            icon: <GripVertical className="w-4 h-4" />,
+            duration: 2500,
+        });
+    };
+
+    /** Soltó una categoría principal: reordena el árbol en local (sin guardar). */
+    const handleParentsDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const current = treeRef.current;
+        const oldIndex = current.findIndex((p) => p.id === active.id);
+        const newIndex = current.findIndex((p) => p.id === over.id);
+        if (oldIndex < 0 || newIndex < 0) return;
+        setTree(arrayMove(current, oldIndex, newIndex));
+        markMoved(moveCount + 1);
+    };
+
+    /** Soltó una subcategoría dentro de un padre: reordena sus hijos en local. */
+    const handleChildrenDragEnd = (parentId: string, event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const parent = treeRef.current.find((p) => p.id === parentId);
+        if (!parent) return;
+        const oldIndex = parent.children.findIndex((c) => c.id === active.id);
+        const newIndex = parent.children.findIndex((c) => c.id === over.id);
+        if (oldIndex < 0 || newIndex < 0) return;
+        const nextChildren = arrayMove(parent.children, oldIndex, newIndex);
+        setTree((prev) =>
+            prev.map((p) => (p.id === parentId ? { ...p, children: nextChildren } : p))
+        );
+        markMoved(moveCount + 1);
+    };
+
+    /** Aplana el árbol a pares { id, order } (índice por nivel) para una sola escritura. */
+    const buildOrderItems = (t: CategoryNode[]) => {
+        const items: { id: string; order: number }[] = [];
+        t.forEach((parent, i) => {
+            items.push({ id: parent.id, order: i });
+            parent.children.forEach((child, j) => items.push({ id: child.id, order: j }));
+        });
+        return items;
+    };
+
+    /** Guarda todo el orden (principales + subcategorías) en una sola operación batch. */
+    const handleSaveOrder = () => {
+        const snapshot = treeRef.current;
+        const items = buildOrderItems(snapshot);
+        if (items.length === 0) return;
+        run(async () => {
+            const res = await reorderCategoriesAction(items);
+            if (res.success) {
+                lastSavedRef.current = snapshot;
+                setOrderDirty(false);
+                setMoveCount(0);
+                toast.success('Orden guardado', { id: 'reorder-dirty' });
+            } else {
+                toast.error(res.errors._form?.[0] ?? 'Error al guardar el orden', { id: 'reorder-dirty' });
+            }
+        });
+    };
+
+    /** Descarta los cambios de orden y vuelve al último guardado. */
+    const handleDiscardOrder = () => {
+        setTree(lastSavedRef.current);
+        setOrderDirty(false);
+        setMoveCount(0);
+        toast('Cambios de orden descartados', { id: 'reorder-dirty' });
     };
 
     const handleCreateParent = () => {
@@ -271,13 +446,33 @@ export default function CategoriesManager({ initialTree }: CategoriesManagerProp
                     <p>Todavía no tenés categorías. Creá la primera arriba.</p>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <>
+                {/* Tip de reordenamiento */}
+                <div className="mb-3 flex items-center gap-2 text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    <GripVertical className="w-4 h-4 shrink-0 text-blue-500" />
+                    <span>
+                        Arrastrá desde el ícono <strong>⠿</strong> para ordenar cómo se ven las
+                        categorías en tu tienda. Después tocá <strong>Guardar orden</strong>.
+                    </span>
+                </div>
+
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                    onDragEnd={handleParentsDragEnd}
+                >
+                    <SortableContext items={tree.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-3">
                     {tree.map((parent) => {
                         const isOpen = expanded.has(parent.id);
                         return (
-                            <div key={parent.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <SortableRow key={parent.id} id={parent.id}>
+                                {(handle) => (
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                                 {/* Fila categoría principal */}
                                 <div className="flex items-center gap-2 p-3">
+                                    <DragHandle {...handle} />
                                     <button
                                         type="button"
                                         onClick={() => toggleExpand(parent.id)}
@@ -312,25 +507,44 @@ export default function CategoriesManager({ initialTree }: CategoriesManagerProp
                                 {/* Subcategorías */}
                                 {isOpen && (
                                     <div className="border-t border-gray-100 bg-gray-50/60 px-3 py-2 space-y-1">
-                                        {parent.children.map((sub) => (
-                                            <div key={sub.id} className="flex items-center gap-2 pl-6 py-1.5">
-                                                {editingId === sub.id ? (
-                                                    renderEditRow(sub)
-                                                ) : (
-                                                    <>
-                                                        <span className="flex-1 text-sm text-gray-700 flex items-center gap-2">
-                                                            {sub.name}
-                                                            {!sub.isActive && (
-                                                                <span className="text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                                                                    Inactiva
-                                                                </span>
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                                            onDragEnd={(e) => handleChildrenDragEnd(parent.id, e)}
+                                        >
+                                            <SortableContext
+                                                items={parent.children.map((c) => c.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                            <div className="space-y-1">
+                                            {parent.children.map((sub) => (
+                                                <SortableRow key={sub.id} id={sub.id}>
+                                                    {(subHandle) => (
+                                                        <div className="flex items-center gap-2 pl-3 py-1.5">
+                                                            <DragHandle {...subHandle} />
+                                                            {editingId === sub.id ? (
+                                                                renderEditRow(sub)
+                                                            ) : (
+                                                                <>
+                                                                    <span className="flex-1 text-sm text-gray-700 flex items-center gap-2">
+                                                                        {sub.name}
+                                                                        {!sub.isActive && (
+                                                                            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                                                                Inactiva
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                    {actionButtons(sub, false)}
+                                                                </>
                                                             )}
-                                                        </span>
-                                                        {actionButtons(sub, false)}
-                                                    </>
-                                                )}
+                                                        </div>
+                                                    )}
+                                                </SortableRow>
+                                            ))}
                                             </div>
-                                        ))}
+                                            </SortableContext>
+                                        </DndContext>
 
                                         {/* Alta de subcategoría */}
                                         {addingSubFor === parent.id ? (
@@ -376,11 +590,49 @@ export default function CategoriesManager({ initialTree }: CategoriesManagerProp
                                     </div>
                                 )}
                             </div>
+                                )}
+                            </SortableRow>
                         );
                     })}
-                </div>
+                    </div>
+                    </SortableContext>
+                </DndContext>
+                </>
             )}
+
+            {/* Espacio para que la barra fija no tape la última fila */}
+            {orderDirty && <div className="h-20" />}
         </div>
+
+        {/* Barra fija: guardar / descartar el nuevo orden */}
+        {orderDirty && (
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+                <div className="container mx-auto max-w-3xl px-4 py-3 flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-700">
+                        Tenés <strong>{moveCount}</strong> cambio{moveCount !== 1 ? 's' : ''} de orden sin guardar.
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleDiscardOrder}
+                            disabled={isPending}
+                            className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-60"
+                        >
+                            Descartar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSaveOrder}
+                            disabled={isPending}
+                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center gap-1.5"
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                            Guardar orden
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Modal de confirmación de borrado */}
         <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
