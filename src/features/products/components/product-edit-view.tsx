@@ -27,7 +27,7 @@ export default function ProductEditView({ product, storeId, categories, tags }: 
                 (value as File[]).forEach(file => formData.append('images', file));
             } else if (key === 'tags' || key === 'variants' || key === 'existingImageUrls') {
                 formData.append(key, JSON.stringify(value));
-            } else {
+            } else if (value !== undefined && value !== null) {
                 formData.append(key, String(value));
             }
         });

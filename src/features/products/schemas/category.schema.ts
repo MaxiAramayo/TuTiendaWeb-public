@@ -32,8 +32,23 @@ export const categorySchema = z.object({
     slug: z.string().regex(/^[a-z0-9-]+$/, 'Slug inválido'),
     description: categoryDescription,
     parentId: z.string().min(1).nullable().default(null),
+    /** Orden manual entre hermanas; se asigna en el servidor al crear/reordenar. */
+    order: z.number().int().min(0).optional(),
     isActive: z.boolean().default(true),
 });
+
+/**
+ * Entrada para reordenar categorías: lista de pares id/order.
+ * Se persiste en lote (un nivel a la vez desde el cliente).
+ */
+export const reorderCategoriesSchema = z
+    .array(
+        z.object({
+            id: z.string().min(1),
+            order: z.number().int().min(0),
+        })
+    )
+    .min(1);
 
 /**
  * Datos de entrada para crear una categoría desde el cliente.
@@ -60,3 +75,4 @@ export const updateCategorySchema = z.object({
 export type Category = z.infer<typeof categorySchema> & { id: string };
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type ReorderCategoriesInput = z.infer<typeof reorderCategoriesSchema>;

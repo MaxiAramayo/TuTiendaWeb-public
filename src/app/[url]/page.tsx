@@ -8,7 +8,7 @@
  */
 
 import type { Metadata } from "next";
-import { getPublicStoreBySlug as getStoreBySlug, getPublicProducts as getStoreProducts } from "@/features/store/services/public-store.service";
+import { getPublicStoreBySlug as getStoreBySlug, getPublicProducts as getStoreProducts, getStoreCategoryOrder } from "@/features/store/services/public-store.service";
 import { Product } from "@/shared/types/store";
 import ErrorNotFound from "@/features/store/ui/ErrorNotFound";
 import ErrorNotAvailable from "@/features/store/ui/ErrorNotAvailable";
@@ -85,7 +85,10 @@ export default async function Tienda({
 
   // Obtener productos de la tienda
   const storeId = storeData.id || storeData.uid || '';
-  const products = await getStoreProducts(storeId);
+  const [products, { categoryOrder, subcategoryOrderByParent }] = await Promise.all([
+    getStoreProducts(storeId),
+    getStoreCategoryOrder(storeId),
+  ]);
 
   return (
     <StoreThemeProvider themeData={storeData.theme} storeType={storeData.basicInfo?.type}>
@@ -97,7 +100,7 @@ export default async function Tienda({
         }}
       >
         <HeaderWelcome store={storeData} />
-        <ProductList products={products} />
+        <ProductList products={products} categoryOrder={categoryOrder} subcategoryOrderByParent={subcategoryOrderByParent} />
       </div>
     </StoreThemeProvider>
   );

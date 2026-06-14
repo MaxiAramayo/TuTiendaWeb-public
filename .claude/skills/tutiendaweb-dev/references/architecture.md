@@ -36,7 +36,9 @@ Doc autoritativa por tema en [`docs/arquitectura/`](../../../../docs/arquitectur
   name, price, categoryId, tags[], variants[], status, imageUrls[], storeId, createdAt, updatedAt
 
 /stores/{storeId}/categories/{categoryId}
-  name, slug, parentId, storeId, isActive, createdAt, updatedAt
+  name, slug, parentId, order?, storeId, isActive, createdAt, updatedAt
+  # order: orden manual entre hermanas (mismo parentId); reorderCategories() lo persiste en batch
+  #        y define el orden por defecto del catalogo publico (getStoreCategoryOrder)
 
 /stores/{storeId}/tags/{tagId}
   name, storeId, createdAt, updatedAt
