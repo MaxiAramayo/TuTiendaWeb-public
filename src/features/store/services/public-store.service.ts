@@ -457,8 +457,69 @@ export const getStoreCategories = cache(async (storeId: string): Promise<Map<str
 });
 
 /**
+ * Obtiene el orden manual de las categorías activas para el catálogo público.
+ *
+ * Devuelve NOMBRES (los productos públicos referencian categoría/subcategoría
+ * por nombre) ordenados por el campo `order` del dashboard, con desempate
+ * alfabético. Las categorías sin `order` quedan al final.
+ *
+ * El orden de subcategorías se devuelve **scopeado por categoría padre**
+ * (`Record<nombrePadre, string[]>`): el `order` de las subcategorías es relativo
+ * a sus hermanas, y un mismo nombre de subcategoría puede repetirse bajo padres
+ * distintos, por lo que una lista plana mezclaría los niveles.
+ *
+ * @param storeId - ID de la tienda
+ * @returns { categoryOrder, subcategoryOrderByParent } nombres ordenados por nivel
+ */
+export const getStoreCategoryOrder = cache(
+  async (
+    storeId: string
+  ): Promise<{ categoryOrder: string[]; subcategoryOrderByParent: Record<string, string[]> }> => {
+    try {
+      if (!storeId) return { categoryOrder: [], subcategoryOrderByParent: {} };
+
+      const snapshot = await adminDb
+        .collection(STORES_COLLECTION)
+        .doc(storeId)
+        .collection(CATEGORIES_COLLECTION)
+        .where('isActive', '==', true)
+        .get();
+
+      const cats = snapshot.docs.map((doc) => ({ ...(doc.data() as Category), id: doc.id }));
+
+      const byOrderThenName = (a: Category, b: Category) => {
+        const oa = a.order ?? Number.POSITIVE_INFINITY;
+        const ob = b.order ?? Number.POSITIVE_INFINITY;
+        if (oa !== ob) return oa - ob;
+        return a.name.localeCompare(b.name);
+      };
+
+      // Mapa id -> nombre del padre, para agrupar subcategorías por su categoría.
+      const nameById = new Map(cats.map((c) => [c.id, c.name] as const));
+
+      const categoryOrder = cats
+        .filter((c) => !c.parentId)
+        .sort(byOrderThenName)
+        .map((c) => c.name);
+
+      const subcategoryOrderByParent: Record<string, string[]> = {};
+      for (const sub of cats.filter((c) => c.parentId).sort(byOrderThenName)) {
+        const parentName = nameById.get(sub.parentId as string);
+        if (!parentName) continue;
+        (subcategoryOrderByParent[parentName] ??= []).push(sub.name);
+      }
+
+      return { categoryOrder, subcategoryOrderByParent };
+    } catch (error) {
+      console.error(`[PublicStoreService] Error getting category order for store ${storeId}:`, error);
+      return { categoryOrder: [], subcategoryOrderByParent: {} };
+    }
+  }
+);
+
+/**
  * Obtiene tags de una tienda
- * 
+ *
  * @param storeId - ID de la tienda
  * @returns Map de tagId -> nombre del tag
  */

@@ -53,12 +53,35 @@ const cardVariants = {
 interface ProductListProps {
   products: Product[];
   readOnly?: boolean;
+  /** Orden manual de categorías principales (por nombre), definido en el dashboard. */
+  categoryOrder?: string[];
+  /** Orden manual de subcategorías (por nombre) agrupado por categoría padre. */
+  subcategoryOrderByParent?: Record<string, string[]>;
 }
+
+/**
+ * Devuelve un comparador que ordena strings según su posición en `order`.
+ * Los nombres presentes siguen el orden manual; el resto cae al final alfabéticamente.
+ */
+const makeOrderComparator = (order: string[]) => {
+  const index = new Map(order.map((name, i) => [name, i] as const));
+  return (a: string, b: string): number => {
+    const ia = index.has(a) ? (index.get(a) as number) : Number.POSITIVE_INFINITY;
+    const ib = index.has(b) ? (index.get(b) as number) : Number.POSITIVE_INFINITY;
+    if (ia !== ib) return ia - ib;
+    return a.localeCompare(b);
+  };
+};
 
 /**
  * Componente principal para mostrar la lista de productos con filtros
  */
-const ProductList = ({ products, readOnly = false }: ProductListProps) => {
+const ProductList = ({
+  products,
+  readOnly = false,
+  categoryOrder = [],
+  subcategoryOrderByParent = {},
+}: ProductListProps) => {
   // Store de filtros
   const {
     searchTerm,
@@ -86,6 +109,9 @@ const ProductList = ({ products, readOnly = false }: ProductListProps) => {
     });
     return { groupedProducts: result.groupedProducts, hasProducts: result.hasProducts };
   }, [products, searchTerm, selectedCategory, priceRange, sortBy, onlyAvailable]);
+
+  // Comparador de orden manual de categorías principales (definido en el dashboard)
+  const categoryComparator = useMemo(() => makeOrderComparator(categoryOrder), [categoryOrder]);
 
   // Acceder al store del modal de producto
   const openProductModal = useProductModalStore((state: any) => state.openModal);
@@ -175,10 +201,15 @@ const ProductList = ({ products, readOnly = false }: ProductListProps) => {
         {/* Listado de productos */}
         {filteredProductData.hasProducts ? (
           <div className="space-y-8">
-            {/* Productos agrupados por categoría y, dentro, por subcategoría */}
-            {Object.entries(filteredProductData.groupedProducts).map(([category, categoryProducts]) => {
+            {/* Productos agrupados por categoría y, dentro, por subcategoría.
+                El orden respeta el definido en el dashboard (props *Order). */}
+            {Object.entries(filteredProductData.groupedProducts)
+              .sort(([a], [b]) => categoryComparator(a, b))
+              .map(([category, categoryProducts]) => {
               const { withoutSubcategory, bySubcategory } = groupProductsBySubcategory(categoryProducts);
-              const subcategoryNames = Object.keys(bySubcategory).sort((a, b) => a.localeCompare(b));
+              // Orden de subcategorías scopeado a esta categoría padre.
+              const subcategoryComparator = makeOrderComparator(subcategoryOrderByParent[category] ?? []);
+              const subcategoryNames = Object.keys(bySubcategory).sort(subcategoryComparator);
 
               return (
                 <motion.section

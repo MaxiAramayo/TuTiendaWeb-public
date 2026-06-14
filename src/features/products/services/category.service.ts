@@ -2,7 +2,7 @@ import { serializeFirestoreData } from '@/shared/utils/firestore-serializer';
 import { adminDb } from '@/lib/firebase/admin';
 import type { Category } from '@/shared/types/firebase.types';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { CreateCategoryInput, UpdateCategoryInput } from '../schemas/category.schema';
+import type { CreateCategoryInput, UpdateCategoryInput, ReorderCategoriesInput } from '../schemas/category.schema';
 
 const COLLECTION = 'categories';
 const PRODUCTS_COLLECTION = 'products';
@@ -38,6 +38,17 @@ function normalizeName(name: string): string {
 /** Dos categorías están en el mismo nivel si comparten parentId (null == principal). */
 function sameScope(a: string | null | undefined, b: string | null | undefined): boolean {
     return (a ?? null) === (b ?? null);
+}
+
+/**
+ * Comparador por orden manual; desempata por nombre. Las categorías sin `order`
+ * (datos previos al campo) caen al final de forma estable hasta que se reordenen.
+ */
+function byOrderThenName(a: Category, b: Category): number {
+    const oa = a.order ?? Number.POSITIVE_INFINITY;
+    const ob = b.order ?? Number.POSITIVE_INFINITY;
+    if (oa !== ob) return oa - ob;
+    return a.name.localeCompare(b.name);
 }
 
 /**
@@ -122,7 +133,7 @@ export async function getCategories(storeId: string): Promise<Category[]> {
 export async function getCategoryTree(storeId: string): Promise<CategoryTree[]> {
     const all = await getCategories(storeId);
 
-    const principals = all.filter(c => !c.parentId);
+    const principals = all.filter(c => !c.parentId).sort(byOrderThenName);
     const childrenByParent = new Map<string, Category[]>();
 
     for (const cat of all) {
@@ -135,7 +146,7 @@ export async function getCategoryTree(storeId: string): Promise<CategoryTree[]> 
 
     return principals.map(p => ({
         ...p,
-        children: (childrenByParent.get(p.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+        children: (childrenByParent.get(p.id) ?? []).sort(byOrderThenName),
     }));
 }
 
@@ -163,11 +174,16 @@ export async function createCategory(storeId: string, data: CreateCategoryInput)
     assertWithinLimit(all, parentId);
     assertNameAvailable(all, data.name, parentId);
 
+    // Nueva categoría al final de su nivel: order = max(hermanas) + 1.
+    const siblings = all.filter((c) => sameScope(c.parentId, parentId));
+    const nextOrder = siblings.reduce((max, c) => Math.max(max, c.order ?? -1), -1) + 1;
+
     const payload = {
         name: data.name,
         slug: slugify(data.name),
         ...(data.description ? { description: data.description } : {}),
         parentId,
+        order: nextOrder,
         isActive: true,
         storeId,
         createdAt: FieldValue.serverTimestamp(),
@@ -287,4 +303,31 @@ export async function deleteCategory(storeId: string, categoryId: string): Promi
 
     await categoriesRef(storeId).doc(categoryId).delete();
     return usage;
+}
+
+/**
+ * Persiste el nuevo orden manual de un conjunto de categorías (de un mismo nivel).
+ * Valida que todos los ids existan en la tienda y escribe en un único batch atómico.
+ */
+export async function reorderCategories(
+    storeId: string,
+    items: ReorderCategoriesInput
+): Promise<void> {
+    if (!storeId || items.length === 0) return;
+
+    const all = await getCategories(storeId);
+    const known = new Set(all.map((c) => c.id));
+
+    const batch = adminDb.batch();
+    for (const { id, order } of items) {
+        if (!known.has(id)) {
+            throw new Error('Alguna categoría no existe o no pertenece a la tienda');
+        }
+        batch.update(categoriesRef(storeId).doc(id), {
+            order,
+            updatedAt: FieldValue.serverTimestamp(),
+        });
+    }
+
+    await batch.commit();
 }

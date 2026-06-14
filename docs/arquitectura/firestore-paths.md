@@ -81,6 +81,7 @@ Organización jerárquica del menú, **2 niveles** vía `parentId`
   * `slug`: string ("hamburguesas")
   * `description?`: string
   * `parentId`: string | null  → `null` = categoría principal; `<id>` = subcategoría
+  * `order?`: number  → orden manual entre hermanas (mismo `parentId`); menor = primero. Asignado al crear y reescrito al reordenar (drag & drop). Define el orden por defecto en el catálogo público.
   * `isActive`: boolean
   * `storeId`, `createdAt`, `updatedAt`
 

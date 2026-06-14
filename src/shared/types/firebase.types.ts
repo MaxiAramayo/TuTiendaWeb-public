@@ -247,6 +247,8 @@ export interface Category {
   slug: string;
   /** ID de la categoría padre (para jerarquía). null = categoría principal */
   parentId?: string | null;
+  /** Orden manual entre hermanas (mismo parentId). Menor = primero. */
+  order?: number;
   /** Si está activa */
   isActive: boolean;
   /** Fecha de creación */
