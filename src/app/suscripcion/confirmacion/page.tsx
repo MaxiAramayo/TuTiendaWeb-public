@@ -31,9 +31,9 @@ export const metadata = {
 export default async function SubscriptionConfirmationPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const { preapproval_id: preapprovalId, status } = params;
-  const profileUrl = preapprovalId
-    ? `/dashboard/profile?section=subscription&preapproval_id=${encodeURIComponent(preapprovalId)}`
-    : '/dashboard/profile?section=subscription';
+  const subscriptionUrl = preapprovalId
+    ? `/dashboard/subscription?preapproval_id=${encodeURIComponent(preapprovalId)}`
+    : '/dashboard/subscription';
 
   // Si MP reporta "authorized" directamente podemos mostrar un mensaje más específico,
   // pero igualmente el estado real viene del webhook — no confiar ciegamente.
@@ -97,7 +97,7 @@ export default async function SubscriptionConfirmationPage({ searchParams }: Pag
 
             <div className="pt-2 space-y-3">
               <Button asChild className="w-full bg-purple-600 hover:bg-purple-700">
-                <Link href={profileUrl}>
+                <Link href={subscriptionUrl}>
                   Ver estado de mi suscripción
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
