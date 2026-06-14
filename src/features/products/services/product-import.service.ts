@@ -179,7 +179,12 @@ export async function bulkCreateProducts(
                 categoryId: row.resolvedCategoryId,
                 ...(row.resolvedSubcategoryId ? { subcategoryId: row.resolvedSubcategoryId } : {}),
                 tags: row.resolvedTagIds,
-                variants: [],
+                variants: row.extras.map((e, i) => ({
+                    id: `${newRef.id}-${i}`,
+                    name: e.name,
+                    price: e.price,
+                    isAvailable: true,
+                })),
                 status: row.activo ? 'active' : 'inactive',
                 imageUrls: [],
                 currency: 'ARS',
