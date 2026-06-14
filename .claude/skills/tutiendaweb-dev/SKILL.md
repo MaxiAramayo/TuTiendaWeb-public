@@ -1,131 +1,77 @@
 ---
 name: tutiendaweb-dev
-description: Guia completa para desarrollar, refactorizar y agregar features en TuTiendaWeb respetando arquitectura server-first, Server Actions, Zod, Firebase Admin/Client y estructura de modulos por feature.
+description: Guia de desarrollo para TuTiendaWeb (SaaS Next.js 15 + Firebase). Usar al crear features o modulos, refactorizar, escribir Server Actions, schemas Zod, services con Firebase Admin/Client, componentes server/client, loading states, o al planear tests y code review de cambios fuertes. Cubre arquitectura server-first, el patron AUTH/VALIDATE/MUTATE/REVALIDATE para Server Actions, estructura de carpetas por feature, modelo de datos Firestore, integraciones (WhatsApp, MercadoPago) y reglas obligatorias del repo.
 license: MIT
-compatibility: opencode
-metadata:
-  audience: developers
-  workflow: feature-development
 ---
 
-## Que soy
+# TuTiendaWeb — Guia de desarrollo
 
-Soy la guia de desarrollo para TuTiendaWeb. Usame cuando tengas que:
-- Crear una nueva feature o modulo
-- Refactorizar codigo existente
-- Agregar Server Actions
-- Definir schemas Zod o tipos de datos
-- Trabajar con Firebase (Firestore, Storage, Admin SDK)
-- Implementar loading states y skeletons
+## Cuando usarme
 
----
+Usame para cualquier trabajo de codigo en este repo: crear o refactorizar features, escribir Server Actions, definir schemas Zod, tocar Firebase (Firestore/Storage/Admin/Client), armar componentes server/client, loading states, o planear tests y code review.
+
+**Fuente de verdad del repo:** [`AGENTS.md`](../../../AGENTS.md) y [`CLAUDE.md`](../../../CLAUDE.md) en la raiz, y [`docs/`](../../../docs/) (indice en [`docs/README.md`](../../../docs/README.md)). Si algo en esta skill contradice esos archivos, ellos ganan — avisar para corregir la skill.
 
 ## El proyecto
 
-TuTiendaWeb es una plataforma SaaS para que comercios (principalmente restaurantes y pymes) gestionen ventas, productos, clientes, reportes y un catalogo online compartible por WhatsApp.
+SaaS para comercios (restaurantes, pymes): gestionan ventas, productos, clientes, reportes y un **catalogo online** compartible por WhatsApp. Dos superficies: **dashboard** interno (protegido) y **catalogo publico** por tienda. Modelo por suscripcion (trial 7 dias → plan `pro` por MercadoPago).
 
-Panel interno (dashboard) + catalogo publico por tienda.
+Stack: Next.js 15 (App Router, Server Components, Server Actions), React 18, TypeScript, Tailwind + Radix/shadcn, Zustand (solo UI), React Hook Form + Zod, Firebase (Firestore/Auth/Storage, Admin + Client SDK). Detalle completo en [`AGENTS.md`](../../../AGENTS.md).
 
----
+## Comandos obligatorios
 
-## Stack completo
+```bash
+npm run dev              # desarrollo
+npm run lint             # ESLint
+npm run tsc              # type-check (tsc --noEmit)
+npm run build            # build de produccion
+npm run emulators        # Firebase local (Auth/Firestore/Storage) — ver references/testing-and-review.md
+npm run seed:emulator    # siembra datos demo en el emulador
+```
 
-**Frontend**
-- Next.js 15 (App Router, Server Components, Server Actions)
-- React 18 + TypeScript (strict)
-- Tailwind CSS + tailwindcss-animate
-- Radix UI + shadcn/ui (componentes base en `src/components/ui/`)
-- Framer Motion (animaciones)
-- Sonner (toasts en dashboard) + react-hot-toast (algunos modulos legacy)
-- Lucide + react-icons (iconos)
+**Regla critica:** despues de cualquier cambio de codigo correr `npm run tsc` y `npm run build`. No entregar codigo que no buildea. CI (`.github/workflows/ci.yml`) corre `lint` + `tsc` en PRs y push a `main`; **no hay build ni tests en CI**.
 
-**Estado y formularios**
-- Zustand (solo estado UI: modales, tabs, filtros, sidebar)
-- React Hook Form + Zod (formularios y validacion)
+## Arquitectura server-first (obligatoria)
 
-**Backend y persistencia**
-- Firebase Firestore (base de datos)
-- Firebase Auth (autenticacion)
-- Firebase Storage (imagenes)
-- Firebase Admin SDK (server-side: Server Actions y Server Components)
-- Firebase Client SDK (browser: auth UI y listeners)
-
-**Export / documentos**
-- jsPDF (exportar PDFs)
-- xlsx (exportar Excel)
-- QRCode + qrcode.react (menu QR)
-
-**Config clave (`next.config.js`)**
-- `serverExternalPackages: ['firebase-admin']`
-- `serverActions.bodySizeLimit: '5mb'`
-- `optimizePackageImports: ['@firebase/app', '@firebase/auth', '@firebase/firestore']`
-- `remotePatterns` para `firebasestorage.googleapis.com`
-
----
-
-## Arquitectura obligatoria (server-first)
-
-### Principios
-1. Lectura inicial en Server Components (nunca useEffect para fetch)
-2. Mutaciones SOLO en Server Actions (`'use server'`)
-3. No API Routes para CRUD interno (solo para integraciones externas como MercadoPago)
-4. Zod como fuente unica de validacion y tipos
-5. Firebase Admin SDK en el server, Client SDK solo en browser
-6. Zustand solo para estado UI (no datos de negocio)
-7. No barrels (`index.ts`) — imports directos siempre
+1. Lectura inicial en **Server Components** (`async function page()`). Nunca `useEffect` para fetch inicial de datos.
+2. Mutaciones SOLO en **Server Actions** (`'use server'`). No API Routes para CRUD interno (solo integraciones externas).
+3. **Zod** es la fuente unica de validacion y tipos (`z.infer`). No duplicar tipos a mano.
+4. **Firebase Admin SDK** solo en server; **Client SDK** solo en browser (auth UI, listeners).
+5. **Zustand** solo para estado de UI (modals, tabs, filtros, sidebar). No para datos de negocio. *Excepcion documentada:* el carrito del catalogo publico (`src/features/store/store/cart.store.ts`).
+6. **No barrels** (`index.ts`) en ningun nivel — imports directos siempre.
+7. Toda Server Action retorna `ActionResponse<T>` **importado** de `@/features/auth/auth.types` (`src/features/auth/auth.types.ts:144`). Nunca redeclararlo localmente.
 
 ### Responsabilidades por capa
 
-| Capa | Ubicacion | Rol |
-|------|-----------|-----|
-| Rutas | `src/app/**/page.tsx` | Fetch inicial + metadata (server) |
-| Actions | `src/features/**/actions/*.actions.ts` | Mutaciones + validacion + revalidatePath |
-| Services | `src/features/**/services/*.service.ts` | Acceso Firestore con Admin SDK |
-| Componentes | `src/features/**/components/*.tsx` | UI interactiva (client) |
-| Stores | `src/stores/*.store.ts` | Estado UI global (Zustand) |
-| Schemas | `src/features/**/schemas/*.schema.ts` | Zod: tipos + validacion |
+| Capa | Ubicacion | Rol | Entorno |
+|------|-----------|-----|---------|
+| Rutas | `src/app/**/page.tsx` | Fetch inicial + metadata | Server |
+| Actions | `features/**/actions/*.actions.ts` | AUTH → VALIDATE → MUTATE → REVALIDATE | Server |
+| Services | `features/**/services/*.service.ts` | Acceso Firestore via Admin SDK | Server |
+| Schemas | `features/**/schemas/*.schema.ts` | Zod: tipos + validacion | Compartido |
+| Componentes | `features/**/components/*.tsx` | UI interactiva | Client |
+| Stores | `features/**/store/*.store.ts` o `src/stores/*.store.ts` | Estado UI (Zustand) | Client |
 
----
+## Donde vive cada cosa
 
-## Estructura de un modulo nuevo
+- **Features top-level:** `src/features/{auth,products,store,user,onboarding,landing}/`
+- **Modulos del dashboard:** `src/features/dashboard/modules/{sells,store-settings,qr,overview}/`
+- `src/app` rutas/layouts · `src/lib` (firebase, `auth/server-session.ts`, utils) · `src/stores` Zustand UI · `src/components/ui` shadcn + skeletons · `src/shared/validations` schemas comunes.
 
-Ubicacion: `src/features/<nombre-modulo>/`
+Naming: `{dominio}.actions.ts`, `{dominio}.service.ts`, `{dominio}.schema.ts`, `{dominio}.types.ts`, `{dominio}.store.ts`. Componentes en PascalCase `.tsx` (el modulo `products` usa kebab-case: inconsistencia conocida, **no replicar**).
 
-```
-<nombre-modulo>/
-├── actions/
-│   └── <modulo>.actions.ts       # Server Actions ('use server')
-├── schemas/
-│   └── <modulo>.schema.ts        # Zod schema + tipos inferidos
-├── services/
-│   └── <modulo>.service.ts       # Firebase Admin SDK (server only)
-├── components/
-│   └── <ModuloMain>.tsx          # Componente principal ('use client')
-├── ui/
-│   └── *.tsx                     # Piezas de UI auxiliares
-├── utils/
-│   └── <modulo>.utils.ts         # Helpers y mapeos
-└── types/
-    └── components.ts             # Tipos de props (solo si hace falta)
-```
+## Patron de Server Action (canonico)
 
----
-
-## Patron de Server Action (AUTH → VALIDATE → MUTATE → REVALIDATE)
-
-Plantilla obligatoria para toda accion de mutacion:
+Plantilla para toda mutacion. Notar que `ActionResponse` se **importa**, no se redeclara:
 
 ```typescript
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from '@/lib/auth/server-session';
+import type { ActionResponse } from '@/features/auth/auth.types';
 import { mySchema } from '../schemas/my.schema';
 import { myService } from '../services/my.service';
-
-type ActionResponse<T = unknown> =
-  | { success: true; data: T }
-  | { success: false; errors: Record<string, string[]> };
 
 export async function createSomethingAction(
   input: unknown
@@ -136,7 +82,7 @@ export async function createSomethingAction(
     return { success: false, errors: { _form: ['No autenticado'] } };
   }
 
-  // 2. VALIDATE
+  // 2. VALIDATE (siempre, incluso para ventas publicas del catalogo)
   const validation = mySchema.safeParse(input);
   if (!validation.success) {
     return {
@@ -146,7 +92,7 @@ export async function createSomethingAction(
   }
 
   try {
-    // 3. MUTATE
+    // 3. MUTATE — el service usa session.storeId, nunca un storeId del cliente
     const id = await myService.create(session.storeId, validation.data);
 
     // 4. REVALIDATE
@@ -159,259 +105,45 @@ export async function createSomethingAction(
 }
 ```
 
----
+Plantillas completas (schema Zod, service Admin, Server Component, Client Component con `useTransition`, form con React Hook Form, `loading.tsx`/skeleton) en **[references/patterns.md](references/patterns.md)**.
 
-## Patron de Zod Schema (fuente unica de verdad)
+## Flujo para crear o refactorizar un modulo
 
-```typescript
-import { z } from 'zod';
+Orden de implementacion: **schema → service → action → page → componentes → loading**.
 
-export const mySchema = z.object({
-  name: z.string().min(2).max(100),
-  price: z.number().min(0),
-  status: z.enum(['active', 'inactive']).default('active'),
-});
+1. Definir el schema Zod en `schemas/` — fuente de verdad de tipos y validacion.
+2. Crear el service con Firebase Admin en `services/` — solo acceso a datos, recibe `storeId`.
+3. Crear las actions en `actions/` con el patron AUTH → VALIDATE → MUTATE → REVALIDATE, retornando `ActionResponse` importado.
+4. Crear `page.tsx` server que fetchea datos y pasa `initialData` por props.
+5. Crear los componentes client (`'use client'`) que llaman actions con `useTransition`; deshabilitar el boton mientras `isPending` (evita doble-submit).
+6. Agregar `loading.tsx` con skeleton apropiado en rutas con fetch server.
+7. No crear barrels. Importar `ActionResponse` de `auth.types`. Documentar el modulo en `docs/`.
 
-// Los tipos SIEMPRE se infieren del schema, nunca se definen aparte
-export type MyFormData = z.infer<typeof mySchema>;
-export type MyCreateData = z.infer<typeof mySchema>;
-```
+Al refactorizar: ver el checklist de refactor en [references/patterns.md](references/patterns.md).
 
----
+## Modelo de datos, roles e integraciones
 
-## Patron de Service con Firebase Admin
+Colecciones Firestore, estructura `Sale`, `ActionResponse`, roles/ownership, WhatsApp, MercadoPago, Storage y variables de entorno: ver **[references/architecture.md](references/architecture.md)**.
 
-```typescript
-import { adminDb } from '@/lib/firebase/admin';
-import { FieldValue } from 'firebase-admin/firestore';
+Resumen minimo:
+- Raiz: `/users/{userId}`, `/stores/{storeId}`. Subcolecciones: `categories`, `tags`, `products`, `sells`.
+- Permisos: lectura publica de catalogo (`stores/products/categories/tags`); escritura solo owner via `isStoreOwner(storeId)` (compara `request.auth.uid` con `metadata.ownerId`). Ventas: `create` publico (catalogo), resto solo owner.
+- Rol real: `owner` (asignado en `completeRegistrationAction`). `admin`/`employee` existen como concepto pero sin reglas propias.
 
-class MyService {
-  private readonly COLLECTION = 'stores';
+## Tests y code review de cambios fuertes
 
-  async getAll(storeId: string) {
-    const snap = await adminDb
-      .collection(this.COLLECTION)
-      .doc(storeId)
-      .collection('my-subcollection')
-      .get();
+Para planear tests, validar cambios localmente con el emulador, o hacer code review de un cambio fuerte (auth, ventas/checkout, import masivo, suscripcion, reglas Firestore), leer **[references/testing-and-review.md](references/testing-and-review.md)**.
 
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  }
-
-  async create(storeId: string, data: MyFormData): Promise<string> {
-    const ref = await adminDb
-      .collection(this.COLLECTION)
-      .doc(storeId)
-      .collection('my-subcollection')
-      .add({
-        ...data,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    return ref.id;
-  }
-}
-
-export const myService = new MyService();
-```
-
----
-
-## Patron de Server Component (page.tsx)
-
-```typescript
-import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/auth/server-session';
-import { myService } from '@/features/my-module/services/my.service';
-import { MyModuleClient } from '@/features/my-module/components/MyModuleClient';
-
-export default async function MyPage() {
-  const session = await getServerSession();
-  if (!session?.storeId) redirect('/sign-in');
-
-  const initialData = await myService.getAll(session.storeId);
-
-  return <MyModuleClient initialData={initialData} />;
-}
-```
-
----
-
-## Patron de Client Component
-
-```typescript
-'use client';
-
-import { useTransition } from 'react';
-import { toast } from 'sonner';
-import { createSomethingAction } from '../actions/my.actions';
-
-interface Props {
-  initialData: MyData[];
-}
-
-export function MyModuleClient({ initialData }: Props) {
-  const [isPending, startTransition] = useTransition();
-
-  const handleCreate = (data: MyFormData) => {
-    startTransition(async () => {
-      const result = await createSomethingAction(data);
-      if (result.success) {
-        toast.success('Creado correctamente');
-      } else {
-        toast.error(result.errors._form?.[0] ?? 'Error');
-      }
-    });
-  };
-
-  return (
-    // UI aqui
-  );
-}
-```
-
----
-
-## Estructura de datos Firebase (colecciones)
-
-```
-/stores/{storeId}
-  basicInfo:    { name, description, slug, type }
-  contactInfo:  { whatsapp, website, email }
-  address:      { street, city, province, country, zipCode }
-  socialLinks:  { instagram, facebook, twitter, tiktok }
-  theme:        { logoUrl, bannerUrl, primaryColor, secondaryColor, accentColor, fontFamily, style, buttonStyle }
-  schedule:     { monday..sunday: { closed, periods: [{ open, close, nextDay }] } }
-  settings:     { currency, language, paymentMethods[], deliveryMethods[] }
-  subscription: { active, plan, startDate, endDate, trialUsed }
-  metadata:     { createdAt, updatedAt, version, status }
-
-/stores/{storeId}/products/{productId}
-  name, price, categoryId, tags[], variants[], status, imageUrls[], storeId, createdAt, updatedAt
-
-/stores/{storeId}/categories/{categoryId}
-  name, slug, parentId, storeId, isActive, createdAt, updatedAt
-
-/stores/{storeId}/tags/{tagId}
-  name, storeId, createdAt, updatedAt
-
-/stores/{storeId}/sells/{sellId}
-  orderNumber, storeId, source
-  customer:  { name, phone, email }
-  items:     [{ productName, quantity, unitPrice, subtotal, extras? }]
-  delivery:  { method, address, notes }
-  payment:   { method, total }
-  totals:    { subtotal, discount, total }
-  notes, metadata: { createdAt, updatedAt, createdBy }
-
-/users/{userId}
-  uid, email, displayName, storeId, role, createdAt
-```
-
----
-
-## Tipos compartidos importantes
-
-```typescript
-// Respuesta de toda Server Action
-type ActionResponse<T = unknown> =
-  | { success: true; data: T }
-  | { success: false; errors: Record<string, string[]> };
-
-// Metodo de pago
-interface PaymentMethod { id: string; name: string; enabled: boolean; instructions?: string; }
-
-// Metodo de entrega
-interface DeliveryMethod { id: string; name: string; enabled: boolean; price?: number; instructions?: string; }
-
-// Venta (nueva estructura)
-interface Sale {
-  id: string;
-  orderNumber: string;
-  storeId: string;
-  source: 'local' | 'web' | 'whatsapp';
-  customer: { name: string; phone?: string; email?: string };
-  items: SaleItem[];
-  delivery: { method: 'retiro' | 'delivery'; address?: string; notes?: string };
-  payment: { method: 'efectivo' | 'transferencia' | 'mercadopago'; total: number };
-  totals: { subtotal: number; discount: number; total: number };
-  notes?: string;
-  metadata: { createdAt: Date; updatedAt: Date; createdBy?: string };
-}
-
-// Reglas de Firebase Storage
-// Limite: 5MB, solo image/*
-// Ruta: stores/{storeId}/[logo|banner|products/...]
-```
-
----
-
-## Reglas de Firestore (permisos clave)
-
-- `stores/*`: lectura publica, escritura solo owner
-- `stores/*/products`: lectura publica, escritura solo owner
-- `stores/*/categories`: lectura publica, escritura solo owner
-- `stores/*/tags`: lectura publica, escritura solo owner
-- `stores/*/sells`: escritura publica (pedidos catalogo), lectura/update/delete solo owner
-- `users/*`: solo el propio usuario
-
-No romper lectura publica del catalogo sin revisar el front del catalogo publico.
-
----
-
-## Loading states y Skeletons
-
-**Que hay implementado:**
-- `src/app/dashboard/products/loading.tsx` (unico loading.tsx existente)
-- `src/features/store/modules/products/components/ProductSkeleton.tsx`
-- `src/features/dashboard/modules/qr/components/QRModuleSkeleton.tsx`
-- `src/components/ui/skeleton.tsx` (componente base Skeleton de shadcn)
-
-**Que falta (agregar en este orden de prioridad):**
-- `src/app/dashboard/sells/loading.tsx`
-- `src/app/dashboard/profile/loading.tsx`
-- `src/app/dashboard/qr/loading.tsx`
-
-**Como implementar correctamente:**
-```typescript
-// src/app/dashboard/sells/loading.tsx
-import { Skeleton } from '@/components/ui/skeleton';
-
-export default function SellsLoading() {
-  return (
-    <div className="space-y-4 p-6">
-      <Skeleton className="h-8 w-48" />
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Skeleton key={i} className="h-16 w-full" />
-      ))}
-    </div>
-  );
-}
-```
-
-Para botones de mutacion en Client Components: usar `useTransition` y deshabilitar el boton mientras `isPending`.
-
----
-
-## Checklist de refactor correcto
-
-1. Identificar schema Zod actual o crear uno nuevo
-2. Mover validaciones duplicadas al schema (una sola fuente)
-3. Consolidar acceso Firestore en service server con Admin SDK
-4. Reemplazar fetch client (useEffect) por Server Actions
-5. Actualizar UI para recibir `initialData` como prop (server)
-6. Agregar `revalidatePath` en todas las mutaciones
-7. Quitar cualquier Zustand store con datos de negocio
-8. Agregar `loading.tsx` si la ruta hace fetch server
-
----
+Lo esencial: **no hay runner de tests configurado todavia** (CI solo corre lint + tsc). Ese archivo explica como montar Vitest, que testear (schemas Zod y Server Actions), como verificar con el emulador, cuando correr `/code-review` y `/security-review`, y la checklist de revision con los riesgos abiertos conocidos del repo.
 
 ## Lo que NO se debe hacer
 
-- No usar `useEffect` para fetch inicial de datos
-- No usar Firebase Client SDK para leer/escribir datos de negocio
-- No crear barrels (`index.ts`) en ningun nivel
-- No poner logica de negocio en componentes client
-- No poner credenciales Firebase en el cliente (solo vars `NEXT_PUBLIC_`)
-- No duplicar validaciones (solo en Zod schema)
-- No usar Zustand para datos de productos, ventas o configuracion de tienda
+- `useEffect` para fetch inicial de datos.
+- Firebase Client SDK para leer/escribir datos de negocio (solo Admin SDK en server).
+- Barrels (`index.ts`) en cualquier nivel.
+- Logica de negocio en componentes client.
+- Redeclarar `ActionResponse` localmente (importarlo de `auth.types`).
+- Duplicar validaciones fuera del schema Zod.
+- Zustand para datos de productos, ventas o configuracion de tienda.
+- Confiar en `storeId`/`role` que vengan del cliente — usar siempre `getServerSession()`.
+- Persistir ventas publicas sin validar y recalcular precios en el servidor.
