@@ -1,7 +1,7 @@
 # TuTiendaWeb — Documento Maestro de Contexto del Producto
 **Para qué sirve este archivo:** es el "cerebro" del negocio en un solo documento. Subilo a cualquier IA (ChatGPT, Claude, Gemini, generadores de imágenes, etc.) para que entienda exactamente qué es TuTiendaWeb, hasta dónde llega, cómo se usa y cómo explicarlo. Sirve para crear imágenes, mockups, campañas, guiones, textos y material de venta con contexto completo y fiel al producto real.
 
-**Última actualización:** 2026-06-12
+**Última actualización:** 2026-06-15
 **Idioma del producto y comunicación:** español argentino (voseo).
 
 ---
@@ -116,7 +116,8 @@ pedido llega ordenado al WhatsApp del DUEÑO → DUEÑO confirma y prepara
 - Cada producto: nombre, descripción, descripción corta, precio, **precio de costo** (para tu control interno de ganancia), categoría, etiquetas (tags), imágenes.
 - **Importación masiva desde Excel (.xlsx):** cargá hasta 300 productos de una sola vez con una planilla. El sistema crea automáticamente las categorías, subcategorías y tags que no existan. Incluye vista previa de filas válidas e inválidas antes de confirmar.
 - **Variantes / extras con precio** (ej: "extra queso +$1.000", "pan de la casa +$1.000"): el cliente los suma a su pedido y se calcula solo.
-- Organización por **categorías** (ej: Entradas, Principales, Postres) y **etiquetas**.
+- Organización por **categorías** y **subcategorías** (jerarquía de 2 niveles, ej: "Bebidas" → "Con alcohol" / "Sin alcohol") y por **etiquetas**.
+- **Orden personalizable de categorías y subcategorías:** el dueño define el orden en que aparecen en la tienda (arrastrando para reordenar).
 - Estado de producto (activo/inactivo) y soporte de promociones.
 - Listado filtrable y ordenable en el panel.
 
@@ -130,17 +131,17 @@ pedido llega ordenado al WhatsApp del DUEÑO → DUEÑO confirma y prepara
 ### 🛒 Pedidos por WhatsApp
 - El cliente arma el pedido y lo envía: llega **formateado y ordenado** al WhatsApp del negocio.
 - Generación de **ID automático** para cada pedido.
-- El dueño puede confirmar o cancelar pedidos.
+- El pedido entra y se **almacena como venta** (origen web/WhatsApp); la confirmación con el cliente se sigue haciendo por la conversación de WhatsApp.
 - El mensaje de WhatsApp se arma solo con el detalle del pedido, datos del cliente, método de pago y entrega.
 
 ### 🧾 Gestión de ventas (registro interno)
 - Crear ventas manualmente (además de las que entran por el catálogo).
 - Asociar productos, cantidades, datos del cliente, método de pago y entrega.
 - **Cálculo automático** de subtotal, descuentos y total.
-- **Estados de venta:** pendiente, confirmada, enviada, entregada, cancelada.
-- **Métodos de pago:** efectivo, tarjeta, transferencia, MercadoPago, etc.
+- La venta **no tiene flujo de estados**: se registra (se cierra) y se almacena. Cada venta guarda su **origen** (local, web o WhatsApp).
+- **Métodos de pago:** efectivo, transferencia, MercadoPago.
 - **Métodos de entrega:** retiro o delivery/envío.
-- Historial completo de ventas, filtrable por fecha, cliente, total y estado.
+- Historial completo de ventas, filtrable por fecha, cliente, total, método de pago, método de entrega y origen.
 - **Exportar ventas a PDF o Excel.**
 
 ### 📲 Código QR
@@ -210,7 +211,7 @@ Para mockups e imágenes del producto, estas son las secciones reales del panel 
 ### Para el DUEÑO (primera vez):
 1. **Registrate** con tu email o con Google.
 2. **Completá el onboarding:** nombre del negocio, tipo, WhatsApp, descripción, colores. Elegís la dirección web de tu tienda (slug).
-3. **Cargá tus productos:** foto, nombre, precio, descripción. Agrupalos en categorías. Si tenés muchos productos, usá la importación masiva por Excel para cargarlos todos de una vez.
+3. **Cargá tus productos:** foto, nombre, precio, descripción. Agrupalos en categorías y subcategorías, y ordenalas como querés que aparezcan en la tienda. Si tenés muchos productos, usá la importación masiva por Excel para cargarlos todos de una vez.
 4. **Agregá extras** si tu producto los tiene (ej: tamaños, agregados).
 5. **Personalizá tu tienda:** subí tu logo y elegí tus colores.
 6. **Configurá horarios, pagos y entrega.**
@@ -283,24 +284,28 @@ Para mockups e imágenes del producto, estas son las secciones reales del panel 
 
 ## 12. Guía para crear IMÁGENES y contenido visual
 
-### Estilo visual de marca ("Mercado Cálido")
-- **Sensación:** tienda viva, cálida, apetecible, confiable. NO frío/corporativo.
-- **Paleta:**
-  - Primario marca: Tomate/Coral `#E8552D`
-  - Acción (botones): Verde WhatsApp `#25D366`
-  - Acento: Mostaza/Miel `#F2A41C`
-  - Fondo: Crema `#FFF8F0`
-  - Texto: Carbón `#1A1714`
-- **Tipografía:** sans moderna con personalidad (Poppins, Sora) para títulos; legible (Inter, DM Sans) para cuerpo.
-- **Bordes redondeados, sombras suaves cálidas.**
+> ⚠️ Distinción clave: **el diseño de la APP (panel del dueño) es fijo** y lo define el sistema de diseño de TuTiendaWeb. **La TIENDA pública NO tiene diseño fijo:** cada comercio configura su propia marca (logo, color principal, portada, textos). Los colores de abajo son los de la **app y la marca TuTiendaWeb**, no los de la tienda de cada comercio.
+
+### Sistema de diseño de la marca / app (fijo)
+- **Sin gradientes en ningún lado:** todo es **tinta plana** (botones, logo, superficies).
+- **Color de marca / primario:** violeta **`#7C3AED`**.
+- **Azul `#2563eb`:** precios y links dentro del panel.
+- **Verde WhatsApp `#25D366`:** reservado **solo para la acción** (el botón "tap me" de pedir/enviar). No usarlo como color decorativo.
+- **Neutros:** escala **slate** (grises fríos) para el chrome del panel.
+- **Tipografía:** **Plus Jakarta Sans** (Poppins disponible solo como display opcional para piezas de marketing).
+- **Bordes redondeados generosos** y **sombras suaves**.
 - **Fotos reales** de comida/productos/comercios argentinos. Nada de stock genérico de oficinas.
-- **El verde solo para los botones de acción** (que el ojo sepa dónde tocar).
+
+### El logo
+- Glifo de **teléfono delineado detrás de una bolsa sólida**, plano y minimal, con un corte limpio donde se encuentran. **Sin gradientes.**
+- Una sola tinta: **violeta `#7C3AED`**, negro o blanco (según el fondo).
+- Wordmark: **Tu**`Tienda`**Web**, con "Tienda" en violeta.
 
 ### Qué mostrar en las imágenes (ideas fieles al producto):
 - Un **celular con el catálogo abierto** (productos con fotos y precios).
 - El **mensaje de WhatsApp** llegando con un pedido armado.
 - Un **QR impreso** en una mesa o mostrador, alguien escaneándolo.
-- El **panel del dueño** (productos, ventas, reportes).
+- El **panel del dueño** (productos con categorías/subcategorías, ventas, reportes).
 - **Antes/después:** papelitos desordenados → pedido ordenado en el WhatsApp.
 - Comparación visual: **comisión de delivery (-30%) vs. precio fijo ($15.000)**.
 - El **dueño real** de un comercio sonriendo, preparando un pedido.
@@ -334,7 +339,8 @@ Para mockups e imágenes del producto, estas son las secciones reales del panel 
 - **Dashboard / Panel:** la zona privada donde el dueño gestiona todo.
 - **Onboarding:** el asistente inicial que configura la tienda paso a paso.
 - **Variantes / Extras:** opciones con precio que se suman a un producto (tamaños, agregados).
-- **Estados de venta:** pendiente, confirmada, enviada, entregada, cancelada.
+- **Subcategoría:** segundo nivel dentro de una categoría (ej: "Bebidas" → "Sin alcohol").
+- **Origen de venta:** de dónde provino la venta (local, web o WhatsApp). La venta no tiene estados; se registra y se almacena.
 - **Período de gracia:** tiempo extra tras vencer la suscripción antes de suspender la cuenta.
 - **Owner (dueño):** rol con acceso completo a su tienda.
 

@@ -17,6 +17,29 @@ afterEach(() => {
   cleanup();
 });
 
+// jsdom no implementa estas APIs del navegador que usan Radix UI / Framer Motion.
+// Se stubbean globalmente para poder renderizar componentes que dependen de ellas.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
+
+if (typeof globalThis.matchMedia === 'undefined') {
+  globalThis.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia;
+}
+
 // `server-only` lanza si se importa en un bundle de cliente; en tests es no-op.
 vi.mock('server-only', () => ({}));
 
