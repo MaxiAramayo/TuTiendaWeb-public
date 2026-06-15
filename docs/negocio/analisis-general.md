@@ -1,6 +1,6 @@
 # 📊 Análisis y Contexto General del Sistema
 
-> **Actualizado:** 2026-06-12 · Documento académico/funcional de alto nivel.
+> **Actualizado:** 2026-06-15 · Documento académico/funcional de alto nivel.
 > Para el alcance funcional fiel del producto, la fuente de verdad es
 > [contexto-producto.md](contexto-producto.md).
 
@@ -18,7 +18,7 @@ Desarrollar un sistema modular, escalable y eficiente que permita a pequeños y 
 ## 🎯 Objetivos Específicos
 
 - Brindar una interfaz intuitiva para la carga, edición y consulta de ventas y productos.
-- Facilitar el seguimiento de pedidos y estado de entregas en tiempo real.
+- Facilitar la recepción y el registro ordenado de pedidos provenientes del catálogo.
 - Permitir la creación de reportes financieros automáticos (PDF/Excel) con exportación.
 - Centralizar el catálogo de productos, con soporte para imágenes y variantes.
 - Permitir a los clientes realizar pedidos mediante canales digitales (ej: WhatsApp).
@@ -85,12 +85,14 @@ Con esta implementación, se busca ofrecer un servicio accesible y eficiente que
 ### ✅ Funcionalidades incluidas
 
 - Registro, edición y consulta de productos (con variantes/extras con precio).
+- Organización de productos en categorías y subcategorías (2 niveles) con orden personalizable que define cómo aparecen en la tienda.
+- Importación masiva de productos desde Excel (.xlsx), con creación automática de categorías/subcategorías/tags y vista previa.
 - Onboarding guiado para configurar la tienda paso a paso.
 - Formulario de ventas con validación y cálculo automático.
 - Generación de reportes y exportación a PDF / Excel.
 - Catálogo online con posibilidad de compartir por WhatsApp.
 - Menú QR.
-- Estados de venta: pendiente, confirmada, enviada, entregada, cancelada.
+- Registro de ventas sin flujo de estados (se cierran y se almacenan), con su origen: local, web o WhatsApp.
 - Creación de usuarios y autenticación (email/password y Google).
 - Selección de métodos de pago y entrega.
 - Interfaz adaptable (responsive, mobile-first).
@@ -100,7 +102,6 @@ Con esta implementación, se busca ofrecer un servicio accesible y eficiente que
 ### 🔜 Funcionalidades futuras (visión)
 
 - Soporte multitienda bajo una misma cuenta.
-- Carga masiva de productos (CSV / Excel).
 - Más personalización de la tienda.
 - Dominio propio del comercio.
 

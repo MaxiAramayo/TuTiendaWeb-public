@@ -1,3 +1,8 @@
+# 🧩 Casos de Uso — TuTiendaWeb
+
+> **Actualizado:** 2026-06-15. Casos de uso por módulo, con numeración correlativa por prefijo (`CU-AUTH`, `CU-PROD`, `CU-SALE`, `CU-ORDER`, `CU-STORE`, `CU-REPORT`).
+
+---
 
 ## 👥 Módulo: Autenticación
 
@@ -72,7 +77,7 @@
 |📋 **Descripción**|Permite añadir un nuevo producto al sistema para su publicación en la tienda.|
 |📌 **Precondición**|El usuario debe estar en el panel autenticado.|
 |🎯 **Postcondición**|El producto queda guardado en la base de datos y visible en el listado.|
-|📑 **Flujo principal**|1. Accede a “Productos” y hace clic en “Agregar”.2. Completa campos: nombre, precio, stock, categoría, imagen.3. Presiona “Guardar”.4. El sistema valida los datos.5. Si todo está correcto, guarda y muestra confirmación.|
+|📑 **Flujo principal**|1. Accede a “Productos” y hace clic en “Agregar”.2. Completa campos: nombre, precio, categoría, subcategoría, imagen.3. Presiona “Guardar”.4. El sistema valida los datos.5. Si todo está correcto, guarda y muestra confirmación.|
 |⚠️ **Flujos alternativos**|- 2a: Imagen no válida → se muestra error.- 4a: Campos vacíos o con formato incorrecto → se bloquea envío.- 5a: Si hay error de red/backend → se ofrece reintentar.|
 
 ---
@@ -114,7 +119,7 @@
 |📋 **Descripción**|Muestra todos los productos disponibles en una tabla filtrable y ordenable.|
 |📌 **Precondición**|Debe haber productos registrados.|
 |🎯 **Postcondición**|Se presenta la lista completa para gestionar.|
-|📑 **Flujo principal**|1. Entra a sección “Productos”.2. El sistema carga listado.3. Puede filtrar por nombre, categoría o stock.4. Ordenar columnas.|
+|📑 **Flujo principal**|1. Entra a sección “Productos”.2. El sistema carga listado.3. Puede filtrar por nombre, categoría o subcategoría.4. Ordenar columnas.|
 |⚠️ **Flujos alternativos**|- 2a: No hay productos → mensaje de lista vacía.|
 
 ---
@@ -162,6 +167,34 @@
 
 ---
 
+### 🗂️ CU-PROD-08 – Gestionar Categorías y Subcategorías
+
+| Ítem | Descripción |
+|---|---|
+| 🆔 **Código** | CU-PROD-08 |
+| 👤 **Actor** | Dueño de Tienda |
+| 📋 **Descripción** | Permite crear, editar y eliminar categorías y subcategorías para organizar el catálogo en una jerarquía de 2 niveles (categoría principal → subcategoría). |
+| 📌 **Precondición** | El usuario debe estar autenticado en el panel. |
+| 🎯 **Postcondición** | La categoría/subcategoría queda guardada (con su `parentId`: `null` si es principal, o el id de la categoría padre si es subcategoría) y disponible para asignar a productos. |
+| 📑 **Flujo principal** | 1. Accede al gestor de categorías desde Productos. 2. Crea una categoría principal (nombre, descripción opcional). 3. Opcionalmente crea una subcategoría eligiendo su categoría padre. 4. Puede editar el nombre o activar/desactivar. 5. El sistema valida y persiste; el slug se deriva del nombre. |
+| ⚠️ **Flujos alternativos** | 2a: Nombre vacío o demasiado corto → error de validación. 3a: Intentar anidar más de 2 niveles → no permitido (una subcategoría no puede ser padre). 4a: Eliminar una categoría con productos/subcategorías → se pide confirmación. |
+
+---
+
+### ↕️ CU-PROD-09 – Ordenar Categorías y Subcategorías
+
+| Ítem | Descripción |
+|---|---|
+| 🆔 **Código** | CU-PROD-09 |
+| 👤 **Actor** | Dueño de Tienda |
+| 📋 **Descripción** | Permite definir manualmente el orden en que las categorías y subcategorías aparecen en la tienda pública, arrastrando para reordenar. |
+| 📌 **Precondición** | Deben existir al menos dos categorías (o subcategorías de un mismo padre) para reordenar. |
+| 🎯 **Postcondición** | Se persiste el campo `order` de cada categoría/subcategoría y la tienda pública refleja el nuevo orden. |
+| 📑 **Flujo principal** | 1. Accede al gestor de categorías. 2. Arrastra una categoría/subcategoría a su nueva posición (se reordena un nivel a la vez). 3. El sistema guarda el nuevo `order` en lote. 4. La tienda pública muestra las categorías en ese orden. |
+| ⚠️ **Flujos alternativos** | 3a: Error al guardar el reordenamiento → se notifica y se mantiene el orden anterior. |
+
+---
+
 ## 🧾 Módulo: Gestión de Ventas
 
 ---
@@ -172,11 +205,11 @@
 |---|---|
 |🆔 **Código**|CU-SALE-01|
 |👤 **Actor**|Dueño de Tienda|
-|📋 **Descripción**|Permite registrar una venta asociando productos, cantidades, cliente, método de pago y estado.|
+|📋 **Descripción**|Permite registrar una venta asociando productos, cantidades, cliente, método de pago y entrega. La venta se cierra y se almacena (no tiene flujo de estados).|
 |📌 **Precondición**|Deben existir productos en el sistema.|
 |🎯 **Postcondición**|La venta queda registrada con su resumen de datos.|
 |📑 **Flujo principal**|1. Accede al módulo de ventas.2. Hace clic en “Nueva venta”.3. Selecciona productos y cantidades.4. Agrega datos del cliente (opcional).5. Selecciona método de pago y entrega.6. Se calcula automáticamente el total.7. Presiona “Guardar”.|
-|⚠️ **Flujos alternativos**|- 3a: No hay stock suficiente → mostrar advertencia.- 4a: Cliente sin datos válidos → mostrar error.- 7a: Fallo en guardar → notificar.|
+|⚠️ **Flujos alternativos**|- 4a: Cliente sin datos válidos → mostrar error.- 7a: Fallo en guardar → notificar.|
 
 ---
 
@@ -228,7 +261,7 @@
 |---|---|
 |🆔 **Código**|CU-SALE-05|
 |👤 **Actor**|Dueño de Tienda|
-|📋 **Descripción**|Permite visualizar ventas por fecha, cliente, total, estado.|
+|📋 **Descripción**|Permite visualizar ventas por fecha, cliente, total, método de pago, método de entrega y origen.|
 |📌 **Precondición**|Debe haber ventas registradas.|
 |🎯 **Postcondición**|Se muestran solo las coincidencias filtradas.|
 |📑 **Flujo principal**|1. Ingresa a historial de ventas.2. Aplica filtros por campos.3. El sistema actualiza la vista.|
@@ -250,39 +283,25 @@
 
 ---
 
-### ✅ CU-SALE-07 – Definir Estado de Venta
-
-| Ítem                       | Descripción                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU-SALE-07                                                                                                    |
-| 👤 **Actor**               | Dueño de Tienda                                                                                               |
-| 📋 **Descripción**         | Permite establecer el estado actual de la venta.                                                              |
-| 📌 **Precondición**        | La venta debe existir.                                                                                        |
-| 🎯 **Postcondición**       | Se actualiza su estado a: pendiente, confirmada, enviada, entregada, cancelada.                               |
-| 📑 **Flujo principal**     | 1. Selecciona una venta.2. Elige el nuevo estado desde un selector.3. El sistema guarda y actualiza la vista. |
-| ⚠️ **Flujos alternativos** | - 3a: Error al guardar → se muestra advertencia.                                                              |
-
----
-
-### ✅ CU-SALE-08 – Definir Método de Pago
+### ✅ CU-SALE-07 – Definir Método de Pago
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU-SALE-08|
+|🆔 **Código**|CU-SALE-07|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Permite seleccionar el método de pago de una venta.|
 |📌 **Precondición**|Debe estar creando o editando una venta.|
-|🎯 **Postcondición**|El pago queda registrado como efectivo, tarjeta, transferencia, etc.|
+|🎯 **Postcondición**|El pago queda registrado como efectivo, transferencia o MercadoPago.|
 |📑 **Flujo principal**|1. En el formulario, selecciona método.2. El sistema guarda y lo asocia.|
 |⚠️ **Flujos alternativos**|- 2a: Método no válido → advertencia.|
 
 ---
 
-### ✅ CU-SALE-09 – Definir Método de Entrega
+### ✅ CU-SALE-08 – Definir Método de Entrega
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU-SALE-09|
+|🆔 **Código**|CU-SALE-08|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Permite indicar si la venta es para envío o retiro.|
 |📌 **Precondición**|El formulario de venta debe estar activo.|
@@ -292,11 +311,11 @@
 
 ---
 
-### ✅ CU-SALE-10 – Ver Historial de Ventas
+### ✅ CU-SALE-09 – Ver Historial de Ventas
 
 | Ítem                       | Descripción                                                                                               |
 | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU-SALE-10                                                                                                |
+| 🆔 **Código**              | CU-SALE-09                                                                                                |
 | 👤 **Actor**               | Dueño de Tienda                                                                                           |
 | 📋 **Descripción**         | Muestra todas las ventas pasadas en forma de historial.                                                   |
 | 📌 **Precondición**        | Deben existir ventas en la base.                                                                          |
@@ -352,27 +371,14 @@
 
 ---
 
-### ✅ CU-ORDER-04 – Confirmar o Cancelar Pedido
-
-|Ítem|Descripción|
-|---|---|
-|🆔 **Código**|CU-ORDER-04|
-|👤 **Actor**|Dueño de Tienda|
-|📋 **Descripción**|Permite gestionar pedidos recibidos, confirmándolos o cancelándolos.|
-|📌 **Precondición**|Debe haber pedidos pendientes en el sistema.|
-|🎯 **Postcondición**|El pedido cambia su estado a confirmado o cancelado.|
-|📑 **Flujo principal**|1. Accede a la lista de pedidos.2. Selecciona uno pendiente.3. Presiona “Confirmar” o “Cancelar”.4. El sistema actualiza el estado.5. Se notifica al cliente (vía WhatsApp o pantalla).|
-|⚠️ **Flujos alternativos**|- 3a: Ya fue confirmado/cancelado → advertencia.- 4a: Error al guardar cambios → mensaje.|
-
----
 ## 🎨 Módulo: Personalización de Tienda
 
 ---
-### ✅ CU‑STORE‑02 – Actualizar Información Básica
+### ✅ CU-STORE-01 – Actualizar Información Básica
 
 | Ítem                       | Descripción                                                                                                                                                                                                    |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU‑STORE‑02                                                                                                                                                                                                    |
+| 🆔 **Código**              | CU-STORE-01                                                                                                                                                                                                    |
 | 👤 **Actor**               | Dueño de Tienda                                                                                                                                                                                                |
 | 📋 **Descripción**         | Editar nombre, descripción, slug, tipo y categoría de la tienda.                                                                                                                                               |
 | 📌 **Precondición**        | Debe existir un perfil de tienda y el usuario estar autenticado.                                                                                                                                               |
@@ -382,11 +388,11 @@
 
 ---
 
-### ✅ CU‑STORE‑03 – Actualizar Información de Contacto
+### ✅ CU-STORE-02 – Actualizar Información de Contacto
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑03|
+|🆔 **Código**|CU-STORE-02|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Modificar número de WhatsApp y sitio web de la tienda.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -396,11 +402,11 @@
 
 ---
 
-### ✅ CU‑STORE‑04 – Actualizar Dirección Física
+### ✅ CU-STORE-03 – Actualizar Dirección Física
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑04|
+|🆔 **Código**|CU-STORE-03|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Actualizar calle, ciudad, provincia, país, zip code y enlace a Google Maps.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -410,11 +416,11 @@
 
 ---
 
-### ✅ CU‑STORE‑05 – Configurar Horario Semanal
+### ✅ CU-STORE-04 – Configurar Horario Semanal
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑05|
+|🆔 **Código**|CU-STORE-04|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Definir apertura, cierre y descanso para cada día de la semana.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -424,11 +430,11 @@
 
 ---
 
-### ✅ CU‑STORE‑06 – Actualizar Enlaces Sociales
+### ✅ CU-STORE-05 – Actualizar Enlaces Sociales
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑06|
+|🆔 **Código**|CU-STORE-05|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Agregar/editar URLs de Instagram y Facebook.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -438,25 +444,25 @@
 
 ---
 
-### ✅ CU‑STORE‑07 – Configurar Tema / Branding
+### ✅ CU-STORE-06 – Configurar Tema / Branding
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑07|
+|🆔 **Código**|CU-STORE-06|
 |👤 **Actor**|Dueño de Tienda|
-|📋 **Descripción**|Personalizar logo, banner, colores y estilo visual de la tienda.|
+|📋 **Descripción**|Personalizar el aspecto de **la tienda pública del comercio** (logo, banner, colores y estilo visual). Nota: el diseño del panel/app es fijo; lo personalizable es la tienda.|
 |📌 **Precondición**|Perfil existente; usuario autenticado; Storage habilitado.|
 |🎯 **Postcondición**|`theme` actualizado con URLs e identificadores de color/fuente.|
 |📑 **Flujo principal**|1. “Perfil → Tema”.2. Subir `logo`/`banner` a Storage → obtener URL.3. Elegir `primaryColor`, `secondaryColor`, `accentColor`, `fontFamily`, `style`.4. Guardar y persistir.|
-|⚠️ **Flujos alternativos**|2a. Imagen supera límite de 1 MB → “Archivo muy grande”.|
+|⚠️ **Flujos alternativos**|2a. Imagen supera límite de 5 MB → “Archivo muy grande”.|
 
 ---
 
-### ✅ CU‑STORE‑08 – Configurar Métodos de Pago y Entrega
+### ✅ CU-STORE-07 – Configurar Métodos de Pago y Entrega
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑08|
+|🆔 **Código**|CU-STORE-07|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Habilitar y configurar métodos de pago (efectivo, transferencia, mercado pago) y entrega (retiro, delivery).|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -466,11 +472,11 @@
 
 ---
 
-### ✅ CU‑STORE‑09a – Configurar Notificaciones por WhatsApp
+### ✅ CU-STORE-08a – Configurar Notificaciones por WhatsApp
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑09a|
+|🆔 **Código**|CU-STORE-08a|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Activar/desactivar recepción de pedidos vía WhatsApp.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -480,11 +486,11 @@
 
 ---
 
-### ✅ CU‑STORE‑09b – Configurar Notificaciones In‑App
+### ✅ CU-STORE-08b – Configurar Notificaciones In‑App
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑09b|
+|🆔 **Código**|CU-STORE-08b|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Activar/desactivar notificaciones dentro de la aplicación.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -494,11 +500,11 @@
 
 ---
 
-### ✅ CU‑STORE‑09c – Configurar Push Notifications
+### ✅ CU-STORE-08c – Configurar Push Notifications
 
 | Ítem                       | Descripción                                                                         |
 | -------------------------- | ----------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU‑STORE‑09c                                                                        |
+| 🆔 **Código**              | CU-STORE-08c                                                                        |
 | 👤 **Actor**               | Dueño de Tienda                                                                     |
 | 📋 **Descripción**         | Activar/desactivar notificaciones push (web/mobile).                                |
 | 📌 **Precondición**        | Perfil existente; usuario autenticado; configuración FCM habilitada.                |
@@ -510,11 +516,11 @@
 ---
 
 
-### ✅ CU‑STORE‑10 – Gestionar Suscripción
+### ✅ CU-STORE-09 – Gestionar Suscripción
 
 |Ítem|Descripción|
 |---|---|
-|🆔 **Código**|CU‑STORE‑10|
+|🆔 **Código**|CU-STORE-09|
 |👤 **Actor**|Dueño de Tienda|
 |📋 **Descripción**|Ver y controlar estado de trial, plan activo, periodo de gracia y datos de facturación.|
 |📌 **Precondición**|Perfil existente; usuario autenticado.|
@@ -524,25 +530,25 @@
 
 ---
 
-### 💳 CU‑STORE‑11 – Activar y gestionar prueba gratuita (auto) + método de pago opcional
+### 💳 CU-STORE-10 – Activar y gestionar prueba gratuita (auto) + método de pago opcional
 
 | Ítem                       | Descripción                                                                                                                                                                                                                                                              |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 🆔 **Código**              | CU‑STORE‑10                                                                                                                                                                                                                                                              |
+| 🆔 **Código**              | CU-STORE-10                                                                                                                                                                                                                                                              |
 | 👤 **Actor**               | Dueño de tienda                                                                                                                                                                                                                                                          |
 | 📋 **Descripción**         | Al crear una tienda, el sistema inicia automáticamente una prueba gratuita de 7 días. El dueño puede (opcionalmente) registrar un método de pago para renovaciones automáticas.                                                                                         |
-| 📌 **Precondición**        | El usuario creó la tienda (CU‑TIENDA‑06) y no tiene otra prueba usada en esa tienda (`trialUsed = false`).                                                                                                                                                               |
+| 📌 **Precondición**        | El usuario creó la tienda (ver onboarding) y no tiene otra prueba usada en esa tienda (`trialUsed = false`).                                                                                                                                                             |
 | 🎯 **Postcondición**       | Se setean:• `subscriptionActive = true`• `trialUsed = true`• `subscriptionStart = now()`• `subscriptionEnd = now() + 7 días`• (Opcional) `billing.provider = "MP"` y `billing.token` si cargó pago.                                                                     |
 | 📑 **Flujo principal**     | 1. Tras crear la tienda, el sistema crea automáticamente los campos de trial.2. Se muestra una pantalla “Bienvenido – Prueba activa hasta DD/MM/AAAA”.3. Botón **“Configurar método de pago”** (opcional).4. Si el usuario lo completa, se guardan los datos de billing. |
 | ⚠️ **Flujos alternativos** | 3‑a: Rechazo de token/MP → mostrar error y permitir reintentar más tarde.                                                                                                                                                                                                |
 
 ---
 
-### ⏳ CU‑STORE‑12 – Verificar suscripción y aplicar período de gracia
+### ⏳ CU-STORE-11 – Verificar suscripción y aplicar período de gracia
 
 | Ítem                       | Descripción                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU‑STORE‑11                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 🆔 **Código**              | CU-STORE-11                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 👤 **Actor**               | Sistema (middleware)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 📋 **Descripción**         | En cada acceso a recursos de la tienda, el sistema evalúa el estado de suscripción: **activa**, **gracia (7 días)** o **suspendida**.                                                                                                                                                                                                                                                                                                                       |
 | 📌 **Precondición**        | La tienda tiene `subscriptionEnd` registrado.                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -552,11 +558,11 @@
 
 ---
 
-### 🔁 CU‑STORE‑13 – Renovar o pagar anticipadamente la suscripción
+### 🔁 CU-STORE-12 – Renovar o pagar anticipadamente la suscripción
 
 | Ítem                       | Descripción                                                                                                                                                                                                                                                                                   |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU‑STORE‑12                                                                                                                                                                                                                                                                                   |
+| 🆔 **Código**              | CU-STORE-12                                                                                                                                                                                                                                                                                   |
 | 👤 **Actor**               | Dueño de tienda                                                                                                                                                                                                                                                                               |
 | 📋 **Descripción**         | El dueño puede pagar antes del vencimiento o durante el período de gracia para extender la suscripción (mensual/anual).                                                                                                                                                                       |
 | 📌 **Precondición**        | La tienda existe y el usuario es `owner`.                                                                                                                                                                                                                                                     |
@@ -566,11 +572,11 @@
 
 ---
 
-### 💳 CU‑STORE‑14 – Administrar método de pago (agregar / cambiar / quitar)
+### 💳 CU-STORE-13 – Administrar método de pago (agregar / cambiar / quitar)
 
 | Ítem                       | Descripción                                                                                                                                                                                               |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🆔 **Código**              | CU‑STORE‑13                                                                                                                                                                                               |
+| 🆔 **Código**              | CU-STORE-13                                                                                                                                                                                               |
 | 👤 **Actor**               | Dueño de tienda                                                                                                                                                                                           |
 | 📋 **Descripción**         | Permite gestionar el método de pago usado para próximas renovaciones automáticas (Mercado Pago u otros).                                                                                                  |
 | 📌 **Precondición**        | La tienda existe; el usuario es `owner`.                                                                                                                                                                  |
