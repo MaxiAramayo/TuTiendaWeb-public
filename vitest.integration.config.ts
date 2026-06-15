@@ -19,7 +19,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['test/integration/**/*.int.test.ts', 'test/rules/**/*.rules.test.ts'],
-    setupFiles: ['./test/helpers/integration-setup.ts'],
+    setupFiles: ['./test/helpers/integration-setup.ts', './test/helpers/integration-mocks.ts'],
     testTimeout: 20_000,
     hookTimeout: 30_000,
     // Ejecuta los archivos de a uno (sin paralelismo) para no abrir múltiples
