@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
       - run: npm install --ignore-scripts
       # Solo los emuladores que usan los tests de integración (sin functions).
       - run: npx -y firebase-tools@latest emulators:exec --project demo-tutiendaweb --only auth,firestore,storage "npm run test:int"
