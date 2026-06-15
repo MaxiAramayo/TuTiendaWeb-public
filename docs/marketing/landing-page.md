@@ -43,20 +43,6 @@ El comerciante argentino desconfía del software ("¿me van a cobrar sin avisar?
 ### Concepto: "Mercado Cálido"
 Inspiración visual: cartelería de food trucks modernos, packaging de marcas gastronómicas jóvenes, apps de delivery pero más humanas. Colores cálidos que dan hambre y energía, mucho aire, fotos reales de productos y comercios, y el verde de WhatsApp reservado **solo** para los botones de acción (para que el ojo siempre sepa dónde tocar).
 
-### Paleta de color (hex listos para el dev / Tailwind config)
-
-| Rol | Color | Hex | Uso |
-|-----|-------|-----|-----|
-| **Primario (marca)** | Tomate / Coral | `#E8552D` | Titulares destacados, badges, acentos, íconos |
-| **Primario oscuro** | Ladrillo | `#B23E1E` | Hover de botones primarios, texto sobre claro |
-| **Acción (CTA)** | Verde WhatsApp | `#25D366` | SOLO botones de acción principal ("Empezá gratis", "Pedir por WhatsApp") |
-| **Acción hover** | Verde oscuro | `#1EBE57` | Hover de los CTA |
-| **Acento cálido** | Mostaza / Miel | `#F2A41C` | Destacar números, estrellas de rating, etiquetas "más elegido" |
-| **Fondo base** | Crema | `#FFF8F0` | Fondo general de la página (no blanco puro: más cálido) |
-| **Superficie** | Blanco | `#FFFFFF` | Tarjetas, cards de features, testimonios |
-| **Texto principal** | Carbón | `#1A1714` | Títulos y cuerpo (no negro puro) |
-| **Texto secundario** | Gris cálido | `#6B6259` | Subtítulos, descripciones |
-| **Borde sutil** | Arena | `#EDE3D6` | Bordes de tarjetas, divisores |
 
 > Regla de oro de color: **el verde solo se usa para "esto es lo que tenés que tocar"**. Si el verde aparece en todos lados, pierde poder. El coral es la personalidad de la marca; el verde es el botón.
 
