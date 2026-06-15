@@ -19,16 +19,17 @@ casos (válido / inválido / borde) y el **mensaje esperado**. Sirve de:
 
 ## Índice de matrices
 
-- `login.md` — `loginSchema`
-- `register.md` — `registerSchema` (OWASP + confirmPassword)
-- `store-setup.md` — `storeSetupSchema`
-- `onboarding.md` — `onboardingSchema` (por paso)
-- `product.md` — `productSchema` / `productFormSchema`
-- `category.md` — `categorySchema`
-- `product-import.md` — `productImportRowSchema` (extras, tags, activo)
-- `checkout.md` — `checkoutFormSchema` / `publicCheckoutItemSchema`
-- `store.md` — `storeSchema` (whatsapp, URLs, schedule)
-- `sell.md` — `createSaleSchema`
-- `profile.md` — `profileFormSchema` (imageUpload, whatsapp, slug)
+- ✅ `store-setup.md` — `storeSetupSchema`
+- ✅ `onboarding.md` — `onboardingCompleteSchema` (por paso)
+- ✅ `product-import.md` — `productImportRowSchema` (extras, tags, activo)
+- ✅ `store.md` — `storeSchema` (whatsapp, URLs, schedule)
+- ✅ `sell.md` — `createSaleSchema`
+- ✅ `profile.md` — `profileFormSchema` (imageUpload, whatsapp, slug)
+- ⏳ `login.md` — `loginSchema` *(test hecho; matriz pendiente)*
+- ⏳ `register.md` — `registerSchema` (OWASP + confirmPassword) *(test hecho; matriz pendiente)*
+- ⏳ `product.md` — `productSchema` / `productFormSchema` *(test hecho; matriz pendiente)*
+- ⏳ `category.md` — `categorySchema` *(test hecho; matriz pendiente)*
+- ⏳ `checkout.md` — `checkoutFormSchema` / `publicCheckoutItemSchema` *(test hecho; matriz pendiente)*
 
-Cada archivo se crea junto con su test correspondiente en la Fase 1.
+> Schemas auxiliares cubiertos por tests sin matriz dedicada: `reset-password`,
+> `user-profile`, `complete-registration`, `tag` (validaciones triviales).
