@@ -72,7 +72,14 @@ npm run test:e2e:ui   # E2E modo interactivo
   - **Funciones puras:** `format.utils`, `firestore-serializer`, `cleanForFirestore`, `sell.utils`, `product.utils`, `whatsapp.utils`. *(helpers privados de `category.service` quedan para Fase 2: el módulo importa `firebase-admin`.)*
   - **Componentes (Testing Library):** `LoginForm`, `CheckoutForm` (incluye chequeo H-1: el checkout envía items sin precios), `ProductForm`. Se agregó polyfill global de `ResizeObserver`/`matchMedia` en `vitest.setup.ts`.
   - **Diferido a E2E (Fase 4):** `MultiStepRegister` y `OnboardingWizard` (wizards multi-paso, mejor cubiertos end-to-end). Los gates de cobertura `store/services/**` y `sells/**` se cumplen en Fase 2 (integración) y el gate global (≥80%) en Fase 5.
-- **Fase 2** — Integración con emuladores: checkout (H-1), sells, products, import, auth.
+- **Fase 2** — Integración con emuladores. ✅ **93 tests verdes** (`npm run test:int`, 6 suites).
+  - **Checkout / H-1:** `buildTrustedSale` y `processCheckoutAction` con test de price-tampering y de costo de envío recalculado server-side.
+  - **Sells:** CRUD + recálculo de totales (dot-notation), filtros de `getSales`, `calculateSalesStats`, venta pública sin sesión.
+  - **Products + import:** CRUD de service, `isValidSubcategory`, toggle/delete con limpieza real en Storage emulado, `bulkCreateProducts` (dedupe, topes 50/30, batches de 450) e `importProductsAction` (warnings + tope).
+  - **Categories / Tags:** jerarquía de 2 niveles, orden, unicidad, borrado bloqueado por uso (`CATEGORY_NOT_EMPTY`), `getTags`.
+  - **Store settings:** lectura serializada, updates por sección, slug único case-insensitive (merge sin pisar otras secciones).
+  - **Auth / claims:** custom claims reales (Auth emulado), `getServerSession` con ID token minteado vía REST (claims + fallback `storeId`), `user.service`, `registerAction`, `checkSlugAvailabilityAction`.
+  - Infra añadida: `test/helpers/integration-mocks.ts` (shim de `react.cache` y `next/cache`) y job `emulators` en `ci.yml`. Suites idempotentes: 3 corridas seguidas en verde.
 - **Fase 3** — Auditoría de reglas Firestore/Storage.
 - **Fase 4** — E2E de los 6 flujos críticos.
 - **Fase 5** — Gates de cobertura en CI y cierre de documentación.
