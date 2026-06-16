@@ -42,6 +42,12 @@ Observaciones sobre custom claims (`storeId`, `role`) y consistencia
 |----|-----------|---------|-------------|---------------|
 | `VAL-01` | Baja | `auth/schemas/login.schema.ts`, `register.schema.ts` | El email encadena `.email()` **antes** de `.trim()`, por lo que un email con espacios alrededor se **rechaza** en vez de recortarse (el `.trim()` no afecta la validación). | Reordenar a `.trim().toLowerCase().email()` para que el trim sea efectivo antes de validar. No se aplica sin aprobación; documentado en los tests como comportamiento actual. |
 
+## Hallazgos de integración (Fase 2)
+
+| ID | Severidad | Archivo | Descripción | Recomendación |
+|----|-----------|---------|-------------|---------------|
+| `INT-01` | Media | `store/services/checkout.service.ts` (`buildTrustedSale`), `dashboard/modules/sells/services/sale.service.ts` (`createSale`), `dashboard/modules/sells/schemas/sell.schema.ts` (`saleTotalsSchema`) | El costo de envío **no queda persistido** en la venta. `buildTrustedSale` arma `saleData.totals.total = subtotal + deliveryFee`, pero `createSale` lo **recalcula** como `total = subtotal - discount`, descartando el envío; además `saleTotalsSchema` no tiene campo `deliveryFee`. En pedidos `delivery`, la venta guardada queda con `total = subtotal` (sin envío). El mensaje de WhatsApp que ve el comercio sí muestra el total con envío (usa `built.total`), pero `calculateSalesStats` (totales del dashboard) **subcuenta** el monto de los envíos. No lo detectan los tests de Fase 2: el caso de persistencia del checkout usa `retiro` (envío = 0). | Definir si el envío debe integrar el total de la venta. Si sí: agregar `deliveryFee` a `saleTotalsSchema`, respetarlo en `createSale` (no recalcular el total ignorándolo) y guardar el monto de envío en la venta; acompañar con un test de regresión de checkout con `delivery`. Si no: documentar que el "total de venta" es solo de productos y que el envío se reporta aparte. No se aplica sin aprobación. |
+
 ## Áreas de atención ya identificadas (pre-auditoría)
 
 De la exploración inicial, a confirmar/validar con tests en Fase 3:
