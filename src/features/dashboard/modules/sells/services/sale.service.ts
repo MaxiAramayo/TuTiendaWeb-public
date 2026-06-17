@@ -66,6 +66,7 @@ function mapDocToSale(doc: FirebaseFirestore.DocumentSnapshot): Sale {
     totals: {
       subtotal: data.totals?.subtotal || 0,
       discount: data.totals?.discount || 0,
+      deliveryFee: data.totals?.deliveryFee || 0,
       total: data.totals?.total || 0,
     },
     notes: data.notes,
@@ -187,7 +188,10 @@ export async function createSale(
 
   // Calcular totales
   const subtotal = data.items.reduce((sum, item) => sum + calculateItemSubtotal(item), 0);
-  const total = subtotal - (data.totals.discount || 0);
+  const discount = data.totals.discount || 0;
+  const deliveryFee = data.totals.deliveryFee || 0;
+  // El envío integra el total de la venta (INT-01).
+  const total = subtotal - discount + deliveryFee;
 
   const saleData = cleanForFirestore({
     orderNumber: data.orderNumber || `ORD-${Date.now()}`,
@@ -220,7 +224,8 @@ export async function createSale(
     },
     totals: {
       subtotal,
-      discount: data.totals.discount || 0,
+      discount,
+      deliveryFee,
       total,
     },
     notes: data.notes || null,
@@ -286,10 +291,14 @@ export async function updateSale(
       subtotal: calculateItemSubtotal(item),
     }));
     updateData['totals.subtotal'] = subtotal;
-    
-    // Calcular total con descuento si existe
-    const discount = data.totals?.discount ?? 0;
-    const total = subtotal - discount;
+
+    // Calcular total con descuento y envío. Ambos salen del payload si vinieron,
+    // o del valor ya persistido en la venta (INT-01 envío, INT-02 descuento):
+    // editar los items no debe descartar el descuento ni el envío existentes.
+    const existingTotals = existingDoc.data()?.totals;
+    const discount = data.totals?.discount ?? existingTotals?.discount ?? 0;
+    const deliveryFee = data.totals?.deliveryFee ?? existingTotals?.deliveryFee ?? 0;
+    const total = subtotal - discount + deliveryFee;
     updateData['totals.total'] = total;
     updateData['payment.total'] = total;
   }
@@ -312,13 +321,17 @@ export async function updateSale(
 
   // Totals - campos individuales
   if (data.totals) {
+    if (data.totals.deliveryFee !== undefined) {
+      updateData['totals.deliveryFee'] = data.totals.deliveryFee;
+    }
     if (data.totals.discount !== undefined) {
       updateData['totals.discount'] = data.totals.discount;
-      // Recalcular total si hay descuento pero no hay items nuevos
+      // Recalcular total si hay descuento pero no hay items nuevos (incluye envío, INT-01)
       if (!data.items) {
         const existingData = existingDoc.data();
         const subtotal = existingData?.totals?.subtotal || 0;
-        const newTotal = subtotal - data.totals.discount;
+        const deliveryFee = data.totals.deliveryFee ?? existingData?.totals?.deliveryFee ?? 0;
+        const newTotal = subtotal - data.totals.discount + deliveryFee;
         updateData['totals.total'] = newTotal;
         updateData['payment.total'] = newTotal;
       }

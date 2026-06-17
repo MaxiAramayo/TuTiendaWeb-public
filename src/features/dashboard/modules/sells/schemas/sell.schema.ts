@@ -125,6 +125,9 @@ export const paymentInfoSchema = z.object({
 export const saleTotalsSchema = z.object({
   subtotal: z.number().nonnegative(),
   discount: z.number().nonnegative().default(0),
+  // Costo de envío persistido en la venta (INT-01). Se incluye en el total.
+  // default(0) preserva compatibilidad con ventas previas y con retiro en local.
+  deliveryFee: z.number().nonnegative().default(0),
   total: z.number().nonnegative(),
 });
 

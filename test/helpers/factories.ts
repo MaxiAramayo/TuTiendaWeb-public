@@ -101,7 +101,7 @@ export function makeSale(over: Override<Record<string, unknown>> = {}) {
     ],
     delivery: { method: 'retiro' },
     payment: { method: 'efectivo', total: 17000 },
-    totals: { subtotal: 17000, discount: 0, total: 17000 },
+    totals: { subtotal: 17000, discount: 0, deliveryFee: 0, total: 17000 },
     ...over,
   };
 }

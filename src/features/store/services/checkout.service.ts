@@ -157,6 +157,7 @@ export async function buildTrustedSale(
     totals: {
       subtotal,
       discount: 0,
+      deliveryFee,
       total
     },
     notes: input.notes?.slice(0, 1000) || ''
