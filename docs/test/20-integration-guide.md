@@ -110,40 +110,52 @@ Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplica
 |------|----------|:---:|
 | **Checkout** | `store/services/checkout.service.ts`, `store/actions/checkout.actions.ts` | ✅ (PR1) |
 | **Sells** | `dashboard/modules/sells/services/sale.service.ts`, `.../actions/sale.actions.ts` | ✅ (PR2) |
-| **Products** | `products/services/product.service.ts`, `.../actions/product.actions.ts` | ⬜ |
-| **Import** | `products/services/product-import.service.ts` | ⬜ |
-| **Categories/Tags** | `products/services/category.service.ts`, `tag.service.ts` | ⬜ |
-| **Store-settings** | `dashboard/modules/store-settings/services/server/profile.server-service.ts` | ⬜ |
-| **Auth/claims** | `auth/services/server/auth.service.ts`, `lib/auth/server-session.ts`, `auth/actions/**` | ⬜ |
+| **Products** | `products/services/product.service.ts`, `.../actions/product.actions.ts` | ✅ (PR3) |
+| **Import** | `products/services/product-import.service.ts` | ✅ (PR3) |
+| **Categories/Tags** | `products/services/category.service.ts`, `tag.service.ts` | ✅ (PR4) |
+| **Store-settings** | `dashboard/modules/store-settings/services/server/profile.server-service.ts` | ✅ (PR5) |
+| **Auth/claims** | `auth/services/server/auth.service.ts`, `lib/auth/server-session.ts`, `auth/actions/**` | ✅ (PR6) |
 
-- [ ] **Checkout** ≥ 90% líneas / ≥ 85% branches.
-- [ ] **Sells** ≥ 90% líneas / ≥ 85% branches.
-- [ ] **Auth/claims** ≥ 90% líneas / ≥ 85% branches.
-- [ ] **Products** cubierto: CRUD + limpieza de imágenes en Storage emulado + `toggleProductStatus`.
-- [ ] **Import** cubierto: límites 50 cat / 30 sub / 300 productos, batches de 450, dedupe case-insensitive, jerarquía 2 niveles, `isValidSubcategory`.
-- [ ] **Categories/Tags** cubierto: crear/actualizar/reordenar, `countCategoryUsage`, `deleteCategory`, slug.
-- [ ] **Store-settings** cubierto: slug único case-insensitive, validación por sección, `checkSlugAvailability`.
+- [ ] **Checkout** ≥ 90% líneas / ≥ 85% branches. *(gate cuantitativo pendiente — ver nota)*
+- [ ] **Sells** ≥ 90% líneas / ≥ 85% branches. *(gate cuantitativo pendiente — ver nota)*
+- [ ] **Auth/claims** ≥ 90% líneas / ≥ 85% branches. *(gate cuantitativo pendiente — ver nota)*
+
+> **Nota sobre los gates cuantitativos:** las tres áreas tienen suite de
+> integración verde, pero el umbral ≥90/≥85 **aún no se mide ni se enforcea** en
+> `vitest.integration.config.ts` (la cobertura hoy solo corre en unit). Activar el
+> gate de cobertura de integración queda como mejora previa al cierre formal de la
+> Fase 5. Por eso estos tres ítems quedan sin tildar a propósito.
+- [x] **Products** cubierto: CRUD + limpieza de imágenes en Storage emulado + `toggleProductStatus`. *(PR3)*
+- [x] **Import** cubierto: límites 50 cat / 30 sub / 300 productos, batches de 450, dedupe case-insensitive, jerarquía 2 niveles, `isValidSubcategory`. *(PR3)*
+- [x] **Categories/Tags** cubierto: crear/actualizar/reordenar, `countCategoryUsage`, `deleteCategory`, slug. *(PR4)*
+- [x] **Store-settings** cubierto: slug único case-insensitive, validación por sección, `checkSlugAvailability`. *(PR5)*
 
 ### Seguridad y reglas de negocio
 
 - [x] **H-1 price-tampering** verde (cliente miente el precio → se ignora y se recalcula desde Firestore). *(PR1)*
 - [x] **INT-01** resuelto: el envío integra el total persistido (`total = subtotal − discount + deliveryFee`) y hay regresión de checkout `delivery`. *(PR2)*
-- [ ] Operaciones públicas (venta sin auth) validan estructura y `storeId`.
-- [ ] Cada Server Action: rechazo sin sesión / sin `storeId` afirmado (`success === false`).
+- [x] Operaciones públicas (venta sin auth) validan estructura y `storeId`. *(checkout/sells)*
+- [x] Cada Server Action: rechazo sin sesión / sin `storeId` afirmado (`success === false`). *(sells/products/auth)*
 
 ### Calidad transversal (cada suite cumple `03-acceptance-criteria.md`)
 
-- [ ] Por cada regla de negocio: **caso válido + un inválido por regla + bordes**.
-- [ ] Mensajes de error afirmados **literalmente** (no solo `success === false`).
-- [ ] **Determinismo:** IDs (`nanoid`) y relojes (`vi.useFakeTimers`) mockeados; sin `sleep`.
+- [x] Por cada regla de negocio: **caso válido + un inválido por regla + bordes**.
+- [x] Mensajes de error afirmados **literalmente** (no solo `success === false`).
+- [x] **Determinismo:** IDs (`nanoid`) y relojes (`vi.useFakeTimers`) mockeados; sin `sleep`.
       > Al usar `vi.useFakeTimers` en integración, limitar a `{ toFake: ['Date'] }`: si se
       > falsea también `setTimeout`, el IO del SDK de Firestore queda colgado.
-- [ ] **Aislamiento:** `clearFirestore()` / `clearAuth()` en `beforeEach`; solo proyecto `demo-*`.
-- [ ] **Idempotencia:** las suites corren en cualquier orden, sin residuos en el emulador.
+- [x] **Aislamiento:** `clearFirestore()` / `clearAuth()` en `beforeEach`; solo proyecto `demo-*`.
+- [x] **Idempotencia:** las suites corren en cualquier orden, sin residuos en el emulador.
 
 ### CI y cierre
 
-- [ ] Job `emulators` verde (`npm run test:emu`) con todas las suites de integración.
-- [ ] `npx tsc --noEmit` y `npm run lint` verdes.
-- [ ] La suite unit (Fase 1) sigue verde tras los cambios de producción.
-- [ ] Sin hallazgos **abiertos de severidad Alta** sin documentar en `docs/hallazgos/`.
+- [x] Job `emulators` verde (`npm run test:emu`) con todas las suites de integración (6 suites).
+- [x] `npx tsc --noEmit` y `npm run lint` verdes.
+- [x] La suite unit (Fase 1) sigue verde tras los cambios de producción (386 tests).
+- [x] Sin hallazgos **abiertos de severidad Alta** sin documentar en `docs/hallazgos/` (INT-01/INT-02 resueltos; VAL-01 baja, documentado).
+
+> **Estado:** Fase 2 **funcionalmente completa** (6 áreas con suite de integración verde).
+> Pendiente solo el gate cuantitativo de cobertura de integración, que se enforcea en Fase 5.
+> Mejoras detectadas en el code review del stack en
+> [docs/hallazgos/mejoras-fase2-code-review-2026-06-17.md](../hallazgos/mejoras-fase2-code-review-2026-06-17.md)
+> (MEJ-01…MEJ-05, ninguna bloqueante).

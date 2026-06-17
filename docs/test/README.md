@@ -72,10 +72,14 @@ npm run test:e2e:ui   # E2E modo interactivo
   - **Funciones puras:** `format.utils`, `firestore-serializer`, `cleanForFirestore`, `sell.utils`, `product.utils`, `whatsapp.utils`. *(helpers privados de `category.service` quedan para Fase 2: el módulo importa `firebase-admin`.)*
   - **Componentes (Testing Library):** `LoginForm`, `CheckoutForm` (incluye chequeo H-1: el checkout envía items sin precios), `ProductForm`. Se agregó polyfill global de `ResizeObserver`/`matchMedia` en `vitest.setup.ts`.
   - **Diferido a E2E (Fase 4):** `MultiStepRegister` y `OnboardingWizard` (wizards multi-paso, mejor cubiertos end-to-end). Los gates de cobertura `store/services/**` y `sells/**` se cumplen en Fase 2 (integración) y el gate global (≥80%) en Fase 5.
-- **Fase 2** — Integración con emuladores. **En progreso.** Criterio de salida completo en [`20-integration-guide.md`](./20-integration-guide.md#criterio-de-aceptación-de-la-fase-2-completa-definition-of-done).
+- **Fase 2** — Integración con emuladores. ✅ **Funcionalmente completa** (6 áreas, suites verdes). Criterio de salida en [`20-integration-guide.md`](./20-integration-guide.md#criterio-de-aceptación-de-la-fase-2-completa-definition-of-done).
   - **Checkout (H-1)** ✅ PR1 — price-tampering + infra de emuladores + CI.
-  - **Sells** ✅ PR2 — `sale.service`/`sale.actions` (totales, filtros, stats) + **fix INT-01** (el envío integra el total persistido). `test/integration/sells.int.test.ts`.
-  - **Pendiente:** products, import, categories/tags, store-settings, auth.
+  - **Sells** ✅ PR2 — `sale.service`/`sale.actions` (totales, filtros, stats) + **fix INT-01/INT-02** (el envío integra el total persistido; el descuento no se resetea al editar items). `test/integration/sells.int.test.ts`.
+  - **Products + Import** ✅ PR3 — CRUD, limpieza real de imágenes en Storage emulado, `bulkCreateProducts` (dedupe, topes, batches). `test/integration/products.int.test.ts`.
+  - **Categories/Tags** ✅ PR4 — jerarquía 2 niveles, reorder, uso/borrado, slug. `test/integration/categories.int.test.ts`.
+  - **Store-settings** ✅ PR5 — slug único case-insensitive, validación por sección. `test/integration/store-settings.int.test.ts`.
+  - **Auth/claims** ✅ PR6 — `setUserClaims`/`getUserClaims`, `getServerSession` (claims/fallback). `test/integration/auth.int.test.ts`.
+  - **Pendiente (no bloqueante):** gate cuantitativo de cobertura de integración (se enforcea en Fase 5).
 - **Fase 3** — Auditoría de reglas Firestore/Storage.
 - **Fase 4** — E2E de los 6 flujos críticos.
 - **Fase 5** — Gates de cobertura en CI y cierre de documentación.
