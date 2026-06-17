@@ -282,6 +282,8 @@ export const SellForm: React.FC<SellFormProps> = ({
       totals: {
         subtotal: calculatedTotals.subtotal,
         discount: data.discount || 0,
+        // Las ventas manuales del dashboard no capturan costo de envío.
+        deliveryFee: 0,
         total: calculatedTotals.total,
       },
       notes: data.notes || undefined,

@@ -255,6 +255,36 @@ describe('processCheckoutAction · flujo completo H-1', () => {
     expect(sale.totals.subtotal).toBe(2000);
   });
 
+  it('persiste el costo de envío en la venta cuando el método es delivery (INT-01)', async () => {
+    await seedProduct('p1', { name: 'Cargador 20W', price: 1000, status: 'active' });
+
+    const result = await processCheckoutAction({
+      storeId: TEST_STORE_ID,
+      formData: {
+        nombre: 'Cliente Test',
+        formaDeConsumir: 'delivery',
+        formaDePago: 'efectivo',
+        direccion: 'Av. Siempreviva 742, Local 3',
+      },
+      items: [{ productId: 'p1', quantity: 2, variantIds: [] }],
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.subtotal).toBe(2000);
+    expect(result.data.total).toBe(3500); // 2000 + envío 1500
+
+    // El envío queda persistido en la venta (no solo en el mensaje de WhatsApp).
+    const snap = await adminDb()
+      .collection('stores')
+      .doc(TEST_STORE_ID)
+      .collection('sells')
+      .get();
+    const sale = snap.docs[0].data();
+    expect(sale.totals.deliveryFee).toBe(1500);
+    expect(sale.totals.total).toBe(3500);
+  });
+
   it('devuelve error de formulario cuando la dirección de delivery es muy corta', async () => {
     await seedProduct('p1');
 

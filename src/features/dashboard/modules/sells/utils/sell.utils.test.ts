@@ -66,13 +66,13 @@ describe('calculateItemSubtotal', () => {
 
 describe('calculateOrderTotal / calculateTotalRevenue', () => {
   it('devuelve el total de la venta', () => {
-    expect(calculateOrderTotal(makeSaleObj({ totals: { subtotal: 500, discount: 0, total: 500 } }))).toBe(500);
+    expect(calculateOrderTotal(makeSaleObj({ totals: { subtotal: 500, discount: 0, deliveryFee: 0, total: 500 } }))).toBe(500);
   });
 
   it('suma los totales de varias ventas', () => {
     const sales = [
-      makeSaleObj({ totals: { subtotal: 100, discount: 0, total: 100 } }),
-      makeSaleObj({ totals: { subtotal: 250, discount: 0, total: 250 } }),
+      makeSaleObj({ totals: { subtotal: 100, discount: 0, deliveryFee: 0, total: 100 } }),
+      makeSaleObj({ totals: { subtotal: 250, discount: 0, deliveryFee: 0, total: 250 } }),
     ];
     expect(calculateTotalRevenue(sales)).toBe(350);
   });
@@ -144,8 +144,8 @@ describe('sortSales', () => {
   });
 
   it('ordena por total descendente', () => {
-    const lo = makeSaleObj({ id: 'lo', totals: { subtotal: 100, discount: 0, total: 100 } });
-    const hi = makeSaleObj({ id: 'hi', totals: { subtotal: 900, discount: 0, total: 900 } });
+    const lo = makeSaleObj({ id: 'lo', totals: { subtotal: 100, discount: 0, deliveryFee: 0, total: 100 } });
+    const hi = makeSaleObj({ id: 'hi', totals: { subtotal: 900, discount: 0, deliveryFee: 0, total: 900 } });
     expect(sortSales([lo, hi], 'total-desc').map((s) => s.id)).toEqual(['hi', 'lo']);
   });
 
@@ -159,7 +159,7 @@ describe('sortSales', () => {
 describe('generateSalesCSV', () => {
   it('genera encabezado y una fila por venta con celdas entrecomilladas', () => {
     const csv = generateSalesCSV([
-      makeSaleObj({ customer: { name: 'Ana' }, totals: { subtotal: 17000, discount: 0, total: 17000 } }),
+      makeSaleObj({ customer: { name: 'Ana' }, totals: { subtotal: 17000, discount: 0, deliveryFee: 0, total: 17000 } }),
     ]);
     const lines = csv.split('\n');
     expect(lines).toHaveLength(2);

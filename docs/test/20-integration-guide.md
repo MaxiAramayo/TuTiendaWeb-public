@@ -99,8 +99,51 @@ Crear/actualizar/reordenar, jerarquía 2 niveles.
 `setUserClaims` + `getServerSession` (storeId/role en claims, fallback Firestore),
 `checkSlugAvailability`, flujo registro→onboarding→claims.
 
-## Criterio de salida (Fase 2)
+## Criterio de aceptación de la Fase 2 completa (Definition of Done)
 
-- ≥ 90% en checkout/sells/auth (services + actions).
-- Test de price-tampering verde.
-- Suites idempotentes: corren en cualquier orden y limpian su estado.
+La Fase 2 se considera **terminada** solo cuando **todos** los ítems están verdes.
+Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplicado por área.
+
+### Cobertura por área (services + actions, contra emulador)
+
+| Área | Archivos | Estado |
+|------|----------|:---:|
+| **Checkout** | `store/services/checkout.service.ts`, `store/actions/checkout.actions.ts` | ✅ (PR1) |
+| **Sells** | `dashboard/modules/sells/services/sale.service.ts`, `.../actions/sale.actions.ts` | ✅ (PR2) |
+| **Products** | `products/services/product.service.ts`, `.../actions/product.actions.ts` | ⬜ |
+| **Import** | `products/services/product-import.service.ts` | ⬜ |
+| **Categories/Tags** | `products/services/category.service.ts`, `tag.service.ts` | ⬜ |
+| **Store-settings** | `dashboard/modules/store-settings/services/server/profile.server-service.ts` | ⬜ |
+| **Auth/claims** | `auth/services/server/auth.service.ts`, `lib/auth/server-session.ts`, `auth/actions/**` | ⬜ |
+
+- [ ] **Checkout** ≥ 90% líneas / ≥ 85% branches.
+- [ ] **Sells** ≥ 90% líneas / ≥ 85% branches.
+- [ ] **Auth/claims** ≥ 90% líneas / ≥ 85% branches.
+- [ ] **Products** cubierto: CRUD + limpieza de imágenes en Storage emulado + `toggleProductStatus`.
+- [ ] **Import** cubierto: límites 50 cat / 30 sub / 300 productos, batches de 450, dedupe case-insensitive, jerarquía 2 niveles, `isValidSubcategory`.
+- [ ] **Categories/Tags** cubierto: crear/actualizar/reordenar, `countCategoryUsage`, `deleteCategory`, slug.
+- [ ] **Store-settings** cubierto: slug único case-insensitive, validación por sección, `checkSlugAvailability`.
+
+### Seguridad y reglas de negocio
+
+- [x] **H-1 price-tampering** verde (cliente miente el precio → se ignora y se recalcula desde Firestore). *(PR1)*
+- [x] **INT-01** resuelto: el envío integra el total persistido (`total = subtotal − discount + deliveryFee`) y hay regresión de checkout `delivery`. *(PR2)*
+- [ ] Operaciones públicas (venta sin auth) validan estructura y `storeId`.
+- [ ] Cada Server Action: rechazo sin sesión / sin `storeId` afirmado (`success === false`).
+
+### Calidad transversal (cada suite cumple `03-acceptance-criteria.md`)
+
+- [ ] Por cada regla de negocio: **caso válido + un inválido por regla + bordes**.
+- [ ] Mensajes de error afirmados **literalmente** (no solo `success === false`).
+- [ ] **Determinismo:** IDs (`nanoid`) y relojes (`vi.useFakeTimers`) mockeados; sin `sleep`.
+      > Al usar `vi.useFakeTimers` en integración, limitar a `{ toFake: ['Date'] }`: si se
+      > falsea también `setTimeout`, el IO del SDK de Firestore queda colgado.
+- [ ] **Aislamiento:** `clearFirestore()` / `clearAuth()` en `beforeEach`; solo proyecto `demo-*`.
+- [ ] **Idempotencia:** las suites corren en cualquier orden, sin residuos en el emulador.
+
+### CI y cierre
+
+- [ ] Job `emulators` verde (`npm run test:emu`) con todas las suites de integración.
+- [ ] `npx tsc --noEmit` y `npm run lint` verdes.
+- [ ] La suite unit (Fase 1) sigue verde tras los cambios de producción.
+- [ ] Sin hallazgos **abiertos de severidad Alta** sin documentar en `docs/hallazgos/`.
