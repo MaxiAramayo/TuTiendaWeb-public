@@ -113,7 +113,7 @@ Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplica
 | **Products** | `products/services/product.service.ts`, `.../actions/product.actions.ts` | ✅ (PR3) |
 | **Import** | `products/services/product-import.service.ts` | ✅ (PR3) |
 | **Categories/Tags** | `products/services/category.service.ts`, `tag.service.ts` | ✅ (PR4) |
-| **Store-settings** | `dashboard/modules/store-settings/services/server/profile.server-service.ts` | ⬜ |
+| **Store-settings** | `dashboard/modules/store-settings/services/server/profile.server-service.ts` | ✅ (PR5) |
 | **Auth/claims** | `auth/services/server/auth.service.ts`, `lib/auth/server-session.ts`, `auth/actions/**` | ⬜ |
 
 - [ ] **Checkout** ≥ 90% líneas / ≥ 85% branches.
@@ -122,7 +122,7 @@ Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplica
 - [x] **Products** cubierto: CRUD + limpieza de imágenes en Storage emulado + `toggleProductStatus`. *(PR3)*
 - [x] **Import** cubierto: límites 50 cat / 30 sub / 300 productos, batches de 450, dedupe case-insensitive, jerarquía 2 niveles, `isValidSubcategory`. *(PR3)*
 - [x] **Categories/Tags** cubierto: crear/actualizar/reordenar, `countCategoryUsage`, `deleteCategory`, slug. *(PR4)*
-- [ ] **Store-settings** cubierto: slug único case-insensitive, validación por sección, `checkSlugAvailability`.
+- [x] **Store-settings** cubierto: slug único case-insensitive, validación por sección, `checkSlugAvailability`. *(PR5)*
 
 ### Seguridad y reglas de negocio
 
