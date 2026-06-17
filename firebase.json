@@ -38,6 +38,12 @@
       "enabled": true,
       "port": 4000
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "functions": {
+      "port": 5001
+    },
+    "database": {
+      "port": 9000
+    }
   }
 }

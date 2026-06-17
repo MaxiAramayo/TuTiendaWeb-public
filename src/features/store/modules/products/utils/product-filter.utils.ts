@@ -16,12 +16,8 @@ import { SortOption as FiltersSortOption } from '@/features/store/store/filters.
  */
 export const filterProductsBySearchTerm = (products: Product[], searchTerm: string): Product[] => {
   if (!searchTerm.trim()) return products;
-  
-  const term = searchTerm.toLowerCase().trim();
-  return products.filter(product => 
-    product.name.toLowerCase().includes(term) || 
-    product.description.toLowerCase().includes(term)
-  );
+
+  return products.filter(product => productMatchesSearch(product, searchTerm));
 };
 
 /**
@@ -317,14 +313,20 @@ export const filterProducts = (products: Product[], filters: ProductFilters): Pr
  */
 export const productMatchesSearch = (product: Product, searchTerm: string): boolean => {
   const term = searchTerm.toLowerCase().trim();
+  if (!term) return true;
+
   const name = product.name.toLowerCase();
   const description = product.description?.toLowerCase() || '';
   const category = product.category?.toLowerCase() || '';
-  
+  const subcategory = product.subcategory?.toLowerCase() || '';
+  const matchesTag = product.tags?.some(tag => tag.toLowerCase().includes(term)) ?? false;
+
   return (
     name.includes(term) ||
     description.includes(term) ||
-    category.includes(term)
+    category.includes(term) ||
+    subcategory.includes(term) ||
+    matchesTag
   );
 };
 

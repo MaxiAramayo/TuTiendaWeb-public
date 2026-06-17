@@ -11,6 +11,9 @@ interface ImageWithLoaderProps extends Omit<ImageProps, 'onLoad' | 'onError'> {
   fallbackIconClassName?: string;
   loaderSize?: 'sm' | 'md' | 'lg' | 'xl';
   useSkeletonBg?: boolean;
+  /** Se invoca cuando la imagen carga, con el elemento <img> ya disponible
+   *  (útil para leer naturalWidth/naturalHeight). */
+  onLoaded?: (img: HTMLImageElement) => void;
 }
 
 export const ImageWithLoader: React.FC<ImageWithLoaderProps> = ({
@@ -21,6 +24,7 @@ export const ImageWithLoader: React.FC<ImageWithLoaderProps> = ({
   alt,
   loaderSize = 'sm',
   useSkeletonBg = true,
+  onLoaded,
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -34,8 +38,9 @@ export const ImageWithLoader: React.FC<ImageWithLoaderProps> = ({
     // registrara el handler onLoad (cache hit), marcamos como cargada
     if (node && node.complete && node.naturalWidth > 0) {
       setIsLoaded(true);
+      onLoaded?.(node);
     }
-  }, []);
+  }, [onLoaded]);
 
   // Si no hay src o hubo un error
   if (!src || hasError) {
@@ -71,7 +76,10 @@ export const ImageWithLoader: React.FC<ImageWithLoaderProps> = ({
           isLoaded ? "opacity-100" : "opacity-0",
           className
         )}
-        onLoad={() => setIsLoaded(true)}
+        onLoad={(e) => {
+          setIsLoaded(true);
+          onLoaded?.(e.currentTarget);
+        }}
         onError={() => {
           setHasError(true);
           setIsLoaded(true);
