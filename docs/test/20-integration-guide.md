@@ -112,7 +112,7 @@ Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplica
 | **Sells** | `dashboard/modules/sells/services/sale.service.ts`, `.../actions/sale.actions.ts` | ✅ (PR2) |
 | **Products** | `products/services/product.service.ts`, `.../actions/product.actions.ts` | ✅ (PR3) |
 | **Import** | `products/services/product-import.service.ts` | ✅ (PR3) |
-| **Categories/Tags** | `products/services/category.service.ts`, `tag.service.ts` | ⬜ |
+| **Categories/Tags** | `products/services/category.service.ts`, `tag.service.ts` | ✅ (PR4) |
 | **Store-settings** | `dashboard/modules/store-settings/services/server/profile.server-service.ts` | ⬜ |
 | **Auth/claims** | `auth/services/server/auth.service.ts`, `lib/auth/server-session.ts`, `auth/actions/**` | ⬜ |
 
@@ -121,7 +121,7 @@ Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplica
 - [ ] **Auth/claims** ≥ 90% líneas / ≥ 85% branches.
 - [x] **Products** cubierto: CRUD + limpieza de imágenes en Storage emulado + `toggleProductStatus`. *(PR3)*
 - [x] **Import** cubierto: límites 50 cat / 30 sub / 300 productos, batches de 450, dedupe case-insensitive, jerarquía 2 niveles, `isValidSubcategory`. *(PR3)*
-- [ ] **Categories/Tags** cubierto: crear/actualizar/reordenar, `countCategoryUsage`, `deleteCategory`, slug.
+- [x] **Categories/Tags** cubierto: crear/actualizar/reordenar, `countCategoryUsage`, `deleteCategory`, slug. *(PR4)*
 - [ ] **Store-settings** cubierto: slug único case-insensitive, validación por sección, `checkSlugAvailability`.
 
 ### Seguridad y reglas de negocio
