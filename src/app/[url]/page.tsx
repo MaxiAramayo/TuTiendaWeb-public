@@ -14,6 +14,7 @@ import ErrorNotFound from "@/features/store/ui/ErrorNotFound";
 import ErrorNotAvailable from "@/features/store/ui/ErrorNotAvailable";
 import { HeaderWelcome } from '@/features/store/components/HeaderWelcome';
 import { StoreThemeProvider } from '@/features/store/components/ThemeProvider';
+import { WelcomeModal } from '@/features/store/components/WelcomeModal';
 import ProductList from "@/features/store/modules/products/components/ProductList";
 
 /**
@@ -99,6 +100,7 @@ export default async function Tienda({
           fontFamily: 'var(--store-font-family, Inter), system-ui, sans-serif'
         }}
       >
+        <WelcomeModal storeName={storeData.basicInfo?.name || 'la tienda'} storeId={storeId} />
         <HeaderWelcome store={storeData} />
         <ProductList products={products} categoryOrder={categoryOrder} subcategoryOrderByParent={subcategoryOrderByParent} />
       </div>

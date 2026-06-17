@@ -49,6 +49,15 @@ async function uploadImage(file: File, storeId: string, productId: string): Prom
         },
     });
 
+    // En modo emulador el archivo vive en el emulador de Storage, no en GCS real.
+    // Devolver la URL de descarga del emulador (la lectura pública del catálogo la
+    // permiten las storage.rules) en lugar de la URL de producción, que daría 404.
+    const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+    if (emulatorHost) {
+        const encodedPath = encodeURIComponent(filename);
+        return `http://${emulatorHost}/v0/b/${bucket.name}/o/${encodedPath}?alt=media`;
+    }
+
     await fileRef.makePublic();
 
     return `https://storage.googleapis.com/${bucket.name}/${filename}`;
@@ -56,10 +65,20 @@ async function uploadImage(file: File, storeId: string, productId: string): Prom
 
 async function deleteImage(imageUrl: string): Promise<void> {
     try {
-        // Extract path from URL: https://storage.googleapis.com/BUCKET/PATH
-        const urlParts = imageUrl.split('/');
-        const bucketName = urlParts[3];
-        const filePath = urlParts.slice(4).join('/');
+        let bucketName: string;
+        let filePath: string;
+
+        // Formato emulador: http://HOST/v0/b/BUCKET/o/ENCODED_PATH?alt=media
+        const emulatorMatch = imageUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
+        if (emulatorMatch) {
+            bucketName = emulatorMatch[1];
+            filePath = decodeURIComponent(emulatorMatch[2]);
+        } else {
+            // Formato producción: https://storage.googleapis.com/BUCKET/PATH
+            const urlParts = imageUrl.split('/');
+            bucketName = urlParts[3];
+            filePath = urlParts.slice(4).join('/');
+        }
 
         const bucket = adminStorage.bucket(bucketName);
         const fileRef = bucket.file(filePath);

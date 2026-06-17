@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -49,6 +49,15 @@ export function ProductModal({ readOnly = false }: { readOnly?: boolean } = {}) 
 
   const { product, isOpen, closeModal } = useProductModalStore();
   const { addToCart, openCart } = useCartStore();
+
+  // Array de imágenes estable (memoizado): evita recrear la referencia en cada
+  // render, lo que reiniciaría la detección de proporción en ImageGallery.
+  const productImages = useMemo<string[]>(() => {
+    if (!product) return [];
+    return product.imageUrls && product.imageUrls.length > 0
+      ? product.imageUrls
+      : ([product.imageUrl || product.image].filter(Boolean) as string[]);
+  }, [product]);
 
   useEffect(() => {
     setMounted(true);
@@ -114,28 +123,22 @@ export function ProductModal({ readOnly = false }: { readOnly?: boolean } = {}) 
   const productContent = (
     <div className="space-y-4">
       {/* Galería de imágenes */}
-      {(() => {
-        const images = product.imageUrls && product.imageUrls.length > 0
-          ? product.imageUrls
-          : [product.imageUrl || product.image].filter(Boolean) as string[];
-        return (
-          <div className="relative">
-            <ImageGallery
-              images={images}
-              alt={product.name}
-              aspectRatio="aspect-video"
-              fallback={<ShoppingCart className="h-12 w-12 text-gray-300" />}
-              overlay={
-                !product.available ? (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">Agotado</span>
-                  </div>
-                ) : null
-              }
-            />
-          </div>
-        );
-      })()}
+      <div className="relative">
+        <ImageGallery
+          images={productImages}
+          alt={product.name}
+          objectFit="contain"
+          zoomable
+          fallback={<ShoppingCart className="h-12 w-12 text-gray-300" />}
+          overlay={
+            !product.available ? (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <span className="text-white font-bold text-lg">Agotado</span>
+              </div>
+            ) : null
+          }
+        />
+      </div>
 
       {/* Información del producto */}
       <div>
@@ -268,16 +271,18 @@ export function ProductModal({ readOnly = false }: { readOnly?: boolean } = {}) 
   if (isDesktop) {
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="flex-shrink-0 p-6 pb-4">
             <DialogTitle>Detalles del producto</DialogTitle>
             <DialogDescription>
               Información detallada sobre el producto seleccionado
             </DialogDescription>
           </DialogHeader>
-          {productContent}
+          <div className="flex-1 overflow-y-auto px-6 pb-4">
+            {productContent}
+          </div>
           {!readOnly && (
-            <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 p-6 pt-4 border-t bg-white">
               {actionBar}
             </DialogFooter>
           )}

@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const useFirebaseEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -15,6 +17,24 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Emulador local de Storage (solo cuando está activo). Permite que next/image
+      // sirva las imágenes subidas al emulador en desarrollo.
+      ...(useFirebaseEmulator
+        ? [
+            {
+              protocol: 'http',
+              hostname: '127.0.0.1',
+              port: '9199',
+              pathname: '/**',
+            },
+            {
+              protocol: 'http',
+              hostname: 'localhost',
+              port: '9199',
+              pathname: '/**',
+            },
+          ]
+        : []),
     ],
   },
   // Optimizaciones para evitar errores ERR_ABORTED
