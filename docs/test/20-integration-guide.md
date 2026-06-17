@@ -156,3 +156,6 @@ Mismo rigor que [03-acceptance-criteria.md](./03-acceptance-criteria.md), aplica
 
 > **Estado:** Fase 2 **funcionalmente completa** (6 áreas con suite de integración verde).
 > Pendiente solo el gate cuantitativo de cobertura de integración, que se enforcea en Fase 5.
+> Mejoras detectadas en el code review del stack en
+> [docs/hallazgos/mejoras-fase2-code-review-2026-06-17.md](../hallazgos/mejoras-fase2-code-review-2026-06-17.md)
+> (MEJ-01…MEJ-05, ninguna bloqueante).
