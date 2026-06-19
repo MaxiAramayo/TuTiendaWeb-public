@@ -31,5 +31,6 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm install --ignore-scripts
-      # Solo los emuladores que usan los tests de integración (sin functions).
-      - run: npx -y firebase-tools@latest emulators:exec --project demo-tutiendaweb --only auth,firestore,storage "npm run test:int"
+      # Solo los emuladores que usan los tests de integración + reglas (sin functions).
+      # Un único emulators:exec corre integración (Fase 2) y reglas (Fase 3).
+      - run: npx -y firebase-tools@latest emulators:exec --project demo-tutiendaweb --only auth,firestore,storage "npm run test:int && npm run test:rules"
