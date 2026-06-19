@@ -80,7 +80,11 @@ npm run test:e2e:ui   # E2E modo interactivo
   - **Store-settings** ✅ PR5 — slug único case-insensitive, validación por sección. `test/integration/store-settings.int.test.ts`.
   - **Auth/claims** ✅ PR6 — `setUserClaims`/`getUserClaims`, `getServerSession` (claims/fallback). `test/integration/auth.int.test.ts`.
   - **Pendiente (no bloqueante):** gate cuantitativo de cobertura de integración (se enforcea en Fase 5).
-- **Fase 3** — Auditoría de reglas Firestore/Storage.
+- **Fase 3** — Auditoría de reglas Firestore/Storage. ✅ **81 tests verdes** (`npm run test:rules`).
+  - **Reglas Firestore** ✅ `test/rules/firestore.rules.test.ts` — matriz allow/deny completa (stores, products/categories/tags, sells, settings, notifications, users, catch-all) + ownership por los 3 campos legacy sin acceso cruzado.
+  - **Reglas Storage** ✅ `test/rules/storage.rules.test.ts` — `stores/**` (público read; owner+imagen<5MB write/delete), `users/{uid}/avatar`, `temp/{uid}`, catch-all.
+  - **Auditoría** (skill `firebase-security-rules-auditor`): puntaje 3/5, informe en [`60-firebase-security-audit.md`](./60-firebase-security-audit.md). **SEC-01** (escritura pública `sells.create` sin topes de tamaño) **corregido** en este PR; SEC-02..05 documentados. Hallazgos en [`hallazgos/testing-fase3-2026-06-19.md`](../hallazgos/testing-fase3-2026-06-19.md).
+  - **Índices:** sin gaps; sobre-aprovisionamiento menor en `sells` (filtros movidos a memoria). CI corre integración + reglas en el job `emulators`.
 - **Fase 4** — E2E de los 6 flujos críticos.
 - **Fase 5** — Gates de cobertura en CI y cierre de documentación.
 

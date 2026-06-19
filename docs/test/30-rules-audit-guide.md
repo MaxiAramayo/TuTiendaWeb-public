@@ -85,8 +85,10 @@ informe (hallazgos, severidad, recomendaciones) se vuelca en
 También se revisa `firestore.indexes.json` contra las queries reales detectadas
 en Fase 2 para detectar índices faltantes.
 
-## Criterio de salida (Fase 3)
+## Criterio de salida (Fase 3) — ✅ cumplido (2026-06-19)
 
-- Matriz allow/deny completa, toda verde.
-- Informe de auditoría escrito en `60-...md`.
-- Lista de gaps de índices (si los hay).
+- ✅ Matriz allow/deny completa, toda verde (81 tests, `test/rules/*.rules.test.ts`).
+- ✅ Informe de auditoría escrito en [`60-firebase-security-audit.md`](./60-firebase-security-audit.md) (puntaje 3/5).
+- ✅ Lista de gaps de índices (sin faltantes; sobre-aprovisionamiento menor documentado).
+- ✅ Hallazgo de seguridad alto (SEC-01) corregido; resto documentado.
+- ✅ CI corre reglas en el job `emulators`.
