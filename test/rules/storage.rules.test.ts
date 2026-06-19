@@ -179,6 +179,9 @@ describe('catch-all', () => {
   });
 
   it('rechaza leer una ruta no contemplada', async () => {
+    // Sembramos el objeto (saltándose las reglas) para que el fallo sea por
+    // denegación del catch-all y no por "objeto inexistente" (404).
+    await seedObject('random/file.png');
     await assertFails(getBytes(ref(anonStorage(), 'random/file.png')));
   });
 });
