@@ -34,6 +34,8 @@ const CartFloatingButton = () => {
           >
             <Button
               onClick={openCart}
+              data-testid="cart-button"
+              aria-label="Ver carrito"
               className={`px-5 py-5 rounded-full ${themeClasses.button.primary.base} flex items-center gap-3 min-w-[200px] shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 active:scale-95`}
             >
               {/* Ícono con badge de unidades totales */}

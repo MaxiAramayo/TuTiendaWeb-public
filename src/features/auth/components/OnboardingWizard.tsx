@@ -991,6 +991,7 @@ export default function OnboardingWizard({
           <Button
             onClick={handleNext}
             disabled={isPending}
+            data-testid="onboarding-next"
             className={cn(
               'h-16 w-full rounded-[1.25rem] text-xl font-bold shadow-lg transition-all active:scale-[0.98]',
               page === ONBOARDING_TOTAL_STEPS - 1

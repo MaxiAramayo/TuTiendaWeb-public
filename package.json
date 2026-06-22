@@ -11,6 +11,7 @@
     "emulators": "firebase emulators:start --project demo-tutiendaweb --import=./.emulator-data --export-on-exit=./.emulator-data",
     "emulators:clean": "firebase emulators:start --project demo-tutiendaweb",
     "seed:emulator": "tsx scripts/seed-emulator.ts",
+    "make:e2e-fixtures": "tsx scripts/make-e2e-fixtures.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

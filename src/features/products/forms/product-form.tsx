@@ -350,6 +350,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                         type="number"
                                         step="0.01"
                                         min="0"
+                                        data-testid="product-price"
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                                         placeholder="0.00"
                                     />

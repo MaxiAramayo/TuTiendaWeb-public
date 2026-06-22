@@ -4,7 +4,7 @@ import React, { useRef, useState, useTransition } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, X, Download, AlertTriangle, CheckCircle2, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { productImportRowSchema, MAX_IMPORT_PRODUCTS } from '../schemas/product-import.schema';
+import { productImportRowSchema, MAX_IMPORT_PRODUCTS, IMPORT_COLUMNS } from '../schemas/product-import.schema';
 import { importProductsAction } from '../actions/product-import.actions';
 import type { ParsedRowResult, ProductImportRowRaw } from '../schemas/product-import.schema';
 
@@ -14,7 +14,8 @@ interface ProductImportDialogProps {
     currentProductCount: number;
 }
 
-const TEMPLATE_COLUMNS = ['nombre', 'descripcion', 'precio', 'costo', 'categoria', 'subcategoria', 'tags', 'activo', 'extras'];
+// Derivadas del schema Zod (fuente única). El orden es el contrato del Excel.
+const TEMPLATE_COLUMNS = [...IMPORT_COLUMNS];
 
 const TEMPLATE_EXAMPLE = [
     ['Hamburguesa Clásica', 'Con lechuga, tomate y queso', 1500, 800, 'Hamburguesas', 'Clásicas', 'oferta, especial', 'si', 'Queso extra:200; Bacon:350'],

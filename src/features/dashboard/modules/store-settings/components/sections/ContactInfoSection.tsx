@@ -322,6 +322,7 @@ export function ContactInfoSection({
         <Button
           onClick={handleSectionSave}
           disabled={isSectionSaving || !formState.isDirty}
+          data-testid="save-contact"
           className="flex items-center justify-center space-x-2 w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700"
           size="sm"
         >
