@@ -33,6 +33,8 @@ const ProductCard = ({ product, onOpenModal, readOnly = false }: ProductCardProp
 
   return (
     <Card
+      data-testid="product-card"
+      data-product-name={product.name}
       className="w-full overflow-hidden cursor-pointer transition-all duration-300 bg-white border-gray-200 hover:border-[var(--store-secondary)] hover:shadow-lg"
       onClick={() => onOpenModal(product)}
     >
@@ -103,6 +105,8 @@ const ProductCard = ({ product, onOpenModal, readOnly = false }: ProductCardProp
               <Button
                 size="sm"
                 variant="ghost"
+                data-testid="add-to-cart"
+                aria-label={`Añadir ${product.name} al carrito`}
                 className={`p-1 h-8 w-8 rounded-full ${themeClasses.background.primary} hover:bg-[var(--store-primary)]/90 transition-all duration-300 hover:scale-110 shadow-sm`}
                 disabled={product.available === false}
                 onClick={handleQuickAddToCart}

@@ -85,7 +85,14 @@ npm run test:e2e:ui   # E2E modo interactivo
   - **Reglas Storage** ✅ `test/rules/storage.rules.test.ts` — `stores/**` (público read; owner+imagen<5MB write/delete), `users/{uid}/avatar`, `temp/{uid}`, catch-all.
   - **Auditoría** (skill `firebase-security-rules-auditor`): puntaje 3/5, informe en [`60-firebase-security-audit.md`](./60-firebase-security-audit.md). **SEC-01** (escritura pública `sells.create` sin topes de tamaño) **corregido** en este PR; SEC-02..05 documentados. Hallazgos en [`hallazgos/testing-fase3-2026-06-19.md`](../hallazgos/testing-fase3-2026-06-19.md).
   - **Índices:** sin gaps; sobre-aprovisionamiento menor en `sells` (filtros movidos a memoria). CI corre integración + reglas en el job `emulators`.
-- **Fase 4** — E2E de los 6 flujos críticos.
+- **Fase 4** — E2E de los 6 flujos críticos con Playwright. ✅ **Suite en `e2e/*.spec.ts`** (`npm run test:e2e`).
+  - **Auth** ✅ `e2e/01-auth.spec.ts` — login válido/ inválido (mensajes) + registro → onboarding (wizard 10 pasos) → dashboard.
+  - **Catálogo → carrito → checkout → WhatsApp** ✅ `e2e/02-catalog-checkout.spec.ts` (camino crítico de dinero) — el **total del ticket es el recalculado server-side** y el link `wa.me` se genera (espejo E2E del price-tampering de Fase 2). Incluye checkout vacío.
+  - **Alta de producto** ✅ `e2e/03-products.spec.ts` — crea un producto y lo verifica en el listado del dashboard y en el catálogo público.
+  - **Settings** ✅ `e2e/04-settings.spec.ts` — edita el WhatsApp de contacto y verifica persistencia tras recargar.
+  - **Import por Excel** ✅ `e2e/05-import.spec.ts` — fixture válido (import completo) e inválido (preview marca filas con errores). Fixtures en `e2e/fixtures/` (generados por `npm run make:e2e-fixtures`).
+  - **Sesión:** los specs autenticados loguean al owner por UI en un `beforeEach` (`e2e/helpers/auth.ts`). Se evaluó reusar `storageState`, pero Chromium no entrega de forma fiable la cookie httpOnly de sesión en la primera navegación de un contexto creado desde storageState (hallazgo E2E-07).
+  - **Selectores:** se agregaron `data-testid`/`aria-label` mínimos en el carrito (ver E2E-01). CI: nuevo job `e2e` (emuladores → seed → Playwright, sube `playwright-report/`). Hallazgos no bloqueantes en [`hallazgos/testing-fase4-2026-06-22.md`](../hallazgos/testing-fase4-2026-06-22.md).
 - **Fase 5** — Gates de cobertura en CI y cierre de documentación.
 
 Cada fase es un entregable independiente y mergeable por separado.

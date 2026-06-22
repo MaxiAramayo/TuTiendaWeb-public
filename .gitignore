@@ -114,6 +114,8 @@ lerna-debug.log*
 playwright-report/
 test-results/
 .nyc_output/
+# Estado de sesión E2E (storageState del owner, generado por global-setup)
+e2e/.auth/
 
 # === Build/Cache ===
 # Directorios de build y caches locales
