@@ -10,8 +10,10 @@
 import * as XLSX from 'xlsx';
 import fs from 'node:fs';
 import path from 'node:path';
+import { IMPORT_COLUMNS } from '../src/features/products/schemas/product-import.schema';
 
-const COLUMNS = ['nombre', 'descripcion', 'precio', 'costo', 'categoria', 'subcategoria', 'tags', 'activo', 'extras'];
+// Mismas columnas que la plantilla del diálogo, derivadas del schema Zod.
+const COLUMNS = [...IMPORT_COLUMNS] as string[];
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'e2e', 'fixtures');
 

@@ -73,6 +73,15 @@ export const productImportRowSchema = z.object({
 
 export type ProductImportRow = z.infer<typeof productImportRowSchema>;
 
+/**
+ * Columnas del Excel de import, derivadas del schema (fuente única de verdad).
+ * El orden coincide con el de definición del schema y es el contrato del archivo:
+ * lo usan la plantilla del diálogo de import y los fixtures E2E.
+ */
+export const IMPORT_COLUMNS = Object.keys(
+    productImportRowSchema.shape,
+) as (keyof ProductImportRow)[];
+
 export type ProductImportRowRaw = {
     nombre?: unknown;
     descripcion?: unknown;

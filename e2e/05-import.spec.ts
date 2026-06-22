@@ -1,17 +1,12 @@
 /**
  * Import de productos por Excel desde el dashboard.
  *
- * Usa la sesión del owner. Sube fixtures generados por `make-e2e-fixtures.ts`:
+ * Usa la fixture `authed-test`. Sube fixtures generados por `make-e2e-fixtures.ts`:
  *  - productos-validos.xlsx   → import completo (pantalla de éxito).
  *  - productos-invalidos.xlsx → preview marca filas con errores.
  */
 import path from 'node:path';
-import { test, expect } from '@playwright/test';
-import { loginAsOwner } from './helpers/auth';
-
-test.beforeEach(async ({ page }) => {
-  await loginAsOwner(page);
-});
+import { test, expect } from './helpers/authed-test';
 
 const fixture = (name: string) => path.join(__dirname, 'fixtures', name);
 

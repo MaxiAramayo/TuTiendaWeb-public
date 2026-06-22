@@ -59,7 +59,7 @@ flujo de compra.
 
 ---
 
-## E2E-03 (Media) — 📄 documentado — Settings: varios "Guardar cambios" sin selector estable
+## E2E-03 (Media) — ✅ RESUELTO (parcial) — Settings: varios "Guardar cambios" sin selector estable
 
 **Archivos:**
 - `src/features/dashboard/modules/store-settings/components/sections/BasicInfoSection.tsx`
@@ -75,13 +75,13 @@ si se agrega/quita una sección.
 **Por qué importa:** acopla el test al orden de render. Un reordenamiento de
 secciones rompería el spec silenciosamente (guardaría la sección equivocada).
 
-**Recomendación (no aplicada):** agregar `data-testid="save-basic"`,
-`save-contact`, `save-social` (o un `aria-label` por sección) a cada botón de
-guardado.
+**Corrección aplicada:** se agregó `data-testid="save-contact"` al botón de
+guardado de la sección Contacto (el que usa el spec 04). Pendiente (no bloqueante):
+`save-basic` y `save-social` para las otras dos secciones.
 
 ---
 
-## E2E-04 (Media) — 📄 documentado — Wizard de onboarding sin anclas de testing
+## E2E-04 (Media) — ✅ RESUELTO — Wizard de onboarding sin anclas de testing
 
 **Archivo:** `src/features/auth/components/OnboardingWizard.tsx`
 
@@ -96,12 +96,13 @@ de copy y a las animaciones).
 **Por qué importa:** es un flujo crítico de activación. Cualquier ajuste de copy
 en los pasos rompe el E2E sin que cambie el comportamiento.
 
-**Recomendación (no aplicada):** exponer `data-testid="onboarding-step-{n}"` en
-el contenedor del slide y `data-testid="onboarding-next"` en el CTA inferior.
+**Corrección aplicada:** se agregó `data-testid="onboarding-next"` al CTA inferior
+del wizard; el spec navega por ese testid en vez del texto del botón (las
+aserciones de heading por paso se mantienen para verificar el estado).
 
 ---
 
-## E2E-05 (Baja) — 📄 documentado — Formulario de producto: labels sin `htmlFor`/`id`
+## E2E-05 (Baja) — ✅ RESUELTO (parcial) — Formulario de producto: labels sin `htmlFor`/`id`
 
 **Archivo:** `src/features/products/forms/product-form.tsx`
 
@@ -114,8 +115,10 @@ para la categoría.
 **Por qué importa:** accesibilidad (labels no asociadas) y fragilidad del
 selector de precio (depende del orden). No bloqueante.
 
-**Recomendación (no aplicada):** asociar cada `label` con su input vía
-`htmlFor`/`id` (mejora a11y y habilita `getByLabel`).
+**Corrección aplicada (parcial):** se agregó `data-testid="product-price"` al input
+de precio (el spec lo usaba por `placeholder('0.00').first()`, frágil al orden).
+Pendiente (no bloqueante): asociar cada `label` con su input vía `htmlFor`/`id`
+(mejora a11y y habilita `getByLabel` en todo el formulario).
 
 ---
 
@@ -206,19 +209,42 @@ preservar el estado dirty del usuario ante refrescos del perfil.
 
 ---
 
+## E2E-10 (Baja) — ✅ RESUELTO (en el test) — El modal de bienvenida se solapa con el catálogo/carrito
+
+**Archivo:** `src/features/store/components/WelcomeModal.tsx`
+
+**Problema:** el `WelcomeModal` es un `Dialog` modal que aparece a los ~550 ms de
+abrir el catálogo (una vez por navegador/tienda). Su overlay/contenido se solapa
+con los controles del catálogo y del carrito; en el E2E de checkout interceptaba
+el click en "Proceder al checkout" (obligaba a un `force: true`).
+
+**Por qué importa:** es un comportamiento real (un visitante que abre el carrito
+muy rápido puede toparse con el modal encima). En testing, generaba un workaround.
+
+**Corrección aplicada (en el test):** el spec de checkout suprime el modal vía
+`localStorage` (`ttw-welcome:{storeId}='1'`, el mismo flag de "ya visto" que usa
+el componente), reproduciendo el caso de visitante recurrente. Se eliminó el
+`force: true`. Mejora de producto pendiente (no bloqueante): marcar los elementos
+decorativos del modal con `pointer-events-none` y revisar el z-index.
+
+---
+
 ## Resumen
 
 | Código | Severidad | Estado | Tema |
 |--------|-----------|--------|------|
 | E2E-01 | Baja | ✅ Resuelto | Nombre accesible/testid en carrito |
 | E2E-02 | Baja | 📄 Documentado | Precio del catálogo sin `formatPrice` |
-| E2E-03 | Media | 📄 Documentado | Selectores de guardado en settings |
-| E2E-04 | Media | 📄 Documentado | Anclas de testing en onboarding |
-| E2E-05 | Baja | 📄 Documentado | Labels del form de producto sin `htmlFor` |
+| E2E-03 | Media | ✅ Resuelto (parcial) | Testid de guardado en settings (Contacto) |
+| E2E-04 | Media | ✅ Resuelto | Testid de navegación en onboarding |
+| E2E-05 | Baja | ✅ Resuelto (parcial) | Testid de precio en form de producto |
 | E2E-06 | Baja | 📄 Documentado | Checkout abre WhatsApp por popup |
 | E2E-07 | Media | 📄 Documentado | Sesión no reutilizable vía storageState |
 | E2E-08 | Media | 📄 Documentado | Reglas de contraseña cliente ≠ servidor |
 | E2E-09 | Baja | 📄 Documentado | Settings: reset async borra el dirty |
+| E2E-10 | Baja | ✅ Resuelto (en test) | Modal de bienvenida se solapa con el carrito |
 
-Ninguno es bloqueante para el merge de la Fase 4. E2E-01 se corrigió por ser
-condición necesaria del flujo crítico; el resto queda como mejora priorizable.
+Ninguno es bloqueante para el merge de la Fase 4. Se corrigieron E2E-01/03/04/05/10
+(testids/ajustes mínimos no invasivos, condición de robustez de la suite); el resto
+queda como mejora priorizable. **E2E-08** (contraseña cliente≠servidor) es el más
+valioso de los pendientes por impacto en UX real.

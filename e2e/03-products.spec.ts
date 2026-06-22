@@ -1,16 +1,12 @@
 /**
  * Alta de producto desde el dashboard y reflejo en el catálogo público.
  *
- * Usa la sesión del owner (storageState del global-setup). Crea un producto con
- * nombre único por corrida para no chocar con otros specs ni con re-ejecuciones.
+ * Usa la fixture `authed-test` (login real por UI antes de cada test). Crea un
+ * producto con nombre único por corrida para no chocar con otros specs ni con
+ * re-ejecuciones.
  */
-import { test, expect } from '@playwright/test';
-import { loginAsOwner } from './helpers/auth';
+import { test, expect } from './helpers/authed-test';
 import { STORE_PATH } from './helpers/seed-data';
-
-test.beforeEach(async ({ page }) => {
-  await loginAsOwner(page);
-});
 
 test('crea un producto y lo muestra en el listado y en el catálogo público', async ({ page }) => {
   const ts = Date.now();
@@ -23,7 +19,7 @@ test('crea un producto y lo muestra en el listado y en el catálogo público', a
 
   // 2) Completar el formulario (nombre, precio, categoría)
   await page.getByPlaceholder(/^Ej:/).fill(productName);
-  await page.getByPlaceholder('0.00').first().fill('1234');
+  await page.getByTestId('product-price').fill('1234');
   await page
     .locator('select')
     .filter({ hasText: 'Seleccionar categoría' })

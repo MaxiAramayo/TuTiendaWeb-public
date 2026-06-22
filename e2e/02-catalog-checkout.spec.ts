@@ -26,6 +26,16 @@ test.describe('Catálogo público → checkout → WhatsApp', () => {
     // Evita que la pestaña de WhatsApp intente navegar a la red real en CI.
     await context.route(/wa\.me/, (route) => route.abort());
 
+    // Suprime el modal de bienvenida (visitante recurrente): es un Dialog modal
+    // que, tras 550ms, se solapa con los controles del catálogo/carrito.
+    await page.addInitScript((storeId) => {
+      try {
+        localStorage.setItem(`ttw-welcome:${storeId}`, '1');
+      } catch {
+        /* noop */
+      }
+    }, SEED.STORE_ID);
+
     // 1) Catálogo
     await page.goto(STORE_PATH);
     const card = page
@@ -43,11 +53,9 @@ test.describe('Catálogo público → checkout → WhatsApp', () => {
 
     const cartDialog = page.getByRole('dialog');
     await expect(cartDialog).toBeVisible();
-    // Un texto decorativo del diálogo se solapa con el botón (overlay no
-    // interactivo); el botón es visible/estable → force click.
     await cartDialog
       .getByRole('button', { name: /proceder al checkout/i })
-      .click({ force: true });
+      .click();
     await page.waitForURL(/\/checkout$/);
 
     // 4) Completar datos (retiro + efectivo vienen seleccionados por defecto)
@@ -62,7 +70,7 @@ test.describe('Catálogo público → checkout → WhatsApp', () => {
     // El total mostrado es el recalculado por el servidor desde Firestore.
     const expectedTotal = priceDigits(SEED.PRODUCT.price); // 8.500
     await expect(
-      page.getByText(new RegExp(expectedTotal.replace('.', '\\.'))).first(),
+      page.getByText(new RegExp(expectedTotal.replace(/\./g, '\\.'))).first(),
     ).toBeVisible();
 
     // El link de WhatsApp del pedido apunta a wa.me.
