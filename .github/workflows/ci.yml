@@ -18,6 +18,8 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run lint --if-present
       - run: npm run typecheck --if-present || npx tsc -p tsconfig.json --noEmit
+      # Gate de cobertura (Fase 5): corre unit + valida thresholds. Bloqueante.
+      - run: npm run test:cov
 
   emulators:
     runs-on: ubuntu-latest

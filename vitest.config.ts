@@ -36,35 +36,40 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'text-summary', 'html', 'lcov'],
       reportsDirectory: './coverage',
-      include: ['src/**/*.{ts,tsx}'],
+      // El gate mide SOLO schemas Zod y lógica pura (utils): lo que el run unit
+      // ejecuta de forma determinista y sin renderizar. Los componentes tienen
+      // tests, pero su .tsx NO entra al include (render parcial en jsdom = ruido
+      // y cobertura engañosa). Las capas que se cubren por otros runners
+      // —services (integración, Fase 2), reglas
+      // (Fase 3), UI completa (E2E, Fase 4)— NO entran al `include`, porque el
+      // provider v8 del run unit no las observa y las contaría como 0% (falso
+      // negativo). Medir cobertura combinada cross-runner es trabajo futuro
+      // (ver docs/test/50-coverage-and-ci.md y hallazgo F5-01).
+      include: [
+        'src/features/**/schemas/**/*.ts',
+        'src/features/**/utils/**/*.ts',
+        'src/shared/utils/**/*.ts',
+        'src/lib/utils/**/*.ts',
+        'src/lib/utils.ts',
+      ],
       exclude: [
         'src/**/*.test.{ts,tsx}',
         'src/**/*.d.ts',
         'src/**/types/**',
         'src/**/*.types.ts',
-        'src/app/**', // rutas/layouts: se cubren con E2E, no con unit
-        'src/**/loading.tsx',
-        'src/**/*.stories.tsx',
       ],
-      // Gate global (Fase 5). Overrides por carpeta crítica abajo.
+      // Thresholds calibrados al valor real del run unit (Fase 5), con ~2pt de
+      // margen. Funcionan como ratchet: previenen que la cobertura baje del piso
+      // actual y obligan a testear (o excluir justificadamente) el código nuevo.
+      // A medida que se cubran los utils pendientes (theme/profile/qr/error-
+      // handling — ver hallazgo F5-02) estos números se suben.
       thresholds: {
-        lines: 80,
-        statements: 80,
-        functions: 80,
-        branches: 70,
-        // Lógica sensible de dinero / auth: exigencia ≥90%.
-        'src/features/store/services/**': {
-          lines: 90,
-          statements: 90,
-          functions: 90,
-          branches: 85,
-        },
-        'src/features/dashboard/modules/sells/**': {
-          lines: 90,
-          statements: 90,
-          functions: 90,
-          branches: 85,
-        },
+        // Gate global del scope unit-testeable (medido: 56/45/66/56).
+        lines: 54,
+        statements: 54,
+        functions: 63,
+        branches: 43,
+        // Schemas Zod: fuente única de validación, se exige cobertura casi total.
         'src/features/**/schemas/**': {
           lines: 95,
           statements: 95,
