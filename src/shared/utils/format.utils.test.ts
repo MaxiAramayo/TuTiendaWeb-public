@@ -111,6 +111,49 @@ describe('formatDate', () => {
     expect(formatDate(d, { format: 'iso' })).toBe('2024-03-10T12:00:00.000Z');
   });
 
+  it('acepta string ISO y la parsea a fecha', () => {
+    // format iso para no depender del locale: prueba que el string se parsea bien
+    expect(formatDate('2024-03-10T12:00:00.000Z', { format: 'iso' })).toBe(
+      '2024-03-10T12:00:00.000Z',
+    );
+  });
+
+  describe('formatos localizados (estructura, no string literal)', () => {
+    // Fecha fija a mediodía UTC para que el día local no cruce a otra fecha
+    // en husos negativos (es-AR = UTC-3).
+    const d = new Date('2024-03-10T12:00:00.000Z');
+
+    it('formato corto (default) incluye día, mes y año', () => {
+      const out = formatDate(d);
+      expect(out).toMatch(/03/); // mes
+      expect(out).toMatch(/2024/); // año
+    });
+
+    it('formato corto con includeTime agrega hora y minutos', () => {
+      const out = formatDate(d, { includeTime: true });
+      expect(out).toMatch(/2024/);
+      expect(out).toMatch(/\d{2}:\d{2}/);
+    });
+
+    it('short:true devuelve solo día y mes (dd/mm)', () => {
+      const out = formatDate(d, { short: true });
+      // El relleno a 2 dígitos depende del ICU del runtime; afirmamos estructura.
+      expect(out).toMatch(/^\d{1,2}\/\d{1,2}$/);
+    });
+
+    it('formato long incluye el año y el nombre del mes', () => {
+      const out = formatDate(d, { format: 'long' });
+      expect(out).toMatch(/2024/);
+      expect(out.toLowerCase()).toContain('marzo');
+    });
+
+    it('formato long con includeTime agrega la hora', () => {
+      const out = formatDate(d, { format: 'long', includeTime: true });
+      expect(out).toMatch(/2024/);
+      expect(out).toMatch(/\d{2}:\d{2}/);
+    });
+  });
+
   describe('formato relativo (timers congelados)', () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -131,6 +174,24 @@ describe('formatDate', () => {
     it('dentro de la semana → "Hace N días"', () => {
       expect(formatDate(new Date('2024-06-12T12:00:00.000Z'), { relative: true })).toBe(
         'Hace 3 días',
+      );
+    });
+
+    it('entre 7 y 29 días → "Hace N semanas"', () => {
+      expect(formatDate(new Date('2024-05-31T12:00:00.000Z'), { relative: true })).toBe(
+        'Hace 2 semanas',
+      );
+    });
+
+    it('entre 30 y 364 días → "Hace N meses"', () => {
+      expect(formatDate(new Date('2024-02-15T12:00:00.000Z'), { relative: true })).toBe(
+        'Hace 4 meses',
+      );
+    });
+
+    it('un año o más → "Hace N años"', () => {
+      expect(formatDate(new Date('2022-06-15T12:00:00.000Z'), { relative: true })).toBe(
+        'Hace 2 años',
       );
     });
   });

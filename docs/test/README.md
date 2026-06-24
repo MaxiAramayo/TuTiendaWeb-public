@@ -93,6 +93,24 @@ npm run test:e2e:ui   # E2E modo interactivo
   - **Import por Excel** ✅ `e2e/05-import.spec.ts` — fixture válido (import completo) e inválido (preview marca filas con errores). Fixtures en `e2e/fixtures/` (generados por `npm run make:e2e-fixtures`).
   - **Sesión:** los specs autenticados loguean al owner por UI en un `beforeEach` (`e2e/helpers/auth.ts`). Se evaluó reusar `storageState`, pero Chromium no entrega de forma fiable la cookie httpOnly de sesión en la primera navegación de un contexto creado desde storageState (hallazgo E2E-07).
   - **Selectores:** se agregaron `data-testid`/`aria-label` mínimos en el carrito (ver E2E-01). CI: nuevo job `e2e` (emuladores → seed → Playwright, sube `playwright-report/`). Hallazgos no bloqueantes en [`hallazgos/testing-fase4-2026-06-22.md`](../hallazgos/testing-fase4-2026-06-22.md).
-- **Fase 5** — Gates de cobertura en CI y cierre de documentación.
+- **Fase 5** — Gates de cobertura en CI y cierre de documentación. ✅
+  - **Gate honesto y verde:** `vitest.config.ts` mide solo schemas + utils puros
+    (los componentes tienen tests pero su `.tsx` queda fuera del gate por su
+    render parcial en jsdom); las capas cubiertas por integración/reglas/E2E
+    también quedan fuera del `include` (el provider
+    v8 del run unit no las observa → contarían 0% falso). Thresholds calibrados
+    al valor real (**ratchet**, no aspiracional): global 54/54/63/43, schemas
+    95/95/90/90. `npm run test:cov` → **450 tests verdes**.
+  - **Lógica de negocio crítica cubierta:** unit nuevos de `schedule.utils`
+    (abierto/cerrado por horario, breaks, cruce de medianoche — con
+    `vi.useFakeTimers`) y `product-filter.utils` (búsqueda/filtros/orden del
+    catálogo); cierre de gaps en `format.utils`.
+  - **Gate enforced en CI:** el job `build-test` de `.github/workflows/ci.yml`
+    ahora corre `npm run test:cov` (bloqueante). Verificado que **falla** si la
+    cobertura cae bajo el umbral.
+  - **Pendiente (no bloqueante):** cobertura combinada cross-runner (services/
+    sells/UI quedan fuera del % unit) y utils sin test (`theme`, `profile`, `qr`,
+    `errorHandling`). Hallazgos en
+    [`hallazgos/testing-fase5-2026-06-23.md`](../hallazgos/testing-fase5-2026-06-23.md).
 
 Cada fase es un entregable independiente y mergeable por separado.

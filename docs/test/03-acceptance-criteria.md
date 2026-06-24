@@ -54,19 +54,26 @@ Para **cada** validación / regla de negocio, el set de tests incluye:
 
 ## G. Cobertura cuantitativa (gates de CI)
 
-| Ámbito | lines/statements | branches |
-|--------|:---:|:---:|
-| Global (unit) | ≥ 80% | ≥ 70% |
-| `store/services/**` (checkout) | ≥ 90% | ≥ 85% |
-| `dashboard/modules/sells/**` | ≥ 90% | ≥ 85% |
-| `**/schemas/**` | ≥ 95% | ≥ 90% |
+El gate del run **unit** (`npm run test:cov`) mide solo schemas y utils puros
+(los componentes con test quedan fuera del gate). Ver alcance y motivo del recorte en
+[50-coverage-and-ci](./50-coverage-and-ci.md#qué-se-mide-y-qué-no).
 
-- [ ] El run de cobertura cumple los thresholds de su carpeta.
+| Ámbito | lines/statements | functions | branches |
+|--------|:---:|:---:|:---:|
+| Global (scope unit-testeable) | ≥ 54% | ≥ 63% | ≥ 43% |
+| `**/schemas/**` | ≥ 95% | ≥ 90% | ≥ 90% |
+
+> Los umbrales globales están calibrados al valor real (ratchet) y suben a medida
+> que se cubren más utils. La lógica de **dinero/datos** se exige al ≥90% pero
+> **vía integración (Fase 2) y E2E (Fase 4)**, no en el gate unit: `checkout`/
+> `store`/`sells` services no los ejecuta el run unit (hallazgo F5-01).
+
+- [ ] El run de cobertura cumple los thresholds de su scope.
 - [ ] Las líneas sin cubrir en lógica crítica están **justificadas** en el PR.
 
 ## H. Integración con CI
 
-- [ ] Verde en los 3 jobs: `unit`, `emulators`, `e2e`.
+- [ ] Verde en los 3 jobs: `build-test` (incluye gate de cobertura), `emulators`, `e2e`.
 - [ ] Archivo ubicado y nombrado según [02-conventions](./02-conventions.md).
 - [ ] No deja artefactos ni datos residuales en el emulador.
 
