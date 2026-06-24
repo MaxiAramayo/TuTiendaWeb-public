@@ -167,8 +167,8 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
           )}
 
           {/* Cantidad + subtotal */}
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 min-w-0 mt-2">
+            <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 overflow-hidden flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -189,7 +189,7 @@ const CartItem = ({ product, onQuantityChange, onRemove, onEditTopics }: CartIte
                 <Plus className="h-3 w-3 text-gray-600" />
               </Button>
             </div>
-            <p className="text-sm font-bold text-gray-900">{formatPrice(itemTotal)}</p>
+            <p className="text-sm font-bold text-gray-900 flex-shrink-0 whitespace-nowrap">{formatPrice(itemTotal)}</p>
           </div>
         </div>
       </motion.div>

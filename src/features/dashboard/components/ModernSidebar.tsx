@@ -34,6 +34,7 @@ import {
   Palette,
   MapPin,
   CreditCard,
+  Clock,
   UserCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -115,6 +116,11 @@ const navigationItems = [
         title: "Ubicación",
         href: "/dashboard/settings/location",
         icon: MapPin,
+      },
+      {
+        title: "Horarios",
+        href: "/dashboard/settings/schedule",
+        icon: Clock,
       },
       {
         title: "Pagos y Entregas",

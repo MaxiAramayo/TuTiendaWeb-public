@@ -272,14 +272,6 @@ export const CheckoutForm = ({
       if (result.success) {
         toast.success("¡Pedido creado exitosamente!");
 
-        // Redirigir la pestaña ya abierta al WhatsApp con el mensaje del servidor.
-        const waUrl = `https://wa.me/${result.data.whatsappNumber}?text=${encodeURIComponent(result.data.whatsappMessage)}`;
-        if (waWindow) {
-          waWindow.location.href = waUrl;
-        } else if (whatsapp) {
-          window.open(waUrl, "_blank");
-        }
-
         const orderInfo = {
           orderId: result.data.orderId,
           orderNumber: result.data.orderNumber,
@@ -297,8 +289,21 @@ export const CheckoutForm = ({
           storeName: result.data.storeName,
         };
 
+        // Mostrar SIEMPRE el ticket de confirmación primero: expone un <a> nativo
+        // "Abrir WhatsApp" que funciona de forma confiable en Android e iOS (gesto
+        // real del usuario). Es el camino garantizado.
         if (onOrderComplete) {
           onOrderComplete(result.data.orderId, orderInfo);
+        }
+
+        // Auto-open best-effort en la pestaña pre-abierta de forma síncrona.
+        // En algunos navegadores móviles (p. ej. Brave/Android) la activación se
+        // pierde tras el await y wa.me cae al interstitial de descarga; por eso el
+        // botón del ticket es el fallback confiable. NO se hace un segundo
+        // window.open post-await (es el que el bloqueador de popups suele frenar).
+        if (waWindow) {
+          const waUrl = `https://wa.me/${result.data.whatsappNumber}?text=${encodeURIComponent(result.data.whatsappMessage)}`;
+          waWindow.location.href = waUrl;
         }
       } else {
         // Cerrar la pestaña en blanco si el pedido falló.

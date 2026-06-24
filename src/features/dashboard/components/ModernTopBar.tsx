@@ -56,7 +56,6 @@ const routeTitles: Record<string, string> = {
   "/dashboard/products": "Productos",
   "/dashboard/sells": "Ventas",
   "/dashboard/sells/new": "Nueva Venta",
-  "/dashboard/profile": "Configuración",
   "/dashboard/subscription": "Suscripción",
   "/dashboard/qr": "QR Menu",
   "/dashboard/guides": "Guía de Usuario",
@@ -64,7 +63,7 @@ const routeTitles: Record<string, string> = {
   "/dashboard/settings/general": "General",
   "/dashboard/settings/appearance": "Apariencia",
   "/dashboard/settings/checkout": "Pagos y Entregas",
-  "/dashboard/settings/location": "Ubicación y Horarios",
+  "/dashboard/settings/location": "Ubicación",
   "/dashboard/settings/schedule": "Horarios",
   "/dashboard/settings/notifications": "Notificaciones",
 };

@@ -346,7 +346,7 @@ const DashboardWelcome: React.FC<DashboardWelcomeProps> = ({
       icon: Settings,
       iconBg: "bg-slate-50",
       iconColor: "text-slate-600",
-      path: "/dashboard/profile",
+      path: "/dashboard/settings",
     },
     {
       title: "Código QR",

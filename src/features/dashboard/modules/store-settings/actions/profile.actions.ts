@@ -99,7 +99,7 @@ export async function updateProfileAction(
     await profileServerService.updateProfile(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
@@ -148,7 +148,7 @@ export async function updateBasicInfoAction(
     await profileServerService.updateBasicInfo(session.storeId, validation.data);
     
     // 5. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -188,7 +188,7 @@ export async function updateContactInfoAction(
     await profileServerService.updateContactInfo(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -228,7 +228,7 @@ export async function updateAddressAction(
     await profileServerService.updateAddress(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -268,7 +268,7 @@ export async function updateSocialLinksAction(
     await profileServerService.updateSocialLinks(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -308,7 +308,7 @@ export async function updateThemeAction(
     await profileServerService.updateTheme(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -374,7 +374,7 @@ export async function updatePaymentMethodsAction(
     await profileServerService.updateSettings(session.storeId, { paymentMethods });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -409,7 +409,7 @@ export async function updateDeliveryMethodsAction(
     await profileServerService.updateSettings(session.storeId, { deliveryMethods });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -441,7 +441,7 @@ export async function updateScheduleAction(
     await profileServerService.updateSchedule(session.storeId, schedule);
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -487,7 +487,7 @@ export async function updatePaymentDeliveryAction(
     });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -523,7 +523,7 @@ export async function updateSubscriptionAction(
     await profileServerService.updateSettings(session.storeId, { subscription });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/settings', 'layout');
     
     return { success: true, data: { updated: true } };
   } catch (error) {

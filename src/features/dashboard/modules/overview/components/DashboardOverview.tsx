@@ -94,10 +94,10 @@ const DashboardOverview: React.FC = () => {
       stats: '0 ventas'
     },
     {
-      title: 'Perfil',
+      title: 'Configuración',
       description: 'Configuración de la tienda',
       icon: Settings,
-      path: '/dashboard/profile',
+      path: '/dashboard/settings',
       stats: 'Configurar'
     },
     {

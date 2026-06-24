@@ -123,7 +123,17 @@ Pendiente (no bloqueante): asociar cada `label` con su input vía `htmlFor`/`id`
 
 ---
 
-## E2E-06 (Baja) — 📄 documentado — Checkout abre WhatsApp con `window.open` (popup)
+## E2E-06 (Baja) — ✅ RESUELTO — Checkout abre WhatsApp con `window.open` (popup)
+
+> **Estado (2026-06-24):** corregido con enfoque **híbrido**. `CheckoutForm` ahora
+> renderiza **siempre primero** el ticket de confirmación (`OrderTicket`), que expone
+> un `<a href=wa.me target="_blank">` nativo "Abrir WhatsApp" — camino 100% confiable
+> en Android e iOS porque corre sobre un gesto real del usuario. El auto-open en la
+> pestaña pre-abierta queda como *best-effort* (ya no se hace un segundo `window.open`
+> post-await, que era el que el bloqueador frenaba). Esto resuelve el bug reportado por
+> usuarios (Brave/Android caía al interstitial de descarga en el primer tap).
+> Ver [docs/hallazgos/fixes-ux-usuarios-2026-06-24.md](./fixes-ux-usuarios-2026-06-24.md) (#3).
+
 
 **Archivo:** `src/features/store/components/checkout/CheckoutForm.tsx` (~L254, L276)
 
@@ -196,9 +206,23 @@ reutilizando el schema Zod en ambos lados.
 
 ---
 
-## E2E-09 (Baja) — 📄 documentado — Settings: resets async reponen el form a "no-dirty"
+## E2E-09 (Baja) — ✅ RESUELTO (en el test) — Settings: resets async reponen el form a "no-dirty"
+
+> **Estado (2026-06-24):** el **spec era inestable** (fallaba intermitente en CI,
+> incluso con `retries: 1`). Causa raíz del flake: tras un guardado exitoso,
+> react-hook-form rebasa el form y `isDirty` vuelve a `false` con el nuevo número
+> como baseline; el spec asertaba el **toast efímero** dentro del `toPass` y, cuando
+> ese assert flaqueaba, los reintentos reescribían el MISMO número → no volvían a
+> ensuciar el form → deadlock hasta el timeout de 25 s. Se endureció el spec: ya no
+> asiste sobre el toast, detecta si el número ya quedó guardado (objetivo cumplido) y
+> usa una señal estable (botón se deshabilita = guardado + rebaseline). Verificado
+> 5/5 en local contra emuladores (`--repeat-each=5`). El **hallazgo de UX de fondo**
+> (un usuario que edita muy rápido podría ver el botón deshabilitarse por un refresh
+> async) sigue siendo válido pero menor; no se tocó el hook compartido para evitar
+> riesgo de regresión. Ver [fixes-ux-usuarios-2026-06-24.md](./fixes-ux-usuarios-2026-06-24.md) (#5).
 
 **Archivos:**
+- `e2e/04-settings.spec.ts` (spec endurecido)
 - `src/features/dashboard/modules/store-settings/hooks/useProfile.ts` (`reset(formData)`)
 - `.../sections/ContactInfoSection.tsx` (`disabled={isSectionSaving || !formState.isDirty}`)
 
@@ -260,10 +284,10 @@ completa (9 tests, 5 archivos) corre verde tanto en Node 22 (CI) como en Node 24
 | E2E-03 | Media | ✅ Resuelto | Testid de guardado en settings (las 3 secciones) |
 | E2E-04 | Media | ✅ Resuelto | Testid de navegación en onboarding |
 | E2E-05 | Baja | ✅ Resuelto (parcial) | Testid de precio en form de producto |
-| E2E-06 | Baja | 📄 Documentado | Checkout abre WhatsApp por popup |
+| E2E-06 | Baja | ✅ Resuelto | Checkout abre WhatsApp por popup |
 | E2E-07 | Media | 📄 Documentado | Sesión no reutilizable vía storageState |
 | E2E-08 | Media | ✅ Resuelto | Reglas de contraseña cliente ≠ servidor |
-| E2E-09 | Baja | 📄 Documentado | Settings: reset async borra el dirty |
+| E2E-09 | Baja | ✅ Resuelto (test) | Settings: reset async borra el dirty |
 | E2E-10 | Baja | ✅ Resuelto (en test) | Modal de bienvenida se solapa con el carrito |
 
 Ninguno es bloqueante para el merge de la Fase 4. Se corrigieron E2E-01/03/04/05/10
