@@ -479,6 +479,7 @@ Ante cualquier consulta, estamos a disposición. 😊`;
         <Button
           onClick={handleSectionSave}
           disabled={isBasicSaving || !formState.isDirty}
+          data-testid="save-basic"
           className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
         >
           {isBasicSaving ? (

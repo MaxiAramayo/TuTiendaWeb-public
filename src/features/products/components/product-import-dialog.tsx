@@ -127,6 +127,10 @@ export default function ProductImportDialog({ onClose, onSuccess, currentProduct
     }
 
     function proceedToImport() {
+        // Guard anti doble-submit: si ya hay un import en curso, ignorar clicks
+        // adicionales (doble-click / doble-tap). importProductsAction no es
+        // idempotente, así que dos invocaciones duplicarían el lote.
+        if (isPending) return;
         if (validRows.length === 0) return;
 
         if (validRows.length > availableSlots) {
@@ -421,7 +425,7 @@ export default function ProductImportDialog({ onClose, onSuccess, currentProduct
                             </button>
                             <button
                                 onClick={handleImportClick}
-                                disabled={validRows.length === 0 || validRows.length > availableSlots}
+                                disabled={validRows.length === 0 || validRows.length > availableSlots || isPending}
                                 className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 Importar {validRows.length} producto{validRows.length !== 1 ? 's' : ''}

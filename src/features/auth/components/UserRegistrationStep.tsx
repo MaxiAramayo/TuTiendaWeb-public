@@ -19,14 +19,19 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GoogleButton } from '@/features/auth/components/GoogleButton';
+import { passwordSchema, displayNameSchema } from '@/features/auth/schemas/register.schema';
 import { UserData } from './MultiStepRegister';
 
-// Schema de validación para el primer paso
+// Schema de validación para el primer paso.
+// La contraseña y el nombre reutilizan los schemas compartidos (fuente única)
+// para no divergir de la validación del servidor en `registerAction`: un nombre
+// de 2 chars o una contraseña débil pasaban el cliente y fallaban en silencio en
+// el servidor (hallazgo E2E-08).
 const userRegistrationSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  password: passwordSchema,
   confirmPassword: z.string(),
-  displayName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  displayName: displayNameSchema,
   terms: z.boolean().refine(val => val === true, {
     message: 'Debes aceptar los términos y condiciones'
   })
@@ -125,7 +130,7 @@ export const UserRegistrationStep: React.FC<UserRegistrationStepProps> = ({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email" className="flex items-center gap-2">
@@ -194,8 +199,12 @@ export const UserRegistrationStep: React.FC<UserRegistrationStepProps> = ({
                 )}
               </Button>
             </div>
-            {errors.password && (
+            {errors.password ? (
               <p className="text-sm text-red-500">{errors.password.message}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Mínimo 8 caracteres, con al menos una mayúscula y un número.
+              </p>
             )}
           </div>
 

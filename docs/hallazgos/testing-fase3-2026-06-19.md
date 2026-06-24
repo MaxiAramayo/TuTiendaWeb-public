@@ -49,7 +49,13 @@ request.resource.data.customer.name.size() <= 200
 
 ---
 
-## SEC-02 (Media) — 📄 documentado — `update` no fija `storeId` al path
+## SEC-02 (Media) — ✅ RESUELTO — `update` no fija `storeId` al path
+
+> **Estado (2026-06-24):** corregido. Se agregó `request.resource.data.storeId ==
+> storeId` a `create` y `update` de `products` en `firestore.rules` (mismo criterio
+> que `sells.create`). Regresión: `test/rules/firestore.rules.test.ts` → bloque
+> "products — storeId fijado al path (SEC-02)" (allow con storeId coincidente, deny
+> con storeId ajeno en create y update).
 
 **Archivo:** `firestore.rules` (`products`/`sells` `update`)
 
@@ -60,9 +66,6 @@ tienda. No hay fuga cross-store (solo escribe en su path), pero corrompe la
 integridad referencial del campo.
 
 **Impacto:** bajo/medio, acotado a la propia tienda del owner.
-
-**Recomendación (no aplicada):** agregar `request.resource.data.storeId == storeId`
-a `create`/`update` de `products` (hoy solo lo hace `sells.create`).
 
 ---
 

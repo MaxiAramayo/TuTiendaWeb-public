@@ -17,6 +17,36 @@ import { z } from 'zod';
 // SCHEMA
 // ============================================================================
 
+/**
+ * Schema de contraseña — fuente única compartida entre cliente y servidor.
+ * Reutilizar en cualquier form de registro/cambio de contraseña para evitar
+ * divergencias (ver hallazgo E2E-08: el cliente exigía menos que el servidor
+ * y el registro fallaba en silencio).
+ */
+export const passwordSchema = z
+    .string({ required_error: 'Contraseña es requerida' })
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(100, 'La contraseña no puede exceder 100 caracteres')
+    .regex(
+        /[A-Z]/,
+        'La contraseña debe contener al menos una letra mayúscula'
+    )
+    .regex(
+        /[0-9]/,
+        'La contraseña debe contener al menos un número'
+    );
+
+/**
+ * Schema de nombre visible — fuente única compartida entre cliente y servidor.
+ * Igual que `passwordSchema`, evita que el form cliente acepte un nombre que el
+ * servidor luego rechaza en silencio (misma clase de bug que E2E-08).
+ */
+export const displayNameSchema = z
+    .string({ required_error: 'Nombre es requerido' })
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(50, 'El nombre no puede exceder 50 caracteres')
+    .trim();
+
 export const registerBaseSchema = z.object({
     email: z
         .string({ required_error: 'Email es requerido' })
@@ -25,27 +55,12 @@ export const registerBaseSchema = z.object({
         .toLowerCase()
         .trim(),
 
-    password: z
-        .string({ required_error: 'Contraseña es requerida' })
-        .min(8, 'La contraseña debe tener al menos 8 caracteres')
-        .max(100, 'La contraseña no puede exceder 100 caracteres')
-        .regex(
-            /[A-Z]/,
-            'La contraseña debe contener al menos una letra mayúscula'
-        )
-        .regex(
-            /[0-9]/,
-            'La contraseña debe contener al menos un número'
-        ),
+    password: passwordSchema,
 
     confirmPassword: z
         .string({ required_error: 'Confirma tu contraseña' }),
 
-    displayName: z
-        .string({ required_error: 'Nombre es requerido' })
-        .min(3, 'El nombre debe tener al menos 3 caracteres')
-        .max(50, 'El nombre no puede exceder 50 caracteres')
-        .trim(),
+    displayName: displayNameSchema,
 });
 
 export const registerSchema = registerBaseSchema.refine(
