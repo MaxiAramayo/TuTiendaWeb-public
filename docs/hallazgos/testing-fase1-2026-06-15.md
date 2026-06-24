@@ -36,7 +36,12 @@ debería poder renderizarse sin esas props.
 
 ---
 
-## H-2 (Media) — El `<form>` sin `noValidate` oculta los mensajes de validación de Zod
+## H-2 (Media) — ✅ RESUELTO — El `<form>` sin `noValidate` oculta los mensajes de validación de Zod
+
+> **Estado (2026-06-24):** corregido. Se agregó `noValidate` a los `<form>` de
+> `LoginForm`, `RegisterForm` y `UserRegistrationStep`, de modo que los mensajes de
+> Zod (en español) se muestran de forma consistente. Regresión:
+> `LoginForm.test.tsx` → "muestra el mensaje de Zod cuando el formato de email es inválido".
 
 **Archivos:** `src/features/auth/components/LoginForm.tsx` (y todo form con
 `<input type="email">` cuyo `<form>` no use `noValidate`).

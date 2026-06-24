@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { issueFor } from '../../../../test/helpers/zod';
-import { registerSchema, registerServerSchema } from './register.schema';
+import { passwordSchema, registerSchema, registerServerSchema } from './register.schema';
 
 const valid = {
   email: 'user@example.com',
@@ -77,6 +77,21 @@ describe('registerSchema', () => {
     it('rechaza más de 50 caracteres', () => {
       const r = registerSchema.safeParse({ ...valid, displayName: 'a'.repeat(51) });
       expect(issueFor(r, 'displayName')).toBe('El nombre no puede exceder 50 caracteres');
+    });
+  });
+
+  // passwordSchema es la fuente única compartida entre el form cliente
+  // (UserRegistrationStep) y el servidor (registerAction). Lockear su política
+  // acá garantiza que el cliente no acepte contraseñas que el servidor rechaza
+  // (hallazgo E2E-08).
+  describe('passwordSchema (contrato compartido cliente/servidor)', () => {
+    it('rechaza la contraseña débil "123456" que el cliente aceptaba antes', () => {
+      const r = passwordSchema.safeParse('123456');
+      expect(r.success).toBe(false);
+    });
+
+    it('acepta una contraseña que cumple la política OWASP', () => {
+      expect(passwordSchema.safeParse('Abcdefg1').success).toBe(true);
     });
   });
 

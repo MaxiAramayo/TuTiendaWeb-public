@@ -29,6 +29,7 @@ import {
   deleteProductAction,
 } from '@/features/products/actions/product.actions';
 import { importProductsAction } from '@/features/products/actions/product-import.actions';
+import { MAX_IMPORT_PRODUCTS } from '@/features/products/schemas/product-import.schema';
 import type { ProductImportRow } from '@/features/products/schemas/product-import.schema';
 import type { ProductImportRowRaw } from '@/features/products/schemas/product-import.schema';
 import { adminDb, getAdminApp, clearFirestore } from '../helpers/firebase-emulator';
@@ -264,6 +265,32 @@ describe('importProductsAction', () => {
     vi.mocked(getServerSession).mockResolvedValue(null as never);
     const res = await importProductsAction([{ nombre: 'X', precio: '1', categoria: 'Cat' }]);
     expect(res.success).toBe(false);
+  });
+
+  it('el tope total backstopea un doble-submit (no excede MAX_IMPORT_PRODUCTS)', async () => {
+    // Defensa primaria del doble-submit: el guard `isPending` en el diálogo
+    // (product-import-dialog) impide la segunda invocación. Acá se verifica el
+    // BACKSTOP del servidor: si dos imports llegaran igual (p. ej. doble-tap que
+    // esquiva la UI), el re-chequeo de tope total impide superar el límite y
+    // duplicar el lote completo.
+    const half = Math.ceil(MAX_IMPORT_PRODUCTS * 0.6); // 0.6+0.6 = 1.2× → excede
+    const rawRows: ProductImportRowRaw[] = Array.from({ length: half }, (_, i) => ({
+      nombre: `Producto ${i}`,
+      precio: '100',
+      categoria: 'Importados',
+    }));
+
+    const first = await importProductsAction(rawRows);
+    expect(first.success).toBe(true);
+
+    const second = await importProductsAction(rawRows);
+    expect(second.success).toBe(false);
+    if (second.success) return;
+    expect(second.errors._form[0]).toMatch(/límite|alcanzó/);
+
+    // El segundo lote no se persistió: la colección quedó en el primer import.
+    const count = await productsCol().count().get();
+    expect(count.data().count).toBe(half);
   });
 });
 

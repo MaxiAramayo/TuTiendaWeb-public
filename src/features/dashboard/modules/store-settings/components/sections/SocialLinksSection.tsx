@@ -318,6 +318,7 @@ export function SocialLinksSection({
         <Button
           onClick={handleSectionSave}
           disabled={isCurrentlySaving || !formState.isDirty}
+          data-testid="save-social"
           className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[160px] bg-indigo-600 hover:bg-indigo-700"
         >
           {isCurrentlySaving ? (

@@ -59,7 +59,7 @@ flujo de compra.
 
 ---
 
-## E2E-03 (Media) — ✅ RESUELTO (parcial) — Settings: varios "Guardar cambios" sin selector estable
+## E2E-03 (Media) — ✅ RESUELTO — Settings: varios "Guardar cambios" sin selector estable
 
 **Archivos:**
 - `src/features/dashboard/modules/store-settings/components/sections/BasicInfoSection.tsx`
@@ -76,8 +76,9 @@ si se agrega/quita una sección.
 secciones rompería el spec silenciosamente (guardaría la sección equivocada).
 
 **Corrección aplicada:** se agregó `data-testid="save-contact"` al botón de
-guardado de la sección Contacto (el que usa el spec 04). Pendiente (no bloqueante):
-`save-basic` y `save-social` para las otras dos secciones.
+guardado de la sección Contacto (el que usa el spec 04). **Completado (2026-06-24):**
+se agregaron `data-testid="save-basic"` (`BasicInfoSection`) y `data-testid="save-social"`
+(`SocialLinksSection`), eliminando la dependencia del índice de render para futuros specs.
 
 ---
 
@@ -167,7 +168,13 @@ cuenta y, a futuro, evaluar si la sesión podría sembrarse server-side para tes
 
 ---
 
-## E2E-08 (Media) — 📄 documentado — Reglas de contraseña distintas cliente vs servidor
+## E2E-08 (Media) — ✅ RESUELTO — Reglas de contraseña distintas cliente vs servidor
+
+> **Estado (2026-06-24):** corregido. Se extrajo `passwordSchema` como fuente única
+> en `register.schema.ts` y `UserRegistrationStep.tsx` ahora lo reutiliza, de modo
+> que cliente y servidor exigen lo mismo (≥8 + mayúscula + número). Se agregó además
+> el texto de requisitos en el UI. Regresión: `register.schema.test.ts` → bloque
+> "passwordSchema (contrato compartido cliente/servidor)".
 
 **Archivos:**
 - `src/features/auth/components/UserRegistrationStep.tsx` (schema cliente: `password.min(6)`)
@@ -235,12 +242,12 @@ decorativos del modal con `pointer-events-none` y revisar el z-index.
 |--------|-----------|--------|------|
 | E2E-01 | Baja | ✅ Resuelto | Nombre accesible/testid en carrito |
 | E2E-02 | Baja | 📄 Documentado | Precio del catálogo sin `formatPrice` |
-| E2E-03 | Media | ✅ Resuelto (parcial) | Testid de guardado en settings (Contacto) |
+| E2E-03 | Media | ✅ Resuelto | Testid de guardado en settings (las 3 secciones) |
 | E2E-04 | Media | ✅ Resuelto | Testid de navegación en onboarding |
 | E2E-05 | Baja | ✅ Resuelto (parcial) | Testid de precio en form de producto |
 | E2E-06 | Baja | 📄 Documentado | Checkout abre WhatsApp por popup |
 | E2E-07 | Media | 📄 Documentado | Sesión no reutilizable vía storageState |
-| E2E-08 | Media | 📄 Documentado | Reglas de contraseña cliente ≠ servidor |
+| E2E-08 | Media | ✅ Resuelto | Reglas de contraseña cliente ≠ servidor |
 | E2E-09 | Baja | 📄 Documentado | Settings: reset async borra el dirty |
 | E2E-10 | Baja | ✅ Resuelto (en test) | Modal de bienvenida se solapa con el carrito |
 

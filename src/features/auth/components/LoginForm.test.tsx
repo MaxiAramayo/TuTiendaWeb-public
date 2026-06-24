@@ -34,8 +34,6 @@ describe('LoginForm', () => {
   });
 
   it('muestra error cuando el email está vacío', async () => {
-    // El formato de email lo bloquea la validación nativa del navegador (type="email"),
-    // por eso aquí se prueba el caso requerido, que sí llega al resolver de Zod.
     const user = userEvent.setup();
     render(<LoginForm />);
 
@@ -43,6 +41,20 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByText('Email es requerido')).toBeInTheDocument();
+    expect(hybridLogin).not.toHaveBeenCalled();
+  });
+
+  it('muestra el mensaje de Zod cuando el formato de email es inválido', async () => {
+    // Con `noValidate` en el <form> (hallazgo Fase1 H-2), la validación nativa del
+    // navegador ya no intercepta el submit y el mensaje custom de Zod sí se muestra.
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText('Email'), 'no-es-un-email');
+    await user.type(screen.getByLabelText(/contraseña/i), 'secreto123');
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+    expect(await screen.findByText('Formato de email inválido')).toBeInTheDocument();
     expect(hybridLogin).not.toHaveBeenCalled();
   });
 

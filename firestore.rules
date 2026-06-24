@@ -89,8 +89,13 @@ service cloud.firestore {
       match /products/{productId} {
         // Lectura pública (catálogo sin autenticación)
         allow read: if true;
-        allow create: if isStoreOwner(storeId) && isValidProductData();
-        allow update: if isStoreOwner(storeId) && isValidProductData();
+        // Se fija storeId del documento al storeId de la ruta (SEC-02) para que el
+        // owner no pueda escribir un storeId ajeno dentro de un producto de su
+        // propia tienda (integridad referencial; mismo criterio que sells.create).
+        allow create: if isStoreOwner(storeId) && isValidProductData() &&
+                         request.resource.data.storeId == storeId;
+        allow update: if isStoreOwner(storeId) && isValidProductData() &&
+                         request.resource.data.storeId == storeId;
         allow delete: if isStoreOwner(storeId);
       }
 

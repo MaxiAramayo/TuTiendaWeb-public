@@ -258,6 +258,32 @@ describe('products — validación de price', () => {
   });
 });
 
+// SEC-02: el storeId del documento debe coincidir con el de la ruta.
+describe('products — storeId fijado al path (SEC-02)', () => {
+  const docPath = `stores/${TEST_STORE_ID}/products/x1`;
+
+  it('permite al owner crear con storeId coincidente (allow)', async () => {
+    await assertSucceeds(
+      ownerDb().doc(docPath).set(makeProduct({ storeId: TEST_STORE_ID })),
+    );
+  });
+
+  it('rechaza crear con storeId ajeno dentro de su propia tienda (deny)', async () => {
+    await assertFails(
+      ownerDb().doc(docPath).set(makeProduct({ storeId: OTHER_STORE_ID })),
+    );
+  });
+
+  it('rechaza actualizar inyectando un storeId ajeno (deny)', async () => {
+    await seed(async (db) => {
+      await db.doc(docPath).set(makeProduct({ storeId: TEST_STORE_ID }));
+    });
+    await assertFails(
+      ownerDb().doc(docPath).set(makeProduct({ storeId: OTHER_STORE_ID })),
+    );
+  });
+});
+
 // =============================================================================
 // sells — create público (checkout), lectura/escritura solo owner
 // =============================================================================

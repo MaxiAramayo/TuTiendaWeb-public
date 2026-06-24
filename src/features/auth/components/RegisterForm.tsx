@@ -109,7 +109,7 @@ export const RegisterForm = () => {
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           {/* Datos personales */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>

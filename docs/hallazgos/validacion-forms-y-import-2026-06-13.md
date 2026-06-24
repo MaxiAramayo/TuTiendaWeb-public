@@ -9,7 +9,13 @@ generación de tests, más allá del fix puntual del import.
 
 ---
 
-## H-1 (Alta) — Doble-submit en importación de productos por Excel
+## H-1 (Alta) — ✅ RESUELTO — Doble-submit en importación de productos por Excel
+
+> **Estado (2026-06-24):** corregido. El botón "Importar" del paso `preview` ahora
+> incluye `isPending` en su `disabled` y `proceedToImport()` tiene guard sincrónico
+> `if (isPending) return`. El tope total del servidor queda como backstop ante un
+> doble-tap que esquive la UI. Regresión: `test/integration/products.int.test.ts`
+> → "el tope total backstopea un doble-submit (no excede MAX_IMPORT_PRODUCTS)".
 
 **Archivos:**
 - `src/features/products/components/product-import-dialog.tsx`
