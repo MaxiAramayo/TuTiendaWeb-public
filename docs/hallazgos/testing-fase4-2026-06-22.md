@@ -236,6 +236,21 @@ decorativos del modal con `pointer-events-none` y revisar el z-index.
 
 ---
 
+## Nota de tooling (2026-06-24) — Playwright vs Node 24+
+
+Al correr `npm run test:e2e` en local con **Node 24.x**, Playwright `1.61.0` fallaba
+al **cargar** todos los specs con `TypeError: context.conditions?.includes is not a
+function`. Causa: en Node ≥24 el hook de resolución de módulos recibe
+`context.conditions` como `Set` (en Node 22, lo que usa CI, es un array), y la
+versión `1.61.0` invocaba `.includes()` sobre él. No era un problema de los specs ni
+de la app.
+
+**Resuelto:** se elevó el piso a `@playwright/test@^1.61.1`, que cambió a
+`new Set(context.conditions).has(...)` (compatible con array y `Set`). La suite
+completa (9 tests, 5 archivos) corre verde tanto en Node 22 (CI) como en Node 24+.
+
+---
+
 ## Resumen
 
 | Código | Severidad | Estado | Tema |
