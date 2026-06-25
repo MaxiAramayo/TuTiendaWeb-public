@@ -10,7 +10,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
 import { updateContactInfoAction, getProfileAction } from '../../actions/profile.actions';
 import { useProfileStore } from '../../stores/profile.store';
@@ -275,16 +275,22 @@ export function ContactInfoSection({
           </div>
         </div>
 
-        {formState.errors.whatsapp && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg"
-          >
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <span className="text-sm text-red-700 font-medium">{formState.errors.whatsapp}</span>
-          </motion.div>
-        )}
+        {/* Mensaje de error dentro de AnimatePresence: framer-motion controla el
+            unmount y evita "removeChild of null" al togglear el error mientras se tipea. */}
+        <AnimatePresence initial={false}>
+          {formState.errors.whatsapp && (
+            <motion.div
+              key="whatsapp-error"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg"
+            >
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <span className="text-sm text-red-700 font-medium">{formState.errors.whatsapp}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Consejos - Diseño moderno */}

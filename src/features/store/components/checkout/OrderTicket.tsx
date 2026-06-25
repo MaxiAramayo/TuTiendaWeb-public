@@ -545,8 +545,8 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
               style={{ color: "var(--store-primary)" }}
             />
             <p className="relative text-xs leading-relaxed" style={{ color: "#475569" }}>
-              Tu pedido fue enviado por WhatsApp. Si no se abrió automáticamente,
-              tocá el botón para reenviarlo.
+              Si WhatsApp no se abrió automáticamente, tocá el botón para abrirlo
+              y enviar tu pedido.
             </p>
           </div>
 
@@ -560,7 +560,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
               style={{ backgroundColor: "var(--store-primary)" }}
             >
               <MessageCircle className="w-5 h-5" />
-              Reenviar por WhatsApp
+              Abrir WhatsApp
             </a>
           ) : (
             <Button
@@ -569,7 +569,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
               style={{ backgroundColor: "var(--store-primary)" }}
             >
               <MessageCircle className="w-5 h-5" />
-              Reenviar por WhatsApp
+              Abrir WhatsApp
             </Button>
           )}
 

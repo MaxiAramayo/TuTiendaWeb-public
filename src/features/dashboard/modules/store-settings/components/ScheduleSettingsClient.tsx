@@ -2,9 +2,9 @@
 
 import React, { useCallback } from 'react';
 import { useProfile } from '../hooks/useProfile';
-import { AddressSection } from './sections/AddressSection';
+import { ScheduleSection } from './sections/ScheduleSection';
 
-export default function LocationSettingsClient() {
+export default function ScheduleSettingsClient() {
   const {
     profile,
     formData,
@@ -34,7 +34,7 @@ export default function LocationSettingsClient() {
 
   return (
     <div className="space-y-8 w-full">
-      <AddressSection {...sectionProps} />
+      <ScheduleSection {...sectionProps} />
     </div>
   );
 }

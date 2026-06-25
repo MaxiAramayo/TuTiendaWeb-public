@@ -83,7 +83,7 @@ test('checkout genera el total recalculado y link de WhatsApp', async ({ page, c
 
   await expect(page.getByText(/pedido confirmado/i)).toBeVisible();
   await expect(page.getByText(new RegExp(priceDigits(SEED.PRODUCT.price))).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /reenviar por whatsapp/i }))
+  await expect(page.getByRole('link', { name: /abrir whatsapp/i }))
     .toHaveAttribute('href', /wa\.me/);
 });
 ```

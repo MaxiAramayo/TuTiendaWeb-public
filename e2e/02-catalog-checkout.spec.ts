@@ -75,7 +75,7 @@ test.describe('Catálogo público → checkout → WhatsApp', () => {
 
     // El link de WhatsApp del pedido apunta a wa.me.
     await expect(
-      page.getByRole('link', { name: /reenviar por whatsapp/i }),
+      page.getByRole('link', { name: /abrir whatsapp/i }),
     ).toHaveAttribute('href', /wa\.me/);
   });
 

@@ -123,7 +123,17 @@ Pendiente (no bloqueante): asociar cada `label` con su input vía `htmlFor`/`id`
 
 ---
 
-## E2E-06 (Baja) — 📄 documentado — Checkout abre WhatsApp con `window.open` (popup)
+## E2E-06 (Baja) — ✅ RESUELTO — Checkout abre WhatsApp con `window.open` (popup)
+
+> **Estado (2026-06-24):** corregido con enfoque **híbrido**. `CheckoutForm` ahora
+> renderiza **siempre primero** el ticket de confirmación (`OrderTicket`), que expone
+> un `<a href=wa.me target="_blank">` nativo "Abrir WhatsApp" — camino 100% confiable
+> en Android e iOS porque corre sobre un gesto real del usuario. El auto-open en la
+> pestaña pre-abierta queda como *best-effort* (ya no se hace un segundo `window.open`
+> post-await, que era el que el bloqueador frenaba). Esto resuelve el bug reportado por
+> usuarios (Brave/Android caía al interstitial de descarga en el primer tap).
+> Ver [docs/hallazgos/fixes-ux-usuarios-2026-06-24.md](./fixes-ux-usuarios-2026-06-24.md) (#3).
+
 
 **Archivo:** `src/features/store/components/checkout/CheckoutForm.tsx` (~L254, L276)
 
@@ -196,9 +206,22 @@ reutilizando el schema Zod en ambos lados.
 
 ---
 
-## E2E-09 (Baja) — 📄 documentado — Settings: resets async reponen el form a "no-dirty"
+## E2E-09 (Media) — ✅ RESUELTO — Settings: resets async pisan la edición (pérdida de datos)
+
+> **Estado (2026-06-25):** corregido en la **app**, no solo en el test. Resultó ser un
+> bug real de **pérdida de datos**: con varias instancias de `useProfile` compartiendo el
+> store, un `setProfile` async dispara `reset(form)` que pisa la edición en curso e
+> `isDirty` vuelve a `false`; `handleSectionSave` guarda entonces el valor viejo (el toast
+> dice "guardado" pero persiste lo anterior). Confirmado en CI:
+> `Expected "1133224455" / Received "100000000"`.
+> **Fix (`useProfile.ts`):** resetear el form solo si los datos del perfil cambiaron de
+> verdad (comparación por contenido contra `lastSyncedFormDataRef`), en los 3 puntos de
+> reset. **Fix de test (`04-settings.spec.ts`):** esperar la completitud del guardado (toast
+> tras `getProfileAction`) antes de recargar. Verificado: 6/6 con seed fresco por corrida.
+> Ver [fixes-ux-usuarios-2026-06-24.md](./fixes-ux-usuarios-2026-06-24.md) (#5b).
 
 **Archivos:**
+- `e2e/04-settings.spec.ts` (spec endurecido)
 - `src/features/dashboard/modules/store-settings/hooks/useProfile.ts` (`reset(formData)`)
 - `.../sections/ContactInfoSection.tsx` (`disabled={isSectionSaving || !formState.isDirty}`)
 
@@ -260,10 +283,10 @@ completa (9 tests, 5 archivos) corre verde tanto en Node 22 (CI) como en Node 24
 | E2E-03 | Media | ✅ Resuelto | Testid de guardado en settings (las 3 secciones) |
 | E2E-04 | Media | ✅ Resuelto | Testid de navegación en onboarding |
 | E2E-05 | Baja | ✅ Resuelto (parcial) | Testid de precio en form de producto |
-| E2E-06 | Baja | 📄 Documentado | Checkout abre WhatsApp por popup |
+| E2E-06 | Baja | ✅ Resuelto | Checkout abre WhatsApp por popup |
 | E2E-07 | Media | 📄 Documentado | Sesión no reutilizable vía storageState |
 | E2E-08 | Media | ✅ Resuelto | Reglas de contraseña cliente ≠ servidor |
-| E2E-09 | Baja | 📄 Documentado | Settings: reset async borra el dirty |
+| E2E-09 | Media | ✅ Resuelto (app+test) | Settings: reset async pisa la edición (pérdida de datos) |
 | E2E-10 | Baja | ✅ Resuelto (en test) | Modal de bienvenida se solapa con el carrito |
 
 Ninguno es bloqueante para el merge de la Fase 4. Se corrigieron E2E-01/03/04/05/10

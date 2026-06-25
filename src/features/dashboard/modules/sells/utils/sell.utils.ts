@@ -265,8 +265,13 @@ export function downloadCSV(content: string, filename: string): void {
   
   link.setAttribute('href', url);
   link.setAttribute('download', filename);
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  // Quitar el nodo de forma defensiva: si algo (React, otra lógica) ya lo removió,
+  // `removeChild` lanzaría "Cannot read properties of null (reading 'removeChild')".
+  if (link.parentNode) {
+    link.parentNode.removeChild(link);
+  }
   URL.revokeObjectURL(url);
 }
