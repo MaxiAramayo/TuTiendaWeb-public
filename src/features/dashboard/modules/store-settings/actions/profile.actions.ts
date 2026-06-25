@@ -99,9 +99,12 @@ export async function updateProfileAction(
     await profileServerService.updateProfile(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    // Solo el catálogo público (consumidor real de estos datos). NO se revalida
+    // la ruta de settings: es client-driven (useProfile refetchea) y revalidar su
+    // layout mientras el usuario edita re-renderiza el subtree en pleno guardado,
+    // lo que dispara "Cannot read properties of null (reading 'removeChild')".
     revalidatePath(`/${session.storeId}`);
-    
+
     return { success: true, data: { updated: true } };
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -148,7 +151,7 @@ export async function updateBasicInfoAction(
     await profileServerService.updateBasicInfo(session.storeId, validation.data);
     
     // 5. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -186,9 +189,9 @@ export async function updateContactInfoAction(
   try {
     // 3. MUTATE
     await profileServerService.updateContactInfo(session.storeId, validation.data);
-    
+
     // 4. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -228,7 +231,7 @@ export async function updateAddressAction(
     await profileServerService.updateAddress(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -268,7 +271,7 @@ export async function updateSocialLinksAction(
     await profileServerService.updateSocialLinks(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -308,7 +311,7 @@ export async function updateThemeAction(
     await profileServerService.updateTheme(session.storeId, validation.data);
     
     // 4. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -374,7 +377,7 @@ export async function updatePaymentMethodsAction(
     await profileServerService.updateSettings(session.storeId, { paymentMethods });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -409,7 +412,7 @@ export async function updateDeliveryMethodsAction(
     await profileServerService.updateSettings(session.storeId, { deliveryMethods });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -441,7 +444,7 @@ export async function updateScheduleAction(
     await profileServerService.updateSchedule(session.storeId, schedule);
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -487,7 +490,7 @@ export async function updatePaymentDeliveryAction(
     });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {
@@ -523,7 +526,7 @@ export async function updateSubscriptionAction(
     await profileServerService.updateSettings(session.storeId, { subscription });
     
     // 3. REVALIDATE
-    revalidatePath('/dashboard/settings', 'layout');
+    revalidatePath(`/${session.storeId}`);
     
     return { success: true, data: { updated: true } };
   } catch (error) {

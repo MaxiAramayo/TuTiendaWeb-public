@@ -206,20 +206,19 @@ reutilizando el schema Zod en ambos lados.
 
 ---
 
-## E2E-09 (Baja) — ✅ RESUELTO (en el test) — Settings: resets async reponen el form a "no-dirty"
+## E2E-09 (Media) — ✅ RESUELTO — Settings: resets async pisan la edición (pérdida de datos)
 
-> **Estado (2026-06-24):** el **spec era inestable** (fallaba intermitente en CI,
-> incluso con `retries: 1`). Causa raíz del flake: tras un guardado exitoso,
-> react-hook-form rebasa el form y `isDirty` vuelve a `false` con el nuevo número
-> como baseline; el spec asertaba el **toast efímero** dentro del `toPass` y, cuando
-> ese assert flaqueaba, los reintentos reescribían el MISMO número → no volvían a
-> ensuciar el form → deadlock hasta el timeout de 25 s. Se endureció el spec: ya no
-> asiste sobre el toast, detecta si el número ya quedó guardado (objetivo cumplido) y
-> usa una señal estable (botón se deshabilita = guardado + rebaseline). Verificado
-> 5/5 en local contra emuladores (`--repeat-each=5`). El **hallazgo de UX de fondo**
-> (un usuario que edita muy rápido podría ver el botón deshabilitarse por un refresh
-> async) sigue siendo válido pero menor; no se tocó el hook compartido para evitar
-> riesgo de regresión. Ver [fixes-ux-usuarios-2026-06-24.md](./fixes-ux-usuarios-2026-06-24.md) (#5).
+> **Estado (2026-06-25):** corregido en la **app**, no solo en el test. Resultó ser un
+> bug real de **pérdida de datos**: con varias instancias de `useProfile` compartiendo el
+> store, un `setProfile` async dispara `reset(form)` que pisa la edición en curso e
+> `isDirty` vuelve a `false`; `handleSectionSave` guarda entonces el valor viejo (el toast
+> dice "guardado" pero persiste lo anterior). Confirmado en CI:
+> `Expected "1133224455" / Received "100000000"`.
+> **Fix (`useProfile.ts`):** resetear el form solo si los datos del perfil cambiaron de
+> verdad (comparación por contenido contra `lastSyncedFormDataRef`), en los 3 puntos de
+> reset. **Fix de test (`04-settings.spec.ts`):** esperar la completitud del guardado (toast
+> tras `getProfileAction`) antes de recargar. Verificado: 6/6 con seed fresco por corrida.
+> Ver [fixes-ux-usuarios-2026-06-24.md](./fixes-ux-usuarios-2026-06-24.md) (#5b).
 
 **Archivos:**
 - `e2e/04-settings.spec.ts` (spec endurecido)
@@ -287,7 +286,7 @@ completa (9 tests, 5 archivos) corre verde tanto en Node 22 (CI) como en Node 24
 | E2E-06 | Baja | ✅ Resuelto | Checkout abre WhatsApp por popup |
 | E2E-07 | Media | 📄 Documentado | Sesión no reutilizable vía storageState |
 | E2E-08 | Media | ✅ Resuelto | Reglas de contraseña cliente ≠ servidor |
-| E2E-09 | Baja | ✅ Resuelto (test) | Settings: reset async borra el dirty |
+| E2E-09 | Media | ✅ Resuelto (app+test) | Settings: reset async pisa la edición (pérdida de datos) |
 | E2E-10 | Baja | ✅ Resuelto (en test) | Modal de bienvenida se solapa con el carrito |
 
 Ninguno es bloqueante para el merge de la Fase 4. Se corrigieron E2E-01/03/04/05/10

@@ -120,6 +120,14 @@ export const useProfile = (options: UseProfileOptions = {}) => {
 
   const { watch, setValue, getValues, formState: { isDirty, errors }, reset } = form;
 
+  // Última versión de los datos del form ya sincronizada desde el perfil. Sirve
+  // para NO re-resetear el form cuando un refresh async trae los MISMOS datos
+  // (varias instancias de useProfile comparten el store): si se reseteara, se
+  // pisaría lo que el usuario está editando y `isDirty` volvería a `false`,
+  // provocando que el guardado tome el valor viejo (hallazgo E2E-09 — pérdida de
+  // datos). Tras un guardado real los datos cambian, así que el reset sí ocurre.
+  const lastSyncedFormDataRef = useRef<string>('');
+
   /**
    * Cargar perfil del usuario usando Server Action
    */
@@ -156,9 +164,14 @@ export const useProfile = (options: UseProfileOptions = {}) => {
           stats: { missingFields, lastUpdated },
         }));
 
-        // Cargar datos en el formulario - reset completo con los datos del perfil
+        // Cargar datos en el formulario solo si cambiaron de verdad: así un
+        // refresh async no pisa las ediciones sin guardar del usuario (E2E-09).
         const formData = profileToFormData(loadedProfile);
-        reset(formData);
+        const formDataKey = JSON.stringify(formData);
+        if (formDataKey !== lastSyncedFormDataRef.current) {
+          reset(formData);
+          lastSyncedFormDataRef.current = formDataKey;
+        }
       }
       
       setIsLoading(false);
@@ -343,6 +356,7 @@ export const useProfile = (options: UseProfileOptions = {}) => {
       // También inicializar el formulario con estos datos
       const formData = profileToFormData(profile);
       reset(formData);
+      lastSyncedFormDataRef.current = JSON.stringify(formData);
     }
   }, [user?.uid, profile, storeProfile, loadProfile, setProfile, reset]);
 
@@ -358,9 +372,16 @@ export const useProfile = (options: UseProfileOptions = {}) => {
     );
     
     if (shouldSync) {
+      // Resetear el form SOLO en el primer sync o cuando los datos cambiaron de
+      // verdad. Un setProfile async con los MISMOS datos (otra instancia de
+      // useProfile, re-fetch) no debe pisar las ediciones en curso (E2E-09).
       const formData = profileToFormData(storeProfile);
-      reset(formData);
-      
+      const formDataKey = JSON.stringify(formData);
+      if (isFirstSyncRef.current || formDataKey !== lastSyncedFormDataRef.current) {
+        reset(formData);
+        lastSyncedFormDataRef.current = formDataKey;
+      }
+
       const missingFields = getMissingFields(storeProfile);
       const lastUpdated = storeProfile.metadata?.updatedAt
         ? new Date(storeProfile.metadata.updatedAt)

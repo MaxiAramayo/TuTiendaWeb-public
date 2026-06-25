@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
 import { ProfileFormData, FormState, StoreProfile } from '../../types/store.type';
@@ -375,27 +375,34 @@ Ante cualquier consulta, estamos a disposición. 😊`;
               </p>
             </div>
 
-            {/* Preview Box */}
-            {formData.siteName && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4"
-              >
-                <h4 className="text-xs font-semibold text-indigo-900 uppercase tracking-wider mb-2">
-                  Vista Previa del Enlace
-                </h4>
-                <div className="flex items-center gap-2 text-indigo-700 bg-white border border-indigo-200 py-2 px-3 rounded-lg overflow-hidden">
-                  <Globe className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm font-medium truncate">
-                    tutiendaweb.com.ar/{formData.siteName}
-                  </span>
-                </div>
-                <p className="text-xs text-indigo-600/80 mt-2">
-                  Comparte este enlace con tus clientes en redes sociales y WhatsApp.
-                </p>
-              </motion.div>
-            )}
+            {/* Preview Box — dentro de AnimatePresence para que framer-motion
+                controle el unmount (animación de altura). Sin esto, al desaparecer
+                `siteName` React removía el nodo mientras la animación seguía viva,
+                lo que puede lanzar "removeChild of null". */}
+            <AnimatePresence initial={false}>
+              {formData.siteName && (
+                <motion.div
+                  key="site-name-preview"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4"
+                >
+                  <h4 className="text-xs font-semibold text-indigo-900 uppercase tracking-wider mb-2">
+                    Vista Previa del Enlace
+                  </h4>
+                  <div className="flex items-center gap-2 text-indigo-700 bg-white border border-indigo-200 py-2 px-3 rounded-lg overflow-hidden">
+                    <Globe className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      tutiendaweb.com.ar/{formData.siteName}
+                    </span>
+                  </div>
+                  <p className="text-xs text-indigo-600/80 mt-2">
+                    Comparte este enlace con tus clientes en redes sociales y WhatsApp.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </CardContent>
       </Card>

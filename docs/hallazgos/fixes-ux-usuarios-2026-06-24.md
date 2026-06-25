@@ -107,35 +107,71 @@ abre `/dashboard/settings/schedule`; "Ubicación" ya no muestra horarios; guarda
 
 ---
 
-## 5. ✅ CI — e2e `04-settings` inestable (WhatsApp de contacto)
+## 5. ✅ CI e2e + bug real de pérdida de datos en settings (E2E-09)
 
-**Síntoma:** el job `emulators`/`e2e` de GitHub Actions fallaba intermitente en
-`e2e/04-settings.spec.ts › edita el WhatsApp de contacto y persiste tras recargar`
-(p. ej. "1 failed, 8 passed"), incluso con `retries: 1`.
+Se cerró en dos iteraciones. La segunda corrigió tanto el CI como un **bug real de
+pérdida de datos** (no solo flakiness de test).
 
-**Causa raíz (no era un bug de la app):** tras un guardado exitoso, react-hook-form
-**rebasa** el form y `isDirty` vuelve a `false` con el nuevo número como baseline. El
-spec asertaba el **toast efímero** ("información de contacto guardada") dentro del
-`expect.toPass`. Cuando ese assert flaqueaba (el toast ya se había desvanecido), los
-reintentos reescribían el **mismo** número → al ser igual al baseline, RHF no volvía a
-marcar `isDirty` → el botón nunca se re-habilitaba → deadlock hasta el timeout de 25 s.
-Se confirmó reproduciendo en local contra emuladores: 4/5 fallos con el spec viejo.
+### 5a. `02-catalog-checkout` — locator del link de WhatsApp
+El spec buscaba el link por `/reenviar por whatsapp/i`; en la ronda 1 renombré el botón a
+**"Abrir WhatsApp"** → no lo encontraba. Fix: locator → `/abrir whatsapp/i` (spec +
+`docs/test/40-e2e-guide.md`). Verificado 4/4.
 
-**Cambios (`e2e/04-settings.spec.ts`, solo el test):**
-- Ya no se asiste sobre el toast (señal efímera).
-- Cada intento detecta primero si el número **ya quedó guardado** (objetivo cumplido) y
-  retorna; rompe el deadlock de "no puedo re-ensuciar el mismo valor".
-- La señal de guardado pasa a ser estable: el botón **se deshabilita** (guardado +
-  rebaseline de RHF).
+### 5b. `04-settings` — el WhatsApp guardaba el valor VIEJO (bug de app)
+**Causa raíz (bug real, hallazgo E2E-09):** hay varias instancias de `useProfile`
+compartiendo el store de Zustand. Un `setProfile` async (re-fetch) dispara `reset(form)`
+que **pisa la edición en curso** del usuario: en la ventana entre que el botón se habilita
+y el click se procesa, el form se revierte al valor sembrado e `isDirty` vuelve a `false`.
+`handleSectionSave` entonces lee el valor viejo y lo guarda — el toast dice "guardado
+correctamente" pero persiste el número anterior. Confirmado en CI:
+`Expected "1133224455" / Received "100000000"` (el sembrado).
 
-**Verificación:** `--repeat-each=5` contra emuladores → **5/5 pasan** (~2 s c/u, sin
-agotar el retry de 25 s). No se modificó el hook compartido `useProfile` (se evaluó pero
-se descartó para no arriesgar regresiones en todas las settings; el flake era del test).
-El hallazgo de UX de fondo queda registrado en E2E-09.
+**Fix de app (`useProfile.ts`):** se resetea el form **solo si los datos del perfil
+cambiaron de verdad** (comparación por contenido vía `JSON.stringify(profileToFormData)`
+contra `lastSyncedFormDataRef`). Un refresh async con los mismos datos ya no pisa la
+edición; tras un guardado real (datos distintos) el reset sí ocurre y limpia `isDirty`.
+Aplica a los 3 puntos de reset (mount, `loadProfile`, efecto store-sync).
+
+**Fix de test (`04-settings.spec.ts`):** esperar la **completitud** del guardado vía el
+toast (aparece tras `getProfileAction`) antes de recargar — antes recargaba sobre el
+`isSectionSaving` y abortaba el request (`ECONNRESET`, no persistía). Se mantiene el atajo
+"ya guardado" para romper el deadlock de rebaseline.
+
+**Verificación:** loop de 6 corridas con **seed fresco antes de cada una** (fuerza
+persistir desde cero) → **6/6 pasan**; `02`+`04` con `--repeat-each=4` → 11/12 antes del
+fix de app, **12/12** después.
+
+### 5c. ↩️ Regresión ronda 1: `removeChild of null` en `/dashboard/settings/general`
+**Causa:** en la ronda 1 cambié `revalidatePath('/dashboard/profile')` (no-op de años) →
+`revalidatePath('/dashboard/settings', 'layout')`. Eso refrescaba **todo el subtree del
+layout de settings** en cada guardado, re-renderizando `/general` mientras el toast y el
+`setProfile`→`reset` estaban en transición → "Cannot read properties of null (reading
+'removeChild')". Las settings son client-driven (`useProfile` ya refetchea), así que ese
+revalidate no aportaba nada.
+
+**Fix (`profile.actions.ts`):** las 12 llamadas revalidan ahora `/${session.storeId}`
+(catálogo público, consumidor real) en vez de la ruta de settings que el usuario edita.
+No se pudo reproducir el crash en Playwright headless (depende del timing real de Chrome),
+pero se eliminó la causa más probable.
+
+**Endurecimiento defensivo (auditoría DOM del proyecto):**
+- `sells/utils/sell.utils.ts` (descarga CSV): `removeChild` con guard `if (link.parentNode)`.
+- `BasicInfoSection` / `ContactInfoSection`: los `motion.div` condicionales con animación de
+  altura/entrada se envolvieron en `<AnimatePresence>` con `key` + `exit` para que
+  framer-motion controle el unmount (clase típica de `removeChild`).
+- Resto de focos auditados (DOM directo en `ThemeProvider`; `AnimatePresence` sin `key` en
+  `CartItem`/`CartFloatingButton`/`Navbar`/`ProfileHealth`): bajo riesgo, sin cambios.
+
+### 5d. ↩️ Regresión ronda 1: carrito desbordado en tablet/desktop (≥768px)
+**Causa:** a ≥768px el carrito usa `Dialog` (`grid`, items con `min-width:auto`); el nombre
+largo expandía el item más allá del modal, y la ronda 1 había quitado el `overflow-hidden`
+del `ScrollArea`. **Fix (`Cart.tsx`):** `w-full min-w-0 overflow-hidden` en el contenedor.
+Verificado con screenshot a 768px y nombre largo: trunca y queda dentro del modal.
 
 ---
 
 ## Documentación actualizada
 
-- `docs/hallazgos/testing-fase4-2026-06-22.md` — E2E-06 ✅ RESUELTO; E2E-09 ✅ RESUELTO (en el test).
+- `docs/hallazgos/testing-fase4-2026-06-22.md` — E2E-06 ✅ RESUELTO; E2E-09 ✅ RESUELTO
+  (fix de app en `useProfile` + spec endurecido).
 - `docs/hallazgos/hallazgos-por-usuarios.md` — sus dos puntos quedan resueltos (ver #2 y #4).
