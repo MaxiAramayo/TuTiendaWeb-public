@@ -4,6 +4,11 @@ const useFirebaseEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 't
 const nextConfig = {
   reactStrictMode: true,
   images: {
+    // Servimos las imágenes directo desde Firebase Storage (ya comprimidas en el upload
+    // con browser-image-compression). Evita el optimizador de Vercel y su cuota de
+    // "Image Optimization - Transformations" del plan Hobby, que al agotarse hacía fallar
+    // /_next/image y dejaba todas las imágenes en su fallback.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
